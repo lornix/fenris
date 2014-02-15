@@ -24,7 +24,7 @@
 all: fenris
 
 fenris: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build-project 
+	@./build-project
 
 minimal: fenris.c fenris.h config.h ioctls.h fprints.c
 	@./build-project minimal

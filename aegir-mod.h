@@ -46,4 +46,3 @@ extern void register_command(char* commd,void* handler,char* help);
 extern char* check_async(void);
 
 #endif /* not _HAVE_AEGIR_MOD_H */
-

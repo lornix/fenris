@@ -1,32 +1,30 @@
 /*
-   fenris - program execution path analysis tool
-   ---------------------------------------------
+    fenris - program execution path analysis tool
+    ---------------------------------------------
 
-   Copyright (C) 2001, 2002 by Bindview Corporation
-   Portions copyright (C) 2001, 2002 by their respective contributors
-   Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+    Copyright (C) 2001, 2002 by Bindview Corporation
+    Portions copyright (C) 2001, 2002 by their respective contributors
+    Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   Here are breakpoint handling routines and communication code needed
-   to talk with Aegir or any other debugger. This file exists so that
-   modification to Fenris can be minimized.
-
+    Here are breakpoint handling routines and communication code needed
+    to talk with Aegir or any other debugger. This file exists so that
+    modification to Fenris can be minimized.
 
  */
-
 
 #ifndef _HAVE_HOOKS_H
 #define _HAVE_HOOKS_H 1
@@ -71,4 +69,3 @@ void break_tellresumed(void);
 void break_tellwillresume(int i);
 
 #endif /* not _HAVE_HOOKS_H */
-

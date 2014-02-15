@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #
 #  fenris - program execution path analysis tool
 #  ---------------------------------------------
@@ -24,16 +23,16 @@
 #
 
 TRYLIBS="/usr/lib/libc.a /usr/lib/libm.a /usr/lib/libdl.a \
-         /usr/lib/libresolv.a /usr/lib/libreadline.a /usr/lib/libtermcap.a \
-         /usr/lib/libssl.a /usr/lib/libBrokenLocale.a \
-         /usr/lib/libcrypt.a"
+    /usr/lib/libresolv.a /usr/lib/libreadline.a /usr/lib/libtermcap.a \
+    /usr/lib/libssl.a /usr/lib/libBrokenLocale.a \
+    /usr/lib/libcrypt.a"
 
 if [ ! "$1" = "" ]; then
-  TRYLIBS="$1"
+    TRYLIBS="$1"
 fi
 
 if [ "$NOBANNER" = "" ]; then
-  echo "auto library function signature collector for fenris -- <lcamtuf@coredump.cx>"
+    echo "auto library function signature collector for fenris -- <lcamtuf@coredump.cx>"
 fi
 
 export FANCY=1
@@ -48,44 +47,44 @@ echo -n >$O
 TRYTHEM=""
 
 for i in $TRYLIBS; do
-  test -f $i && TRYTHEM="$TRYTHEM $i"
+    test -f $i && TRYTHEM="$TRYTHEM $i"
 done
 
 FCOUNT=`echo $TRYTHEM|wc -w`
 
 if [ "$FCOUNT" = "0" ]; then
-  echo "No usable libraries. Tried the following: $TRYLIBS."
-  exit 1
+    echo "No usable libraries. Tried the following: $TRYLIBS."
+    exit 1
 fi
 
 fprints &>/dev/null
 
 if [ ! "$?" = "1" ]; then
-  echo "Cannot find 'fprints' in your path or in current directory."
-  exit 1
+    echo "Cannot find 'fprints' in your path or in current directory."
+    exit 1
 fi
 
 CAR=0
 
 for i in $TRYTHEM; do
-  CAR=$[CAR+1]
+    CAR=$[CAR+1]
 
-  MIAU=`basename $i`
+    MIAU=`basename $i`
 
-  LIST=`ar t $i`
-  IC=`echo $LIST | wc -w`
-  ACNT=$[ACNT+1]
-  IN=0
+    LIST=`ar t $i`
+    IC=`echo $LIST | wc -w`
+    ACNT=$[ACNT+1]
+    IN=0
 
-  for j in $LIST; do
-    IN=$[IN+1]
-    ar x $i $j
-    echo -n "[$CAR/$[FCOUNT]] [$[IN*100/IC]%] $MIAU:$j - "
-    fprints $j >>$O 
-    rm -f $j
-    echo -ne "                   \r"
-    FCNT=$[FCNT+1]
-  done
+    for j in $LIST; do
+        IN=$[IN+1]
+        ar x $i $j
+        echo -n "[$CAR/$[FCOUNT]] [$[IN*100/IC]%] $MIAU:$j - "
+        fprints $j >>$O
+        rm -f $j
+        echo -ne "                   \r"
+        FCNT=$[FCNT+1]
+    done
 done
 
 echo 'main() {getuid();}' >.test-$$.c 2>/dev/null
@@ -100,7 +99,7 @@ OCNT=`grep -c . $O`
 export ID="?"
 
 sed 's/ __/ /g;s/_IO_//g;s/ _/ /g' <$O | awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
-     sort | uniq >$O-$$.tmp
+    sort | uniq >$O-$$.tmp
 
 cat $O-$$.tmp | grep -vE 'free_mem|Letext' >$O
 rm -f $O-$$.tmp

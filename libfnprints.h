@@ -29,7 +29,7 @@
 
 #ifdef USE_OPENSSL
 #include <openssl/md5.h>
-#else 
+#else
 #include <md5global.h>
 #include <md5.h>
 #define MD5_Init   MD5Init
@@ -39,55 +39,51 @@
 
 #include "config.h"
 
-
 extern struct fenris_fndb *fndb[];
 
 struct fenris_fndb {
-  char* name;
-  unsigned short a;
-  struct fenris_fndb* next;
+    char* name;
+    unsigned short a;
+    struct fenris_fndb* next;
 };
 
-
-/* find all the names of funtions that match _fnprint value
+/* find all the names of functions that match _fnprint value
  * found is called when a match is found:
- * 
+ *
  * void found(int count, struct fenris_fndb *cur, unsigned int fnprint, void *user)
  * count is the consecutive number of name that matched the given fingerprint
- * cur points the the record describing function
+ * cur points to the record describing function
  * fnprint is the fingerprint itself
  * user is any user data passed to find_fnprints
- * 
+ *
  * finish is called after all the matching functions have been found
- * void finish(int count, usigned int fnprint, void *user)
+ * void finish(int count, unsigned int fnprint, void *user)
  * count is the total number of functions that matched the given fingerprint
  * fnprint and user the same as in found
  */
 
 #define find_fnprints(_fnprint, found, finish, user) \
-do {  \
-  int count = 0; \
-  unsigned int __fnprint = (_fnprint);  \
-  unsigned short sht = __fnprint & 0xffff; \
-  struct fenris_fndb *cur;  \
-  \
-  cur=fndb[__fnprint>>16]; \
-  \
-  while (cur) { \
-    if (cur->a == sht) {\
-      found(count, cur, __fnprint, user); \
-      count++; \
-    } \
-    cur=cur->next;  \
-  } \
-  \
-  finish(count, __fnprint, user);  \
-} while(0)
-
+    do {  \
+        int count = 0; \
+        unsigned int __fnprint = (_fnprint);  \
+        unsigned short sht = __fnprint & 0xffff; \
+        struct fenris_fndb *cur;  \
+        \
+        cur=fndb[__fnprint>>16]; \
+        \
+        while (cur) { \
+            if (cur->a == sht) {\
+                found(count, cur, __fnprint, user); \
+                count++; \
+            } \
+            cur=cur->next;  \
+        } \
+        \
+        finish(count, __fnprint, user);  \
+    } while(0)
 
 /* load the fingerprints database given in the argument */
 int load_fnbase(const char* x);
-
 
 /* return the number of loaded fingerprints */
 int fnprints_count();
@@ -102,22 +98,22 @@ static inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
     int i,tagme=0;
 
     for (i=2;i<SIGNATSIZE;i++) {
-      // Three NOPs? That ain't no stinkin' code!
-      if ((sig[i-2]==0x90) && (sig[i-1] == 0x90) && (sig[i] == 0x90)) {
-        sig[i-2]=sig[i-1]=0;
-        tagme=1;
-      }
+        // Three NOPs? That ain't no stinkin' code!
+        if ((sig[i-2]==0x90) && (sig[i-1] == 0x90) && (sig[i] == 0x90)) {
+            sig[i-2]=sig[i-1]=0;
+            tagme=1;
+        }
 
-      if (tagme) sig[i]=0;
+        if (tagme) sig[i]=0;
     }
 
     // I suck. TODO: parse relocs in signatures. For now,
     // just carefully exterminate anything interesting ;)
     for (i=0;i<SIGNATSIZE;i++)
-     if (sig[i]==codeseg) bzero(&sig[i-3],4);
+        if (sig[i]==codeseg) bzero(&sig[i-3],4);
 
     for (i=0;i<SIGNATSIZE;i++)
-     if (sig[i]==0xe8) bzero(&sig[i+1],4);
+        if (sig[i]==0xe8) bzero(&sig[i+1],4);
 
     MD5_Init(&kuku);
     MD5_Update(&kuku,sig,SIGNATSIZE);
@@ -130,4 +126,3 @@ static inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
 }
 
 #endif /* not _HAVE_LIBFNPRINTS_H */
-

@@ -26,28 +26,28 @@
 echo "ragnarok output file splitter -- written by negative, fixed by lcamtuf"
 
 if [ "$2" = "" ]; then
-  echo "Usage: $0 ragnarok_outfile output_dir"
-  echo
-  exit 1
+    echo "Usage: $0 ragnarok_outfile output_dir"
+    echo
+    exit 1
 fi
 
 WHEREIS=./spliter.pl
 
 if [ ! -x spliter.pl ]; then
-  WHEREIS=`which spliter.pl 2>/dev/null`
-  if [ "$WHEREIS" = "" ]; then
-    echo "Error: 'spliter.pl' must be in current directory or in path."
-    echo
-    exit 1
-  fi
+    WHEREIS=`which spliter.pl 2>/dev/null`
+    if [ "$WHEREIS" = "" ]; then
+        echo "Error: 'spliter.pl' must be in current directory or in path."
+        echo
+        exit 1
+    fi
 fi
 
 $WHEREIS $1 $2
 
 if [ ! -d $2 ]; then
-  echo "Error: no output generated."
-  echo
-  exit 1
+    echo "Error: no output generated."
+    echo
+    exit 1
 fi
 
 cd $2
@@ -86,5 +86,3 @@ cat footer.txt >> raw.html
 
 # delete the unused
 rm -f raw.txt footer.txt header.txt io.txt buffers.txt params.txt calls.txt index.txt
-
-

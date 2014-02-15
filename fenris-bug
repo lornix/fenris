@@ -59,7 +59,7 @@ read x
 
 clear
 echo
-echo "First, I need to know your e-mail address. Providing vaild e-mail"
+echo "First, I need to know your e-mail address. Providing valid e-mail"
 echo "address is essential for proper handling of your bugreport. Of course,"
 echo "you can provide something bogus and have your bug reported anonymously,"
 echo "but it is not necessarily the most accurate way to have something fixed ;)"
@@ -72,12 +72,12 @@ echo ">> Report submitted by $email" >>$R
 echo >>$R
 
 clear
-echo 
+echo
 echo "Now, I will gather some information about your system. It might"
 echo "take few seconds... "
 echo
 
-echo "[+] Basic system configuration..." 
+echo "[+] Basic system configuration..."
 
 echo "Date: `date`" >>$R
 echo "System: `uname -s` `uname -r` (`uname -m`)" >>$R
@@ -121,12 +121,12 @@ echo -n "Done, hit RETURN to continue (Ctrl+C aborts): "
 read x
 
 clear
-echo 
+echo
 echo "Now, I will try to ask you five simple questions about the problem"
 echo "you've encountered. You do not have to provide all answers, if you"
 echo "do not know them. Feel free to extend every answer with any"
 echo "observations or thoughts you might have. It is better to be verbose,"
-echo "so do not be affraid to write even if you are not sure."
+echo "so do not be afraid to write even if you are not sure."
 echo
 echo "Please finish every answer by entering line containing single dot (.)"
 echo "alone. You can review your answers and make corrections before sending"
@@ -139,18 +139,18 @@ read x
 clear
 echo
 echo "1) What happened? Please paste last 20 lines of 'fenris' output at the"
-echo "   time this condition occoured. If you are familiar with debuggers"
+echo "   time this condition occurred. If you are familiar with debuggers"
 echo "   (gdb, strace or ltrace), providing their output might be helpful."
 echo
 
 CNT=0
 echo -e "\n>> What happened?\n" >>$R
 while :; do
-  CNT=$[CNT+1]
-  echo -n "$CNT: "
-  read x
-  test "$x" = "." && break
-  echo "$x" >>$R
+    CNT=$[CNT+1]
+    echo -n "$CNT: "
+    read x
+    test "$x" = "." && break
+    echo "$x" >>$R
 done
 
 clear
@@ -163,11 +163,11 @@ echo
 CNT=0
 echo -e "\n>> Where did it happen?\n" >>$R
 while :; do
-  CNT=$[CNT+1]
-  echo -n "$CNT: "
-  read x
-  test "$x" = "." && break
-  echo "$x" >>$R
+    CNT=$[CNT+1]
+    echo -n "$CNT: "
+    read x
+    test "$x" = "." && break
+    echo "$x" >>$R
 done
 
 clear
@@ -179,13 +179,13 @@ echo "   compile traced program on your computer and disabled optimization?"
 echo
 
 CNT=0
-echo -e "\n>> Reproductable?\n" >>$R
+echo -e "\n>> Reproducible?\n" >>$R
 while :; do
-  CNT=$[CNT+1]
-  echo -n "$CNT: "
-  read x
-  test "$x" = "." && break
-  echo "$x" >>$R
+    CNT=$[CNT+1]
+    echo -n "$CNT: "
+    read x
+    test "$x" = "." && break
+    echo "$x" >>$R
 done
 
 clear
@@ -199,11 +199,11 @@ echo
 CNT=0
 echo -e "\n>> Compilation?\n" >>$R
 while :; do
-  CNT=$[CNT+1]
-  echo -n "$CNT: "
-  read x
-  test "$x" = "." && break
-  echo "$x" >>$R
+    CNT=$[CNT+1]
+    echo -n "$CNT: "
+    read x
+    test "$x" = "." && break
+    echo "$x" >>$R
 done
 
 clear
@@ -216,11 +216,11 @@ echo
 CNT=0
 echo -e "\n>> Comments?\n" >>$R
 while :; do
-  CNT=$[CNT+1]
-  echo -n "$CNT: "
-  read x
-  test "$x" = "." && break
-  echo "$x" >>$R
+    CNT=$[CNT+1]
+    echo -n "$CNT: "
+    read x
+    test "$x" = "." && break
+    echo "$x" >>$R
 done
 
 clear
@@ -233,11 +233,11 @@ echo -n "Enter preferred editor (vim, mcedit, pico, emacs): "
 read edit
 
 if [ ! "$edit" = "" ]; then
-  $edit $R
+    $edit $R
 fi
 
 clear
-echo 
+echo
 echo "Now, we are about to send your report. To do it, please hit RETURN."
 echo "You can abort this process by hitting Ctrl+C."
 echo
@@ -247,11 +247,9 @@ read x
 sendmail -f$email lcamtuf@coredump.cx <$R
 
 clear
-echo 
+echo
 echo "Thank you for submitting your report!"
 echo "A copy of it can be found in '$R'."
 echo
 
 exit 0
-
-

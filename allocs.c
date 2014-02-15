@@ -36,7 +36,6 @@
 #define USE_ORIGINAL_ALLOCS
 #include "allocs.h"
 
-
 #ifdef DEBUG
 #include "rstree.h"
 
@@ -44,46 +43,42 @@ static RSTree allocs_tree;
 static int memop = 0;
 #endif /* DEBUG */
 
-
 static allocs_error_handler_ftype global_error_handler;
 
 void allocs_set_error_handler(allocs_error_handler_ftype handler)
 {
-  global_error_handler=handler;
+    global_error_handler=handler;
 }
-
 
 static inline void* original_malloc(const int size)
 {
-  return malloc(size);
+    return malloc(size);
 }
 
 static inline void* original_realloc(void *r, const int size)
 {
-  return realloc(r, size);
+    return realloc(r, size);
 }
 
 static inline void* original_strdup(const void *r)
 {
-  return strdup(r);
+    return strdup(r);
 }
 
 static inline void original_free(void *r)
 {
-  return free(r);
+    return free(r);
 }
-
 
 static inline void fatal(const char *msg)
 {
-  if (global_error_handler)
-    global_error_handler(msg, 0);
-  else {
-    printf("%s\n",msg);
-    exit(1);
-  }
+    if (global_error_handler)
+        global_error_handler(msg, 0);
+    else {
+        printf("%s\n",msg);
+        exit(1);
+    }
 }
-
 
 char test_leaks;
 
@@ -91,120 +86,118 @@ char test_leaks;
 
 static void allocs_atexit(void)
 {
-  RSNode nd;
-  void *r;
+    RSNode nd;
+    void *r;
 
-  if (!test_leaks) return;
+    if (!test_leaks) return;
 
 #ifdef DEBUG
-  if (RSTree_count(allocs_tree) > 0) {
-    int i=1;
-    printf(">> Memory leaks: ");
-    nd=RSTree_first(allocs_tree);
-    while (nd) {
-      r=(void *)RSNode_get_key(allocs_tree,nd);
-      printf("[#%d %d \"%.20s\"] ",i,RSNode_get_val(allocs_tree,nd),(char *)r);
-      original_free(r);
-      nd=RSTree_next(allocs_tree,nd);
-      i++;
-    }
-    printf("\n");
-  } else
-    printf(">> No memory leaks found (%d mem operations).\n",memop);
+    if (RSTree_count(allocs_tree) > 0) {
+        int i=1;
+        printf(">> Memory leaks: ");
+        nd=RSTree_first(allocs_tree);
+        while (nd) {
+            r=(void *)RSNode_get_key(allocs_tree,nd);
+            printf("[#%d %d \"%.20s\"] ",i,RSNode_get_val(allocs_tree,nd),(char *)r);
+            original_free(r);
+            nd=RSTree_next(allocs_tree,nd);
+            i++;
+        }
+        printf("\n");
+    } else
+        printf(">> No memory leaks found (%d mem operations).\n",memop);
 #endif /* DEBUG */
 
-  RSTree_destroy(allocs_tree);
+    RSTree_destroy(allocs_tree);
 }
 
 static inline void register_atexit(void)
 {
-  static int registered=0;
+    static int registered=0;
 
-  if (!registered) {
-    registered=1;
-    if (atexit(allocs_atexit) == 0)
-      allocs_tree=RSTree_create();
-  }
+    if (!registered) {
+        registered=1;
+        if (atexit(allocs_atexit) == 0)
+            allocs_tree=RSTree_create();
+    }
 }
 #endif /* DEBUG */
 
-
 inline void* my_malloc(const int size)
 {
-  void *ret;
-  int siz;
+    void *ret;
+    int siz;
 
-  if (size <= 0)
-    fatal("my_malloc size is <= 0");
-  ret=original_malloc(size);
-  if (!ret)
-    fatal("malloc failed");
-  bzero(ret, size);
-  siz=malloc_usable_size(ret);
-  if (size < siz)
-    bzero(ret+size, siz-size);
+    if (size <= 0)
+        fatal("my_malloc size is <= 0");
+    ret=original_malloc(size);
+    if (!ret)
+        fatal("malloc failed");
+    bzero(ret, size);
+    siz=malloc_usable_size(ret);
+    if (size < siz)
+        bzero(ret+size, siz-size);
 #ifdef DEBUG
-  register_atexit();
-  RSTree_put_val(allocs_tree, (int)ret, siz);
-  memop++;
+    register_atexit();
+    RSTree_put_val(allocs_tree, (int)ret, siz);
+    memop++;
 #endif /* DEBUG */
-  return ret;
+    return ret;
 }
 
 inline void* my_realloc(void *r,const int size)
 {
-  void *ret;
-  int oldsiz;
+    void *ret;
+    int oldsiz;
 
 #ifdef DEBUG
-  if (!r)
-    return my_malloc(size);
-  if (size == 0) {
-    my_free(r);
-    return 0;
-  }
-  register_atexit();
-  if (!RSTree_remove(allocs_tree, (int)r))
-    fatal("realloc on non-allocated memory");
+    if (!r)
+        return my_malloc(size);
+    if (size == 0) {
+        my_free(r);
+        return 0;
+    }
+    register_atexit();
+    if (!RSTree_remove(allocs_tree, (int)r))
+        fatal("realloc on non-allocated memory");
 #endif /* DEBUG */
-  if (size < 0)
-    fatal("my_realloc size is < 0");
-  oldsiz=malloc_usable_size(r);
-  ret=original_realloc(r, size);
-  if (size != 0 && !ret)
-    fatal("realloc failed");
-  if (size > oldsiz)
-    bzero(ret+oldsiz, size-oldsiz);
+    if (size < 0)
+        fatal("my_realloc size is < 0");
+    oldsiz=malloc_usable_size(r);
+    ret=original_realloc(r, size);
+    if (size != 0 && !ret)
+        fatal("realloc failed");
+    if (size > oldsiz)
+        bzero(ret+oldsiz, size-oldsiz);
 #ifdef DEBUG
-  RSTree_put_val(allocs_tree, (int)ret, malloc_usable_size(ret));
-  memop++;
+    RSTree_put_val(allocs_tree, (int)ret, malloc_usable_size(ret));
+    memop++;
 #endif /* DEBUG */
-  return ret;
+    return ret;
 }
 
 inline void* my_strdup(const void *r)
 {
-  void *ret;
+    void *ret;
 
-  ret=original_strdup(r);
-  if (!ret)
-    fatal("strdup failed");
+    ret=original_strdup(r);
+    if (!ret)
+        fatal("strdup failed");
 #ifdef DEBUG
-  register_atexit();
-  RSTree_put_val(allocs_tree, (int)ret, malloc_usable_size(ret));
-  memop++;
+    register_atexit();
+    RSTree_put_val(allocs_tree, (int)ret, malloc_usable_size(ret));
+    memop++;
 #endif /* DEBUG */
-  return ret;
+    return ret;
 }
 
 inline void my_free(void *r)
 {
 #ifdef DEBUG
-  register_atexit();
-  if (!RSTree_remove(allocs_tree, (int)r))
-    fatal("free for non-allocated chunk");
-  memop++;
+    register_atexit();
+    if (!RSTree_remove(allocs_tree, (int)r))
+        fatal("free for non-allocated chunk");
+    memop++;
 #endif /* DEBUG */
-  original_free(r);
+    original_free(r);
 }
-

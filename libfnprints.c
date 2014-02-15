@@ -38,67 +38,67 @@ static int fnprint_count = 0;
  ******************************/
 
 int load_fnbase(const char* x) {
-  char buf[500];
-  FILE* f;
-  unsigned int a;
+    char buf[500];
+    FILE* f;
+    unsigned int a;
 
-  f=fopen(x,"r");
+    f=fopen(x,"r");
 
-  if (!f && !strchr(x,'/')) {
-    snprintf(buf,200,"%s/.fenris/%s",getenv("HOME"),x);
-    f=fopen(buf,"r");
-  }
-
-  if (!f && !strchr(x,'/')) {
-    snprintf(buf,200,"/etc/%s",x);
-    f=fopen(buf,"r");
-  }
-
-  if (!f && !strchr(x,'/')) {
-    snprintf(buf,200,"%s/%s",getenv("HOME"),x);
-    f=fopen(buf,"r");
-  }
-
-  if (!f) return -1;
-
-  // Now, this is going to be a bit awkward, but gives us great
-  // benefit later, when searching. Use a table to lookup first two
-  // bytes instantly, then compare two remaining bytes by searching
-  // a linked list.
-
-  while (fgets(buf,sizeof(buf)-1,f)) {
-    struct fenris_fndb ff;
-    char* x,*fname;
-    x=strchr(buf,' ');
-    if (!x) continue; // Doh?
-    fname=x+1;
-    x=strchr(x+1,' ');
-    if (!x) continue; // Doh?
-    *x=0;
-    if (sscanf(x+1,"%X",&a)!=1) continue; // Doh?!
-
-    ff.a=a & 0xffff;
-    ff.name=strdup(fname);
-    ff.next=0;
-
-    if (!fndb[a>>16]) {
-      fndb[a>>16]=malloc(sizeof( struct fenris_fndb));
-      memcpy(fndb[a>>16],&ff,sizeof( struct fenris_fndb));
-    } else {
-      struct fenris_fndb* dest=fndb[a>>16];
-      while (dest->next) dest=dest->next;
-      dest->next=malloc(sizeof (struct fenris_fndb));
-      memcpy(dest->next,&ff,sizeof (struct fenris_fndb));
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,200,"%s/.fenris/%s",getenv("HOME"),x);
+        f=fopen(buf,"r");
     }
 
-    fnprint_count++;
-  }     
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,200,"/etc/%s",x);
+        f=fopen(buf,"r");
+    }
 
-  fclose(f);
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,200,"%s/%s",getenv("HOME"),x);
+        f=fopen(buf,"r");
+    }
 
-  return(0);
+    if (!f) return -1;
+
+    // Now, this is going to be a bit awkward, but gives us great
+    // benefit later, when searching. Use a table to lookup first two
+    // bytes instantly, then compare two remaining bytes by searching
+    // a linked list.
+
+    while (fgets(buf,sizeof(buf)-1,f)) {
+        struct fenris_fndb ff;
+        char* x,*fname;
+        x=strchr(buf,' ');
+        if (!x) continue; // Doh?
+        fname=x+1;
+        x=strchr(x+1,' ');
+        if (!x) continue; // Doh?
+        *x=0;
+        if (sscanf(x+1,"%X",&a)!=1) continue; // Doh?!
+
+        ff.a=a & 0xffff;
+        ff.name=strdup(fname);
+        ff.next=0;
+
+        if (!fndb[a>>16]) {
+            fndb[a>>16]=malloc(sizeof( struct fenris_fndb));
+            memcpy(fndb[a>>16],&ff,sizeof( struct fenris_fndb));
+        } else {
+            struct fenris_fndb* dest=fndb[a>>16];
+            while (dest->next) dest=dest->next;
+            dest->next=malloc(sizeof (struct fenris_fndb));
+            memcpy(dest->next,&ff,sizeof (struct fenris_fndb));
+        }
+
+        fnprint_count++;
+    }
+
+    fclose(f);
+
+    return(0);
 }
 
 int fnprints_count() {
-  return fnprint_count;
+    return fnprint_count;
 }
