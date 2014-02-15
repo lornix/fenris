@@ -1,0 +1,184 @@
+<html>
+<head>
+<title> project fenris : other analysis tools </title>
+</head>
+<body bgcolor=white text=black link=green vlink=magenta alink=red>
+<font face="helvetica,arial" size=+0>
+<img src="http://lcamtuf.coredump.cx/fenris/fenris-s.jpg" align=center height=38
+<font size=+2><b>Other analysis tools available:</b></font>
+<p>
+This is a list of more or less known open-source projects useful for
+all kinds of reverse engineering, code behavior analysis, binary
+forensics, debugging and so on. I wanted to create a comprehensive
+list that includes very basic tools, but also some unique, not very
+popular, yet promising and interesting one-of-the-kind projects.
+I found it pretty annoying there is no good refernce list like this,
+and pretty often we have to reinvent the wheel every time we want
+to complete some obscure task. Unlike some other "rev-eng" lists (e.g.
+the one at PacketStorm), this one avoids listing many almost completely
+similar tools - twenty fuzz tools, fifty gdb GUIs, one million malloc
+tracers. I am also not going to put tools like source browsing utilities
+or source analyzers, because they are of very little value in such
+work, unless you want to find obvious bugs in someone else's sources,
+which is a whole different issue - plus, there are some good places to
+look for them.
+<p>
+<i>Please mail me with any submissions or corrections at <a href="mailto:lcamtuf@coredump.cx">lcamtuf@coredump.cx</a>.</i>
+<ul>
+<li>Name: <b>strace</b><br>
+    The most basic syscall tracer<br>
+    <a href="http://www.liacs.nl/~wichert/strace/">Click here for homepage</a>.
+<p></li><li>
+ Name: <b>ltrace</b><br>
+    A popular library call tracer<br>
+     <a href="http://packages.debian.org/stable/utils/ltrace.html">Click here for homepage</a>.
+<p></li><li>
+  
+ Name: <b>gdb</b><br>
+    The GNU debugger<br>
+     <a href="http://www.gnu.org/software/gdb/gdb.html">Click here for homepage</a>.
+
+<p></li><li>
+ Name: <b>objdump, strings, readelf, nm, objcopy</b><br>
+    GNU binutils - standard tools for dealing with executables<br>
+     <a href="http://www.gnu.org/software/binutils/">Click here for homepage</a>.
+
+<p></li><li>
+Name: <b>the dude</b><br>
+    A nice non-ptrace debugger, our savior!<br>
+     <a href="http://the-dude.sourceforge.net">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>bastard </b><br>
+    Very extensive debugging environment<br>
+     <a href="http://bastard.sourceforge.net">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>PICE</b><br>
+    Kernel-level symbolic debugger, "SoftICE for Linux"<br>
+    <i>Also see <a href="http://oss.sgi.com/projects/kdb/">kdb</a>.</i><br>
+     <a href="http://pice.sourceforge.net/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>elfsh</b><br>
+    ELF accessibility library; not BFD based!<br>
+     <a href="http://www.devhell.org/~mayhem/projects/elfsh/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>biev</b><br>
+    The binary viewer.<br>
+     <a href="http://sourceforge.net/projects/biew/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>sourcery</b><br>
+    A nice cross-platform disassembler<br>
+     <a href="http://sourceforge.net/projects/sourcery/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>LDAsm</b><br>
+    GUI debugger<br>
+    <i>Many alternatives: KIDAsm, DDD, xgdb, kdbg...</i><br>
+     <a href="http://www.geocities.com/rmaxdx/ldasm.htm">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>reap</b><br>
+    Disassembler, assembly code editor<br>
+     <a href="http://reap.cjb.net">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>reqt</b><br>
+    Binary information extractor<br>
+     <a href="http://freshmeat.net/projects/reqt/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>xtrace</b><br>
+    C code tracer (for debugging with sources only)<br>
+<p></li><li>
+ 
+ Name: <b>fenris, ragnarok, aegir, nc-aegir</b><br>
+    application tracer, its "GUI", and an interactive debugger / GUI<br>
+     <a href="http://lcamtuf.coredump.cx/fenris/devel.shtml">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>dress</b><br>
+    symtab recovery for stripped static binaries<br>
+     <a href="http://lcamtuf.coredump.cx/fenris/devel.shtml">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>ElectricFence</b><br>
+    dynamic memory debugger<br>
+    <i>Many alternatives: ccmalloc, debauch...</i><br>
+<p></li><li>
+
+ Name: <b>stan</b><br>
+    binary stream analyzer (good for data analysis)<br>
+     <a href="http://www.roqe.org/stan">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>dprobes</b><br>
+    dynamic probes - debugging facility<br>
+     <a href="http://oss.software.ibm.com/developerworks/opensource/linux/projects/dprobes/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>ExecTrace</b><br>
+    execution path logger<br>
+     <a href="http://student.uq.edu.au/~s337240/">Click here for homepage</a>.
+<p></li><li>
+
+Name: <b>hex</b><br>
+    Hex editor<br>
+     <a href="http://fly.srk.fer.hr/~senko/hex/">Click here for homepage</a>.
+<p></li><li>
+
+Name: <b>sdebug</b><br>
+    segment debugger for ELF<br>
+     <a href="http://xorteam.cjb.net">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>objdump output beautifier</b><br>
+self explanatory :-)<br>
+     <a href="http://xirr.com/~squeak/objdump-beatifier.html">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>kgdb</b><br>
+    remote kernel debugging<br>
+     <a href="http://oss.sgi.com/projects/kgdb/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>Linux Kernel Crash Dumps</b><br>
+    self explanatory<br>
+     <a href="http://lkcd.sourceforge.net/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>ELFIO</b><br>
+    ELF reader / writer<br>
+     <a href="http://sourceforge.net/projects/elfio/">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>SPIKE</b><br>
+    protocol rev eng tool<br>
+     <a href="http://spike.sourceforge.net">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>DCC</b><br>
+    C decompiler<br>
+     <a href="http://www.itee.uq.edu.au/~csmweb/dcc.html">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>REC</b><br>
+    partial C decompiler (assembly language annotator?)<br>
+     <a href="http://www.backerstreet.com/rec/rec.htm">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>HT Editor</b><br>
+    Executable editor / analyzer<br>
+     <a href="http://www.sourceforge.net/projects/hte">Click here for homepage</a>.
+<p></li><li>
+
+ Name: <b>syscalltrack</b><br>
+    a nice syscall tracker utility<br>
+     <a href="http://syscalltrack.sourceforge.net">Click here for homepage</a>.
+</li></ul>
+</body></html>
+
+

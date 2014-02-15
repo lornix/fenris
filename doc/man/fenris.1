@@ -1,0 +1,268 @@
+.TH fenris 1 
+.SH NAME
+fenris \- program execution path analysis tool
+.SH SYNOPSIS
+.B fenris
+.I [ -E PAR=VAL ] [ -u user ] [ -o file ] [ -L dbase ] [ -t nnn ] [-R n:n ] [ -W path ] [ -P i:a:v ] [ -X seg ] [ -sdyiCSfGFAmxpqe ] program [ params... ]
+.br
+.SH "DESCRIPTION"
+This manual page briefly documents the
+.BR fenris
+utility command-line parameters. For more complete documentation
+about functionality, features, concepts, bug reporting, etc, please
+refer to
+.BR /usr/doc/fenris/README
+or visit
+.BR http://lcamtuf.coredump.cx/fenris/ .
+This program and related components (such as
+.BR ragnarok (1))
+are intended to support human-driven security audits, algorithm
+and protocol analysis attempts and binary code reverse engineering.
+It also provides an interactive debugging shell,
+.BR aegir (1).
+
+.SH COMMAND-LINE OPTIONS
+
+Mandatory parameter is program name, eventually followed by program
+parameters. If, for some reason, program name has to start with '-',
+it should be preceded with '--' parameter. Before program name, you
+can place one or more optional parameters, such as:
+
+\fB-o filename\fR
+
+This options writes results to file instead of stderr. It is faster
+and recommended in all cases.
+
+\fB-E PAR=VAL\fR
+
+Puts PAR in the environment. This is especially useful if you want
+to trace a program with unusual LD_PRELOAD or other settings that
+would affect the functionality of 'fenris' itself if modified earlier.
+Multiple -E options are allowed.
+
+\fB-W path\fR
+
+Run Fenris in interactive debugger mode. Fenris will listen on unix socket
+"path" for a debugger shell to connect. The default shell for Fenris is
+.BR aegir (1),
+but you are free to implement your own according to doc/debug-api.txt.
+For more information on using this mode, please refer to the documentation.
+
+\fB-u user\fR
+
+Run as user. This option is available for root (see section 0x04,
+security issues), and will cause program to effectively run with
+uids, gids and supplementary groups of given user.
+
+\fB-L dbase\fR
+
+Load additional (supplementary) fingerprints database. Multiple
+-L options allowed. If filename does not contain slashes, fenris will
+look for it in directories described later in this section.
+
+\fB-R a:b\fR
+
+This option traces code from the moment when eip reaches point a to the
+moment when it reaches b. Incomplete range can be provided - for
+example, -R :0x12345678 will trace code from the beginning to eip
+0x12345678, and -R 0x12345678: will start tracing at 0x12345678 and
+continue as long as possible. NOTE: think of it as trigger points,
+not a continous range. For example, if you use -R 0x12345678:, but
+eip 0x12345678 is never reached, even if 0x23456789 is being
+executed, trace will never start.
+
+\fB-X nnn\fR
+
+Use this segment prefix instead of the default (determined for a typical
+binary on your system) as a code segment. Code segment is the segment
+Fenris actively traces. Some ELF binaries can be altered to start in
+a different segment - a good example is a burneye ELF crypting tool.
+Code segment address is used by Fenris for some operations, such as
+describing parameters, handling signal handlers, function fingerprinting.
+While not absolutely necessary, it is wise to pass this parameter when
+suitable. Pass the most significant byte of code segment starting address
+as this parameter (for example, if your code segment starts at 0x050a0000,
+use 0x05).
+
+\fB-t nnn\fR
+
+Main function is nnn rets from _do_global_ctors_aux. By default,
+this is set to 2, and does not have to be changed unless something
+is really wrong. You should use this option if you see that trace
+ends with '...return from main' almost immediately at the beginning
+(try increasing -t parameter) or somewhere in the middle or does
+not reach main at all (try decreasing). However, this should not
+happen, in general. The only case I'm aware of are HMM 3 binaries
+(patchlevel 1.3.1a, does not affect 1.3), they require -t 3 instead.
+
+\fB-P ip:off:val\fR
+
+This directive means: change a byte at address 'off' to 'val' when
+eip reaches 'ip'. If 'ip' is omitted or zero, this rule will be
+applied immediately to the freshly mapped binary (keep in mind that
+some memory regions mapped later may be not available at this moment).
+Read-only flag is generally overriden, and for files mapped into
+memory in read-only mode, a local copy of the modified page is spawned.
+All values passed to this parameter can be in decimal or in hex if
+preceeded with 0x, and multiple options are possible. Non-IP entries will
+be applied only once, at the beginning. All others will be applied
+every time a given IP is reached.
+
+There are some additional considerations to be aware of when used in
+conjunction with tracing across execve()s - see -e option description
+for details.
+
+\fB-A\fR
+
+Assume that all functions return some value, regardless of all
+other conditions. This will trigger some meaningless return values
+reported, but is useful if the binary is very optimized.
+
+\fB-s\fR
+
+This option disables automatic prolog detection. It is not recommended,
+as it makes ./fenris trace whole linking process and libc initialization.
+However, in rare cases when binary is compiled on odd, not supported
+system, this might be a solution. For long-term operations, however,
+it is recommended to contact the author providing his with this binary
+(or parts of it), so he'll be able to add support for this specific
+construction.
+
+\fB-y\fR
+
+Reports memory writes and reads immediately (without -y, memory
+access is reported per function on return).
+
+\fB-C\fR
+
+Inhibits tracing conditional expressions. This option is useful if
+output will be read by human, as it might decrease amount of
+reported information.
+
+\fB-S\fR
+
+Inhibits resolving library functions. This might effect in some
+speed improvement, but is generally not recommended without a good
+reason.
+
+\fB-f\fR
+
+Trace child processes after fork() or vfork(). Might be useful for
+tracing daemons and such (however it might cause some problems due
+to signal delivery semantics changes, see 0x07, known bugs)
+
+\fB-d\fR
+
+Do not describe function parameters. Reduces amount of generated
+output.
+
+\fB-F\fR
+
+Do not fingerprint functions. This option is effective for static
+binaries only, and will disable loading and displaying fingerprints.
+This is not really recommended - for stripped binaries, it makes
+your life more difficult, for binaries with symbols has almost no
+effect. However it might reduce memory usage and improve speed.
+
+\fB-m\fR
+
+Do not trace memory writes. This option reduces amount of generated
+input.
+
+\fB-i\fR
+
+This option disables indenting, reporting of pid and nesting level.
+It makes output non-structural, non-standard, but shorter. This will
+also break compatibility with ragnarok.
+
+\fB-x\fR
+
+This option causes fenris to ignore 'return from main' and to
+continue tracing, returning to nest level 0. Generally speaking, this
+is not recommended at any time. If you have problems with 'return from
+main' appearing too early in the trace, try re-adjusting -t parameter
+instead. If this do not help, apparently one or more of calling
+or return conventions used by traced application are not supported,
+and you shouldn't rely on results anyway.
+
+\fB-p\fR
+
+Prefix every message with eip. Some commands report eip, some not,
+this might be useful for debugging. This option is compatible with
+ragnarok.
+
+\fB-q\fR
+
+Do not report last line of output to the debugger. This is meaningful
+only with -W, and makes sense when you use a multi-window debugger
+shell that already reports Fenris output (we're working on such a
+shell right now).
+
+\fB-G\fR
+
+"Go away" option. Can be used only in conjunction with -W, and it
+basically turns of all analysis capabilities of Fenris - from tracing
+nesting level, detecting function / library / system calls, thru many
+other capabilities. It is useful for troublesome non-C code. Fenris
+output will be practically completely disabled, and only some debugging
+messages will be supported (such as single-step, getmem, address breakpoint,
+etc).
+
+\fB-e\fR
+
+Trace new code loaded by execve().  This option might be convinient in
+some cases, but should be used with caution. Also, be warned that -P
+option will be global and apply to both old and new image in memory,
+except for no-IP entries that would be applied only once.
+
+
+.SH FILES
+.BI ./fnprints.dat ,
+.BI ~/.fenris/fnprints.dat ,
+.BI /etc/fnprints.dat ,
+.BI ~/fnprints.dat ,
+
+default fingerprints database locations (in search order)
+
+.SH SECURITY
+This program is not intended to be used on any production system
+to audit binaries originating from unknown sources and of possibly 
+harmful nature. Because
+.BR fenris
+performs real-time tracing, there is no way to ensure that actions
+taken by traced applications are legitimate and that output is not
+tampered with. Please use 
+.BR objdump (1)
+and
+.BR gdb (1)
+to examine suspected code in trusted systems.
+
+.SH BUGS
+Numerous. Please consult
+.BR /usr/doc/fenris/README 
+for a complete list of known bugs, then visit
+.BR http://lcamtuf.coredump.cx/fenris/
+to get the recent version of this program. If this does not help, use
+.BR fenris-bug (1)
+bug reporting utility or mail the author.
+
+.SH SEE ALSO
+.BR ragnarok (1),
+.BR dress (1),
+.BR aegir (1),
+.BR nc-aegir (1),
+.BR fprints (1),
+.BR getfprints (1),
+.BR fenris-bug (1),
+.BR ragsplit (1),
+.BR strace (1),
+.BR ltrace (1),
+.BR gdb (1),
+.BR objdump (1),
+.BR ptrace (2),
+.BR fnprints.dat (5).
+
+.SH AUTHOR
+.B fenris
+was written by Michal Zalewski <lcamtuf@coredump.cx>.
+

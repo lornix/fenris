@@ -1,0 +1,28 @@
+Fenris development roadmap - "must-have"s:
+------------------------------------------
+
+  0.07:   - all syscalls from doc/TODO list added to Fenris
+          - all libcalls from doc/TODO list added to Fenris
+          - symbolic names in everything for nc-aegir and Aegir
+          - some serious work on making the documentation a bit better
+          - configurable tracing inside libraries
+          - T_noskip and MAXNEST exceeded problem addressed
+          - selective syscall/libcall/fnct reporting
+          - work on -G a bit more
+          - plus whatever cool ideas we have
+
+  0.08:   - syscall and libcall handlers moved to a separate parsed
+            file that uses some smart notation to elliminate
+            redundant C code
+          - smarter segment matching
+          - support line numbers and other stuff from .debug* sections
+          - plus whatever cool ideas we have
+
+  0.09:   - new version of Ragnarok, OpenDX?
+          - C++ symbol demangling
+          - recovery from more errors added
+          - new syscall / libcall target list
+          - libdisasm review?
+          - plus whatever cool ideas we have ;-)
+
+

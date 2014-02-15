@@ -1,0 +1,6 @@
+
+   Most of this code was taken from GNU binutils-2.11.93.0.2 libopcode for 
+   i386, which is probably authored mostly by Pace Willisson.
+
+   In ../, you'll find another x86 disassembler library, libi386 taken from
+   Bastard project. Why is that? Read ../00-READ-ME-FIRST for more details.

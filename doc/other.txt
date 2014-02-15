@@ -1,0 +1,144 @@
+
+This is a list of more or less known open-source projects useful for
+all kinds of reverse engineering, code behavior analysis, binary
+forensics, debugging and so on. I wanted to create a comprehensive
+list that includes very basic tools, but also some unique, not very
+popular, yet promising and interesting one-of-the-kind projects.
+I found it pretty annoying there is no good refernce list like this,
+and pretty often we have to reinvent the wheel every time we want
+to complete some obscure task. Unlike some other "rev-eng" lists (e.g.
+the one at packetstorm), this avoids listing many almost completely
+similar tools - twenty fuzz tools, fifty gdb GUIs, one million malloc
+tracers. I am also not going to put tools like source browsing utilities
+or source analyzers, because they are of very little value in such
+work, unless you want to find obvious bugs in someone else's sources,
+which is a whole different issue.
+
+Please mail me with any submissions or corrections at <lcamtuf@coredump.cx>.
+
+ 1) Name: strace
+    Desc: The most basic syscall tracer
+    URL:  http://www.liacs.nl/~wichert/strace/
+
+ 2) Name: ltrace
+    Desc: A popular library call tracer
+    URL:  http://packages.debian.org/stable/utils/ltrace.html
+  
+ 3) Name: gdb
+    Desc: The GNU debugger
+    URL:  http://www.gnu.org/software/gdb/gdb.html
+
+ 4) Name: objdump, strings, readelf, nm, objcopy
+    Desc: GNU binutils - standard tools for dealing with executables
+    URL:  http://www.gnu.org/software/binutils/
+
+ 5) Name: the dude
+    Desc: A nice non-ptrace debugger, our savior!
+    URL:  http://the-dude.sourceforge.net
+
+ 6) Name: bastard 
+    Desc: Very extensive debugging environment
+    URL:  http://bastard.sourceforge.net
+
+ 7) Name: PICE
+    Desc: Kernel-level symbolic debugger, "SoftICE for Linux"
+    Notes: also see kdb (http://oss.sgi.com/projects/kdb/)
+    URL:  http://pice.sourceforge.net/
+
+ 8) Name: elfsh
+    Desc: ELF accessibility library; not BFD based!
+    URL:  http://www.devhell.org/~mayhem/projects/elfsh/
+
+ 9) Name: biev
+    Desc: The binary viewer.
+    URL:  http://sourceforge.net/projects/biew/
+
+10) Name: sourcery
+    Desc: A nice cross-platform disassembler
+    URL:  http://sourceforge.net/projects/sourcery/
+
+11) Name: LDAsm
+    Desc: GUI debugger
+    Note: many alternatives: KIDAsm, DDD, xgdb, kdbg ...
+    URL:  http://www.geocities.com/rmaxdx/ldasm.htm
+
+12) Name: reap
+    Desc: Disassembler, assembly code editor
+    URL:  http://reap.cjb.net
+
+13) Name: reqt
+    Desc: Binary information extractor
+    URL:  http://freshmeat.net/projects/reqt/
+
+14) Name: xtrace
+    Desc: C code tracer (for debugging code only)
+    URL:  ???
+ 
+15) Name: fenris, ragnarok, aegir, nc-aegir
+    Desc: application tracer, its "GUI", and an interactive debugger / GUI
+    URL:  http://lcamtuf.coredump.cx/fenris/devel.shtml
+
+16) Name: dress
+    Desc: symtab recovery for stripped static binaries
+    URL:  http://lcamtuf.coredump.cx/fenris/devel.shtml
+
+17) Name: ElectricFence
+    Desc: dynamic memory debugger
+    Note: many alternatives: ccmalloc, debauch ...
+    URL:  ???
+
+18) Name: stan
+    Desc: binary stream analyzer (good for data analysis)
+    URL:  http://www.roqe.org/stan
+
+19) Name: dprobes
+    Desc: dynamic probes - debugging facility
+    URL:  http://oss.software.ibm.com/developerworks/opensource/linux/projects/dprobes/
+
+20) Name: ExecTrace
+    Desc: execution path logger
+    URL:  http://student.uq.edu.au/~s337240/
+
+21) Name: hex
+    Desc: Hex editor
+    URL:  http://fly.srk.fer.hr/~senko/hex/
+
+22) Name: sdebug
+    Desc: segment debugger for ELF
+    URL:  http://xorteam.cjb.net
+
+23) Name: objdump output beautifier
+    Desc: self explanatory
+    URL:  http://xirr.com/~squeak/objdump-beatifier.html
+
+24) Name: kgdb
+    Desc: remote kernel debugging
+    URL:  http://oss.sgi.com/projects/kgdb/
+
+25) Name: Linux Kernel Crash Dumps
+    Desc: self explanatory
+    URL:  http://lkcd.sourceforge.net/
+
+26) Name: ELFIO
+    Desc: ELF reader / writer
+    URL:  http://sourceforge.net/projects/elfio/
+
+27) Name: SPIKE
+    Desc: protocol rev eng tool
+    URL:  http://spike.sourceforge.net
+
+28) Name: DCC
+    Desc: C decompiler
+    URL:  http://www.itee.uq.edu.au/~csmweb/dcc.html
+
+29) Name: REC
+    Desc: partial C decompiler (assembly language annotator?)
+    URL:  http://www.backerstreet.com/rec/rec.htm
+
+30) Name: syscalltrack
+    Desc: a nice syscall tracker utility
+    URL:  http://syscalltrack.sourceforge.net
+
+31) Name: HT Editor
+    Desc: Executable editor / analyzer
+    URL:  http://www.sourceforge.net/projects/hte

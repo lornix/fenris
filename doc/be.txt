@@ -1,0 +1,93 @@
+Fenris, equipped with its new interactive debugger, can analyze binaries
+crypted with burneye. Of course, it can't crack them without a password
+(used algorithm is pretty strong, and brute force attacks are not discussed
+here), but it can disassemble, trace or modify the decryptor routine, and
+can disassemble, trace, modify or analyze the underlying binary. This is
+just a side effect of Fenris not using libbfd, but it is nice neverthless:
+
+  $ gdb ./startwu
+  "./startwu": not in executable format: File format not recognized
+
+  $ objdump -d ./startwu
+  objdump: ./startwu: File format not recognized
+
+  $ ./fenris -W /tmp/aegir-sock -X 5 ./startwu &
+  $ aegir /tmp/aegir-sock
+  ...
+  [aegir] disas
+  05371035:       pushl  0x5371008
+  0537103b:       pushf
+  0537103c:       pusha
+  0537103d:       movl   0x5371000,%ecx
+  05371043:       jmp    $0x5371082
+  05371048:       popl   %esi
+  05371049:       movl   %esi,%edi
+  [aegir] step
+  0537103b:       pushf
+  [aegir] step
+  0537103c:       pusha
+
+Note that burneye later deploys a trivial debugger detection, which you'd
+have to bypass in order to succeed.
+
+11369:01  SYS signal (5, 0x5371a0c) = 0
+11369:01  + signal 5 = Trace/breakpoint trap
+11369:01  + 0x5371a0c = fnct_7
+
+Then, it does the following (you have to use nc-aegir or Aegir to see it):
+
+053714c0 [fnct_4+80]:   movl   %esi,0xfffffd24(%ebp)
+053714c6 [fnct_4+86]:   int3
+053714c7 [fnct_4+87]:   cmpl   $0x0,0x5375748
+053714ce [fnct_4+94]:   jne    $0x53714e2 <fnct_4+114>
+053714d0 [fnct_4+96]:   xorl   %eax,%eax
+
+Of course, int3, when running under a single step debugger, will be never
+called. Never versions of Fenris should auto-detect int3 traps not planted
+by Fenris itself.
+
+We have two options, simulate its behavior or actually call it.
+The first option is easier, as the handler simply increases 0x5375748 by
+one:
+
+05371a0c [fnct_7]:      pushl  %ebp
+05371a0d [fnct_7+1]:    movl   %esp,%ebp
+05371a0f [fnct_7+3]:    incl   0x5375748
+05371a15 [fnct_7+9]:    leave
+05371a16 [fnct_7+10]:   ret
+
+...and initial value is 0. Let's do the trick:
+
+>> setmem 0x5375748 1
+Memory at address 0x5375748 modified.
+>> run
+
+Resuming at 0x53714e2...
+
+password:
+
+Voila!
+
+PS. Actually, more recent versions of gdb will let you load such binaries...
+well, almost:
+
+(gdb) info reg
+The program has no registers now.
+(gdb) stepi
+The program is not being run.
+(gdb) break *0x05371035
+Breakpoint 1 at 0x5371035
+(gdb) run
+warning: shared library handler failed to enable breakpoint
+
+;-) The GUI version of Aegir, nc-aegir, works basically the same way,
+but provides an organized debugging screen with register, memory
+and code views, integrated Fenris output view, and automatic
+control over Fenris parameters.
+
+Of course, it wouldn't be a big deal to write anti-Fenris code - in
+fact, it would be probably enough to deliver badly malformed C-alike
+construction. See doc/anti-fenris.txt for more information.
+
+For more, check out scut's excellent paper at
+http://www.phrack.org/show.php?p=58&a=5

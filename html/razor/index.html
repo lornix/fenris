@@ -1,0 +1,327 @@
+<!-- X-URL: http://razor.bindview.com/tools/fenris/index.html -->
+<!-- Date: Tue, 07 May 2002 19:20:11 GMT -->
+<!-- Last-Modified: Wed, 13 Feb 2002 15:06:08 GMT -->
+<BASE HREF="http://razor.bindview.com/tools/fenris/index.html">
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<html>
+<head>
+   	      
+  <meta http-equiv="Content-Type" content="text/html;CHARSET=iso-8859-1">
+  <script language="javascript" src="http://razor.bindview.com/snippets/navmenu.js">
+  </script>
+
+  <title>fenris project</title>
+
+</head>
+
+<body background="/images/background.jpg" text="white" bgcolor="black" link="white" alink="red" vlink="#f0f0f0" topmargin="0" leftmargin="0" marginheight="0" marginwidth="0">
+     
+<table border="0" cellpadding="0" cellspacing="0" frame="Void" vspace="0" hspace="0">
+    <tbody>
+      <tr valign="Top">
+     <td height="73" valign="Top" bgcolor="black"><a href="/index.shtml"><img src="http://razor.bindview.com/images/razorlogo.gif" width="178" height="73" align="Left" border="0">
+        </a>
+               
+      <div align="Right"><img src="http://razor.bindview.com/images/quote.gif" width="337" height="31" border="0" hspace="30" alt="" i="" think="" any="" time="" you="" expose="" vulnerabilities="" it's="" a="" good="" thin="" -="" attorney="" general="" janet="" reno="">
+        <a href="http://www.bindview.com"><img src="http://razor.bindview.com/images/bvlogo.jpg" width="135" height="56" alt="Sponsored by BindView" border="0" hspace="20">
+        </a>
+        </div>
+     </td>
+    </tr>
+    <tr valign="Top">
+     <td align="Right">     	              
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" align="Right">
+        <tbody>
+            <tr>
+      <td width="25%" height="26" align="Right" nowrap=""><img src="http://razor.bindview.com/images/toolBarRamp.jpg" width="55" height="26" align="Center" border="0">
+              </td>
+   	 <td bgcolor="#666666" width="14%">&nbsp;</td>
+   	 <td width="60%" height="26" align="Left" nowrap="" bgcolor="#666666"><font size="2" face="Verdana, Arial, Helvetica, sans-serif"><img src="http://razor.bindview.com/images/menu/homeicon.gif" width="50" height="26" align="Center" alt="Razor Home" border="0" name="image1">
+     <a href="/index.shtml" onmouseover="changeImages('image1', 'image1on')" onmouseout="changeImages('image1', 'image1off')"><b>
+  Razor Home</b></a>
+              <img src="http://razor.bindview.com/images/menu/papersicon.gif" width="50" height="26" align="Center" alt="Papers &amp; Advisories" border="0" name="image3">
+     <a href="/publish/index.shtml" onmouseover="changeImages('image3', 'image3on')" onmouseout="changeImages('image3', 'image3off')"><b>
+  Papers &amp; Advisories</b></a>
+              <img src="http://razor.bindview.com/images/menu/presenticon.gif" width="50" height="26" align="Center" alt="Razor Tools" border="0" name="image5">
+     <a href="/publish/presentations/index.shtml" onmouseover="changeImages('image5', 'image5on')" onmouseout="changeImages('image5', 'image5off')"><b>
+  Presentations</b></a>
+              <img src="http://razor.bindview.com/images/menu/toolsicon.gif" width="50" height="26" align="Center" alt="Razor Tools" border="0" name="image4">
+     <a href="/tools/index.shtml" onmouseover="changeImages('image4', 'image4on')" onmouseout="changeImages('image4', 'image4off')"><b>
+  Tools</b></a>
+              <img src="http://razor.bindview.com/images/clear.gif" height="10" width="20">
+              </font></td>
+   			<td bgcolor="#666666" width="1%">&nbsp;</td>
+     </tr>
+                   
+        </tbody>              
+      </table>
+   </td>
+   </tr>
+   	<tr valign="Top">
+   		<td><img src="http://razor.bindview.com/images/headers/tools.gif" width="413" height="32" align="Baseline" border="0">
+        </td>
+   	</tr>
+   	<tr valign="Top">
+   		<td> 			              
+      <table border="0" cellpadding="20" cellspacing="0" width="90%">
+   				         <tbody>
+            <tr>
+              <td width="100%" valign="Top">                            
+           
+            <h2><font color="blue" face="Arial"><img src="fenris.jpg" alt="" width="79" height="60" align="Center">
+   &nbsp;fenris 0.07-m (6/24/2002)</font></h2>
+                                         
+            <p><font size="2" face="Arial, Helvetica, sans-serif">by <a href="mailto:lcamtuf@bos.bindview.com">
+  Michal Zalewski</a> and other community contributors
+              </font></p>
+                           
+            <p><b><font face="Arial, Helvetica, sans-serif">Description<br>
+              </font></b><font face="Arial, Helvetica, sans-serif"><small>
+Fenris is a multipurpose tracer, <a href="http://lcamtuf.coredump.cx/fenris/nc-aegir.gif">GUI debugger</a>, stateful analyzer and partial
+decompiler intended to simplify bug tracking, security audits, code,
+algorithm, protocol analysis and computer forensics - providing a structural 
+program trace, interactive debugging capabilities, general information about 
+internal constructions, execution path, memory operations, I/O, conditional 
+expressions and much more. Because it does not require sources or any 
+particular compilation method, this multi-component project can be very 
+helpful for black-box  tests and evaluations - but it will also be a great 
+tool for open-source project audits, as an unmatched
+real-time reconnaissance tool - especially when sources are too complex
+or too badly written to be analyzed by hand in a reliable way and reasonable 
+time. Fenris does not rely on GNU libbfd for any critical tasks, and because
+of that, it is possible and feasible to trace and analyze binaries modified
+to fool debuggers, crypted, or otherwise tweaked.
+
+<b>Fenris components also support <a href="http://lcamtuf.coredump.cx/fenris/other.txt">other, independent</a> debuggers or
+disassemblers, thanks to its capabilities to reconstruct symbol tables
+for stripped, static binaries with no debugging or symbol information
+whatsoever.</b>
+<p>
+This project is not intended to find problems, bugs or security 
+vulnerabilities automatically. It is supposed to be a reliable,
+useful tool that works in real world and can deliver valuable
+information which can be used to detect known problems, but also
+to spot unique or not so obvious dynamic conditions.
+Among many other features, Fenris is able to perform traditional, instruction
+by instruction or breakpoint to breakpoint interactive debugging enhanced
+by additional structural data about the code delivered to the user; it is
+able to fingerprint functions in static 
+binaries, reconstruct symbol tables in ELF files based on that information,
+automatically detect common library code; able to deliver text-based
+and graphical, browsable output that documents different aspects of
+program activity on different abstraction layers; able
+to perform partial analysis of single structural blocks. It is designed
+to make things easier, filling the gap between existing 
+<a href="http://lcamtuf.coredump.cx/fenris/other.txt">code analysis and debugging tools</a>
+ - but not to replace all of them. To read more about
+its functionality, approach, usage and limitations, please <a href="README">
+click  here</a>.
+<p>
+</small></font></p>
+                           
+            <p><font face="Arial, Helvetica, sans-serif"><b>Demo and download</b><br>
+              <small>To see a brief demonstration of Fenris features,
+ you can follow </small><small><a href="http://lcamtuf.coredump.cx/fenris/demos.shtml">this link</a>.
+Graphics-capable browser is strongly recommended.
+<p>
+Last stable version of Fenris can be downloaded <a href="fenris.tgz">here</a>.
+For most recent, but not always stable and <b>not official</b> code
+snapshots, please visit 
+<a href="http://lcamtuf.coredump.cx/fenris/devel.shtml">my development page</a>.
+
+</small><small><br>
+              </small></font></p>
+
+            <p><font face="Arial, Helvetica, sans-serif"><b>Project status, news, credits</b><br>
+              <small>This code is distributed under terms and conditions
+of  GNU Public License, version 2. It is usable, but certainly not 
+finished. It lacks support  for certain calls, needs to be ported to 
+platforms other than Linux/x86 and  needs to support compilers other 
+than GCC framework. RAZOR believes that this project can and will benefit 
+from being an open-source development, and because of that, we encourage 
+all developers who find this code interesting to contribute and make
+it better.
+<p>
+<p>
+Fenris has proven its usability in <a href="http://project.honeynet.org/reverse/">
+The Reverse Challenge</a> from <a href="http://project.honeynet.org">Project Honeynet</a>.
+<a href="http://lcamtuf.coredump.cx/fenris/reverse.txt">Click here</a> for brief hints
+for the contestans on using this tool to make computer forensics easier.
+
+</small></font></p>
+                   
+            <p></p>
+                           
+            <table cellpadding="2" cellspacing="2" border="1" width="100%">
+                <tbody>
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  06-25-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  0.07-m: maintenance release: new fingeprints, bug-fixes</font></small><br>
+                    </td>
+                  </tr>
+
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  05-31-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  0.06: SoftICE-alike GUI debugger, improved speed, new features</font></small><br>
+                    </td>
+                  </tr>
+
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  05-23-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  0.05: interactive debugging capabilities introduced, burneye tracing</font></small><br>
+                    </td>
+                  </tr>
+
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  05-17-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  0.03: some enhancements, new component ("dress") added</font></small><br>
+                    </td>
+                  </tr>
+
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  05-09-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  0.02: many fixes, new fingerprints, options, optimizations</font></small><br>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td valign="Top" width="20%"><small><font face="Helvetica, Arial, sans-serif">
+  02-13-2002</font></small><small><small><font face="Helvetica, Arial, sans-serif"><br>
+                    </font></small></small></td>
+                    <td valign="Top"><small><font face="Helvetica, Arial, sans-serif">
+  initial 0.01 release</font></small><br>
+                    </td>
+                  </tr>
+                               
+              </tbody>                          
+            </table>
+<p>                           
+<font face="Helvetica, Arial, sans-serif">
+<small>
+              Below is the list of people outside RAZOR who contributed
+ to the project by providing their comments, suggestions, criticism or developing
+ new code:</font></p>
+                           
+            <p><font face="Courier,fixed"><small>
+<table width=80%>
+<tr>
+<td>
+  Jose Nazario<br>
+  Rafal Wojtczuk<br>
+  dvorak<br>
+  Mariusz Woloszyn<br>
+  bighawk<br>
+  Slawomir Krawczyk<br>
+  Wojtek Kaniewski<br>
+  Bulba<br>
+  Solar Designer<br>
+  Wojtek Walczak<br>
+  Martin Kluge<br>
+  Lluis Mora Hidalgo<br>
+    dataspy<br>
+                             Jim Paris<br>
+Andrzej Szombierski<br>
+    undefine<br>
+</td>
+<td>
+  Robert W. Jaroszuk<br>
+  Joe Van Andel<br>
+  Neil Jerram<br>
+  Hubert Lubaczewski<br>
+  Yair K <br>
+  Gregory Wright<br>
+  Adam Byrtek<br>
+  Gordon Sadler<br>
+  Roger Luethi<br>           
+  Mariusz Marcinkiewicz<br>
+  Lukasz Trabinski<br>
+                    Piotr Meyer<br>
+
+    Fabio Vayr<br>                      
+    Han Holl<br>
+    Brian Finn<br>
+                                Gandalf<br>
+                     Piter<br>
+    Krzysztof Gibas           <br>
+          Matthias Hofherr<br>
+
+</td>
+<td>
+    Marcin Kaminski<br>          
+           Artur Byszko<br>
+    Lukasz Biegaj<br>
+                       Przemyslaw Skowron<br>
+    Gonçalo Gomes<br>                 
+      Timothy Bogdala<br>
+    Allen Noe<br>                    
+       piggy<br>
+    Stephen Kench<br>                  
+     Bartlomiej Lidke<br>
+    Marek Gutkowski<br>   
+                  Tadeusz Wlodarczyk<br>
+    Marcin Gozdalik<br>
+William Stearns<br>
+    Greg<br>
+          Dave Aitel<br>
+    Daniel Polombo      <br>
+                lucipher<br>
+
+GoTaR<br>
+    Paul van Maaren<br>
+    Peter Lopen               <br>
+
+
+</td>
+</tr>
+</table>
+
+  </small>
+  </font>
+  </td>
+  </tbody>              
+  </table>
+  </td>
+  <tr>
+  <td align="Center" valign="Top"> 			              
+      <p align="Center"><br>
+   			<br>
+   			<b><font size="2" face="Arial, Helvetica, sans-serif">Contact:</font></b>
+  &nbsp;<a href="mailto:info@razor.bindview.com"><font size="2" face="Arial, Helvetica, sans-serif">
+  info@razor.bindview.com</font></a>
+   			<b><font color="#cc0000">|</font></b> <b><font size="2" face="Arial, Helvetica, sans-serif">
+  Fax:</font></b><font size="2" face="Arial, Helvetica, sans-serif"> 508-485-0737</font>
+   <b><font color="#cc0000">|</font></b> <a href="http://www.bindview.com"><font size="2" face="Arial, Helvetica, sans-serif">
+  Bindview Home</font></a>
+   		</p>
+        </td>
+   	</tr>
+         
+  </tbody>  
+</table>
+    <br clear="All">
+   <br>
+     
+</body>
+</html>

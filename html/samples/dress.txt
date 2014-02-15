@@ -1,0 +1,35 @@
+
+nobody@sandbox$ file the-binary
+the-binary: ELF 32-bit LSB executable, Intel 80386, version 1, statically linked, stripped
+
+nobody@sandbox$ ./dress -F support/fn-libc5.dat ./the-binary new-binary
+dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>
+[+] Loaded 63405 fingerprints...
+[*] Code section at 0x08048090 - 0x080675cc, offset 144 in the file.
+[*] For your initial breakpoint, use *0x8048090
+[+] Locating CALLs... 371 found.
+[+] Matching fingerprints...
+[*] Writing new ELF file:
+[+] Cloning general ELF data...
+[+] Setting up sections: .init .text .fini .rodata .data .ctors .dtors .bss .note .comment
+[+] Preparing new symbol tables...
+[+] Copying all sections: .init .text .fini .rodata .data .ctors .dtors .bss .note .comment
+[+] All set. Detected fingerprints for 211 of 371 functions.
+
+Before (the-binary):
+
+ 804bf80:       55                      push   %ebp
+[...]
+ 804bf9c:       0f 84 b6 00 00 00       je     0x804c058
+
+After (new-binary):
+
+0804bf80 <gethostbyname>:
+ 804bf80:       55                      push   %ebp
+[...]
+ 804bf9c:       0f 84 b6 00 00 00       je     804c058 <gethostbyname+0xd8>
+
+As you can see, libc function names "appeared" in the binary, and you can
+now easily distinguish them from the code that belongs to the program;
+additionally, you can easily determine what they do and what parameters
+they accept.

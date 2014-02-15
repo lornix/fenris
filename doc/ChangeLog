@@ -1,0 +1,314 @@
+0.07-m2 [3245]: ported to work with newer GCC/libc (RH9)
+0.07-m [3217]: added splash screen by creep
+0.07-m [3214]: make install fixed to work w/o nc-aegir compiled
+0.07-m [3213]: new fingerprints
+0.07-m [3212]: Many fixes from Przemys³aw Czerkas, some tweaks to the build process
+0.07-m [3186]: maintenance release: new fingeprints and stuff
+0.07b [3184]: fixed a glitch with sbreak and ibreak
+0.07b [3179]: RH7.3 problem fixed!
+0.07b [3178]: fixed RH 7.3 problems?
+0.07b [3175]: added intel
+0.07b [3171]: nc-aegir flags modification
+0.07b [3170]: no readline fix
+0.07b [3166]: fixed rtld_nodelete?
+0.07b [3165]: 0.06 out
+0.06b [3164]: new fprints and ctors
+0.06b [3162]: nc-aegir done?
+0.06b [3160]: nc-aegir is almost done, isn't it?
+0.06b [3156]: much much pointless work in fenris for blocking syscalls
+0.06b [3091]: changed keyboard layout for nc-aegir, added scrolling in code and data
+0.06b [3059]: added 'halt' and DMSG_HALT
+0.06b [3015]: small fix in fenris find_name and some fixes in nc-aegir from Andrzej
+0.06b [3008]: be.txt updated, loose int3 detector
+0.06b [3003]: nc-aegir - quite-whole-a-lot; getting close; moved to main directory
+0.06b [2981]: much more work on nc-aegir
+0.06b [2972]: added regoff calls and -G
+0.06b [2942]: some work on nc-aegir, also a minor fix in hooks.c on libcalls
+0.06b [2895]: changed -o # semantics
+0.06b [2888]: changed some CODESEG occourences in hooks.c to LIBCSEG to avoid stupid 'you were in libc' messages
+0.06b [2883]: added support for lea from -O9
+0.06b [2877]: fixed ret-instead-of-nop problem with sighandlers, added problem detection
+0.06b [2844]: added build framework for nc-aegir
+0.06b [2839]: fixed break_enterdyn without -W and added -o #
+0.06b [2834]: -q added for Fenris
+0.06b [2831]: Fenris and aegir fixed not to waste cpu cycles while waiting
+0.06b [2813]: mmap fix
+0.06b [2810]: fixed addresses over 0x7fffffff in aegir
+0.06b [2805]: free after readline
+0.06b [2802]: 0.04 will be skipped; 0.05 should be out soon; 0.06b is now under development
+0.05b [2799]: added -X and such
+0.05b [2794]: ffixed do_memdump
+0.05b [2790]: fixed a problem with only_nops signatures
+0.04b [2785]: added 'dynamic' to skip linker
+0.04b [2778]: everything looks pretty stable. time for 0.04?
+0.04b [2776]: fixed some mess with leaving singlestep() in debug mode
+0.04b [2768]: wooohoo! debugging is done, except for map display!
+0.04b [2760]: only few less important things, plus setmam and fprint, to go
+0.04b [2750]: many new features in hook.c, rolling down
+0.04b [2735]: added stack backtrace and other stuff
+0.04b [2722]: fixed getaddr
+0.04b [2715]: many fine-tuning changes, symbols
+0.04b [2696]: fixed ibreak, sbreak, memdumps ;-)
+0.04b [2683]: memory transfers and other stuff should work fine, hooks fine-tuned, breakpoints tested
+0.04b [2658]: changed default aegir async mode; breakpoints and watchpoints done, voila
+0.04b [2591]: hook placement complete, I hope
+0.04b [2588]: placed many hooks in fenris
+0.04b [2585]: started with breaks.c
+0.04b [2577]: aegir is practically finished, minus perhaps some bugfixes later. now, time to work on debugging traps in fenris
+0.04b [2565]: and even more work on aegir
+0.04b [2540]: more work on aegir, huhuhu
+0.04b [2525]: adopted portions of libopcodes used in cxmon; to be used in Aegir
+0.04b [2523]: aegir communication engine finished; test/fakedebug.c added
+0.04b [2506]: still working on aegir, debug-api.txt added, fdebug.h and aegir-mod.h added
+0.04b [2492]: more work on aegir, doc changes
+0.04b [2435]: added new files from Marcin
+0.03b [2433]: added dress manpage, worked on manpages
+0.03b [2432]: added other.txt, revised docs and html
+0.03b [2427]: dress finished.
+0.03b [2422]: added ELF symbols to dress, but it segfaults with long symtables, why?
+0.03b [2404]: added 'dress'
+0.03b [2360]: mmap fixed
+0.03b [2355]: many new fingerprints, makefile fixes, readme fix
+0.03b [2354]: switched to 0.03b, 0.02 is out
+0.02b [2353]: added strlen() signature for -O9
+0.02b [2336]: changed malloc to original_malloc in fndb stuff
+0.02b [2332]: updated manpages and stuff
+0.02b [2330]: added support for auto ctors detection in build
+0.02b [2321]: added speed search for signatures
+0.02b [2317]: PLD mystery solved?
+0.02b [2315]: added more libc5 fnprints
+0.02b [2314]: added whole bunch of new fingerprints
+0.02b [2311]: added reverse.txt
+0.02b [2310]: added -A option
+0.02b [2309]: fixed socketcall
+0.02b [2308]: fixed -P
+0.02b [2304]: added some CTORS signatures
+0.02b [2303]: moved 'split' to 'ragsplit'
+0.02b [2299]: added -P option
+0.02b [2298]: Added more fingerprints and such
+0.02b [2288]: added fixes from negative and splitter
+0.02b [2285]: fixed makefile, added more writes and reads to ragnarok, fixed tmp names
+0.02b [2280]: switched to 0.02 to avoid confusion
+0.01b [2279]: new fingerprints
+0.01b [2278]: possible fix for fprints problem
+0.01b [2276]: added "contact me" in fatal()
+0.01b [2271]: fixed strange issuit bug...
+0.01b [2267]: changed copyright to Bindview corp
+0.01b [2263]: fixed missing return in add_mem
+0.01b [2261]: fixed unhandled null find_id
+0.01b [2247]: fixed signature reporting by ragnarok
+0.01b [2241]: detach when nest level is PRETTYSMALL
+0.01b [2235]: added -R option
+0.01b [2234]: added some manpages
+0.01b [2231]: fixed dramatic performance problem in ragnarok
+0.01b [2224]: Owl fingerprints added
+0.01b [2223]: fenris ported to Owl
+0.01b [2222]: some browser compatibility stuff
+0.01b [2221]: buffer tracking in fenris
+0.01b [2193]: -p now works with ragnarok
+0.01b [2177]: added readlink on /proc/pid/fd/nnn for unknown filedescriptors
+0.01b [2175]: added fd history. buffer history to go
+0.01b [2174]: added fd tracking, fixed some incosistencies in fenris
+0.01b [2115]: some beautifiers added to ragnarok output
+0.01b [2105]: fixed some brain-damaged ifs in ragnarok
+0.01b [2089]: do not report syscalls in known libcalls
+0.01b [2085]: finalized ragnarok output concept in README
+0.01b [2073]: uhh, some subtle bugfixes
+0.01b [2053]: fixed indent bug
+0.01b [2039]: added "neat finish" support for ragnarok
+0.01b [2035]: added ...never returned stuff
+0.01b [2004]: ragnarok is doing better and better
+0.01b [1976]: ragnarok is getting better; htmlized trace of functions; missing: buffer history, htmlized function dumps; htmlized original source
+0.01b [1944]: fixed mapped in kernel stuff
+0.01b [1942]: fixed freeing memblocks corresponding to mapped stuff
+0.01b [1941]: ragnarok traces all activity now
+0.01b [1940]: some bugs in handle_specific fixed
+0.01b [1939]: ragnarok nest level tracing fixed
+0.01b [1919]: ragnarok is now almost complete, except for buffer tracing; nest level is screwed up somewhere, thou...
+0.01b [1906]: ragnarok is closer and closer, text-based functionn trace is almost done
+0.01b [1811]: trying to implement own text I/O in ragnarok
+0.01b [1787]: added merge within
+0.01b [1777]: fixed block merging for authoritative stuff
+0.01b [1775]: fixed some free and malloc tracing issues
+0.01b [1773]: more work on ragnarok
+0.01b [1772]: fixed many bugs in stack tracking
+0.01b [1747]: many new string/mem libcalls
+0.01b [1745]: almost finished buffer support in ragnarok
+0.01b [1744]: added \ remap
+0.01b [1733]: working on ragnarok
+0.01b [1732]: fixed atexit
+0.01b [1731]: added delete_mem in delete_map
+0.01b [1714]: fixed minor typo with major effects... isn't that just the way the life is?
+0.01b [1706]: fixed libi386 bug
+0.01b [1705]: fixed resolver problem
+0.01b [1670]: fixed buffer finding
+0.01b [1669]: fixed local stack in write detection
+0.01b [1667]: beautified mem writes reporting
+0.01b [1659]: added support for .a and .so binutils libs
+0.01b [1658]: added RSA MD5 support
+0.01b [1635]: some other minor stuff
+0.01b [1634]: completely rewritten memory tracking
+0.01b [1633]: changed memory writes notification scheme
+0.01b [1632]: fixed some bugs in libi386
+0.01b [1631]: added memory read mods
+0.01b [1518]: added memory leak detection
+0.01b [1509]: fixed strdup mem management
+0.01b [1471]: fixed lasti bug
+0.01b [1458]: added buffer autodetection and first-seen
+0.01b [1457]: added string autodetection
+0.01b [1426]: strcpy, strncpy, strcmp, strlen, first libcalls
+0.01b [1400]: fixed write handler
+0.01b [1399]: not tracing in libc sighandlers; readline has no nop
+0.01b [1396]: ehh, yes. i did something strange, fixed it
+0.01b [1393]: added fprints for libc 2.2.4
+0.01b [1391]: added esp-=4 in c2 fncall
+0.01b [1389]: changed atret to 3 to support HMM3
+0.01b [1382]: i hate chicago. and airline food.
+0.01b [1381]: ok, bash is fine, except for nest level because of longjmps
+0.01b [1380]: c++ binaries, bash and other stuff should work fine?
+0.01b [1379]: ff a3 check
+0.01b [1378]: c2 08 ret check
+0.01b [1377]: added enter dynamic check
+0.01b [1376]: added segment switch check
+0.01b [1375]: adeed ff 15 call
+0.01b [1329]: slightly changed symbol lookups
+0.01b [1323]: added shell scripts support
+0.01b [1320]: added -p switch
+0.01b [1319]: problem with ecasound binary custom-linked from c++ source, hmm
+0.01b [1317]: some other fixes, still fighting with bash
+0.01b [1316]: fixed libcall from libcall via plt problem
+0.01b [1315]: added +x
+0.01b [1314]: somewhere in the middle of fight with bash
+0.01b [1265]: added nappend to keep stuff secure
+0.01b [1258]: ugh. completely revised parameter tracking
+0.01b [1171]: experiments with ignaxpush and igregpush
+0.01b [1157]: tons of new syscalls
+0.01b [1154]: syslog
+0.01b [1153]: some webpage updates
+0.01b [1151]: fixed problems with ctors in ./build
+0.01b [1147]: added fingerprints from pueblo and coredump
+0.01b [1140]: many many new options, better docs, and such
+0.01b [1134]: added -E and -u options
+0.01b [1131]: build script checks for libs
+0.01b [1124]: everything is fine! really!
+0.01b [1115]: woo-hoo, it works fine
+0.01b [1105]: trying to make md5 working
+0.01b [1097]: added database load and such
+0.01b [1094]: added md5 sigs
+0.01b [1093]: added -F and fingerprints
+0.01b [1084]: revised whole -s versus dynamic
+0.01b [1069]: .
+0.01b [1060]: don't exit main() without entering it.
+0.01b [1056]: fixed 0x88 mov
+0.01b [1053]: some minor cleanup in int3
+0.01b [1049]: 2.0 compatibility mods
+0.01b [1048]: added atmpvc ifdef
+0.01b [1042]: fixed reporting problem
+0.01b [1040]: wooo-hooo, parameter detection works now with -O9
+0.01b [1038]: added function ret check, elliminated push %ebp
+0.01b [1033]: fixed endian glitch in socketcall
+0.01b [1031]: added some more socket calls
+0.01b [1030]: improved syscall ret when signaled
+0.01b [1029]: safeguarding fork by changing int3 to nop
+0.01b [1028]: fixed ptrace bug in kernel with int3 stuff
+0.01b [1013]: trying to fix kernel bug with signal handlers
+0.01b [1009]: -fPIC support fixed.
+0.01b [1004]: removed signal handler detection code
+0.01b [992]: added beta signal handling
+0.01b [979]: added port, modify_filedes
+0.01b [972]: added socket()
+0.01b [964]: added some new syscalls, socketcall framework
+0.01b [956]: added len reporting for local and library buffers w/symbols
+0.01b [953]: finally consolidated mem mods in wlog
+0.01b [930]: uhh, memory mod detector works fine
+0.01b [866]: added beta write check
+0.01b [863]: added tweaked libdisasm
+0.01b [859]: added check to avoid dlopening executables in fadd_pdescr
+0.01b [837]: added output signature
+0.01b [830]: added -i option
+0.01b [827]: added readdir
+0.01b [826]: added reboot
+0.01b [825]: added readlink
+0.01b [822]: added swapon, swapoff, truncate, ftruncate, fchmod
+0.01b [821]: added uselib
+0.01b [820]: added oldlstat, lstat
+0.01b [817]: added timeofdays
+0.01b [814]: added rlimit calls
+0.01b [810]: added set/gethostname
+0.01b [809]: added exit-in-syscall reporting
+0.01b [801]: added -d option
+0.01b [798]: added some signal syscalls
+0.01b [797]: improved read
+0.01b [795]: removed cfn, changed some stuff as to current location id
+0.01b [793]: added ctrl+c handler, fatal kills all kids
+0.01b [786]: fixed segv in fd functions
+0.01b [771]: added lasti input modification
+0.01b [770]: completely revisited fd reporting
+0.01b [766]: added new ctors signatures
+0.01b [757]: more syscalls, ehh
+0.01b [754]: added bufdescr to every pointer, added Xv
+0.01b [745]: sigaction added
+0.01b [740]: changed read/write reporting
+0.01b [736]: added fcntl
+0.01b [731]: added ioctls.h and ioctl()
+0.01b [726]: added pipe, signal
+0.01b [715]: much more new syscalls
+0.01b [713]: iproved libc check (wojtekka)
+0.01b [710]: some output format changes
+0.01b [696]: added utime
+0.01b [694]: added tests/syms.c, finished local symbols tracing
+0.01b [666]: added local symbols support
+0.01b [663]: and more syscalls
+0.01b [660]: more syscalls
+0.01b [657]: added new syscalls
+0.01b [653]: 2.0 compatibility checks
+0.01b [644]: added some get*ids
+0.01b [636]: added lseek, oldstat, stat
+0.01b [614]: added e9 JMP support, more cleanups
+0.01b [596]: some glitches found due to mem checking
+0.01b [587]: final clone_process cleanup
+0.01b [580]: fixed some malloc/free bugs, tighter heap management
+0.01b [564]: added fchown, chown, lchown, fchdir, etc
+0.01b [563]: added mknod
+0.01b [558]: added time()
+0.01b [556]: fixed _db_fd case
+0.01b [544]: added -n option
+0.01b [543]: added waitpid status, chdir
+0.01b [542]: added link and unlink
+0.01b [534]: mmap flags
+0.01b [525]: added error reporting and open flags
+0.01b [522]: added creat
+0.01b [521]: added waitpid and some add_mem()s
+0.01b [517]: added sigsegv, sigbus and sigill handlers
+0.01b [515]: added SYS read, write
+0.01b [507]: some clean-up of reported messages
+0.01b [503]: finished parameter descr
+0.01b [490]: finished add_mem() and others
+0.01b [477]: added some fnid / stack frame code
+0.01b [462]: added parameter descriptions
+0.01b [460]: minor add_map() fix
+0.01b [455]: added filename isprint check
+0.01b [450]: added fenrisdecl.h
+0.01b [449]: added ragnarok placeholder
+0.01b [436]: added getopt support, -o, -f and -e options
+0.01b [435]: added spell
+0.01b [434]: i get rid of this whole fork interceptor. new code.
+0.01b [368]: added forkhack code
+0.01b [364]: new malloc() and realloc() code
+0.01b [334]: fork and vfork support, some fixes
+0.01b [319]: fixed libc call params
+0.01b [317]: added pstack shrinker back
+0.01b [316]: added test/exec.c, some test/ cleanup
+0.01b [312]: fixed remove_process
+0.01b [302]: execve and exit tracing
+0.01b [300]: test/cndrep.c added, conditional-back support
+0.01b [295]: added conditional constructions
+0.01b [291]: fenris-bug utility added
+0.01b [290]: PLT checks in ./build
+0.01b [287]: finally solved PLT and _dl_runtime_resolv mess
+0.01b [280]: symbols and libc tracking works
+
+fenris version 0.01b, build 280: ChangeLog initiated. Project
+status at this time: core tracker functional, adding features,
+memory tracking, symbol detection, extensions, TODO is still 
+pretty long.

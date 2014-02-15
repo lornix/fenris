@@ -1,0 +1,42 @@
+.TH fprints 1 
+.SH NAME
+fprints \- get MD5 signatures of functions in ELF object
+.SH SYNOPSIS
+.B fprints
+.I elf_file
+.br
+.SH "DESCRIPTION"
+This program generates MD5 signatures for all visible functions
+in given ELF object. It is supposed to be used against .o files
+and to provide data for
+.BR fnprints.dat (5)
+file for
+.BR fenris (1)
+or
+.BR dress (1).
+Please refer to
+.BR /usr/doc/fenris/README
+or
+.BR http://lcamtuf.coredump.cx/fenris/
+for more information and examples.
+
+.SH SEE ALSO
+.BR fenris (1),
+.BR aegir (1),
+.BR nc-aegir (1),
+.BR fenris-bug (1),
+.BR dress (1),
+.BR ragnarok (1),
+.BR getfprints (1),
+.BR ragsplit (1),
+.BR strace (1),
+.BR ltrace (1),
+.BR gdb (1),
+.BR objdump (1),
+.BR ptrace (2),
+.BR fnprints.dat (5).
+
+.SH AUTHOR
+.B fprints
+was written by Michal Zalewski <lcamtuf@coredump.cx>.
+

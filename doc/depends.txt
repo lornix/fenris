@@ -1,0 +1,86 @@
+Known dependencies for the project:
+
+Required:
+---------
+
+  - Linux 2.x
+ 
+    Currently, only Linux is supported, and only 2.x kernels
+    (2.0, 2.2, 2.4, 2.5) were tested. Base Linux system configuration,
+    including GNU textutils and other basic applications, is assumed.
+
+  - x86 platform
+
+    Currently, only x86 processors are supported. The project may
+    be forced to run on a different architecture, but results will
+    be meaningless.
+
+  - Bourne-Again SHell
+
+    bash is necessary for compilation scripts. For systems that
+    do not have bash, you can try applying a patch supplied in support/
+    directory, but it does not have to be very up to date.
+
+  - GNU libc 2.x
+
+    GNU libc 2.x is required for the build process, but Fenris is
+    also capable of tracing applications coming from libc5 systems.
+
+  - GNU C Compiler 2.9.x - 3.x
+
+    Required for build, and the only compiler platform supported right
+    now for tracing.
+
+  - GNU binutils  [with development headers and libraries]
+
+    Required for libbfd and several build process utilities.
+    Note: avoid version mismatch between .h and .a / .so files.
+
+  - GNU gdb
+
+    Required during the build process. Not required for running the
+    tracer.
+
+  - OpenSSL or RSA libmd5 [with development headers]
+
+    Required for MD5 hashing and signature recognition.
+  
+
+Recommended:
+------------
+
+  - libreadline [with development headers]
+
+    Libreadline is recommended for input handling in Aegir. It is
+    possible to use Aegir without libreadline installed, but no
+    editing / command history capabilities will be present.
+
+  - libtermcap or libtinfo [with headers]
+
+    Required to use libreadline.
+
+  - screen
+
+    Required for running nc-aegir sessions. Nc-aegir tries to provide
+    a comprehensive debugging environment, and integrate Fenris and
+    Aegir sessions. It does so by using pseudo-terminal switching
+    capabilities provided by screen (that would otherwise require two
+    terminals or a complex terminal emulation code built-in).
+
+  - graphics-capable web browser
+
+    For viewing ragnarok output.
+
+
+Optional:
+---------
+
+  - xterm
+
+    An alternative session management tool for nc-aegir. When running
+    under X Window System, nc-aegir will spawn a new xterm window instead
+    of using screen to navigate the display.
+
+  - Sendmail or compatible
+
+    Required for running fenris-bug bug reporting tool.

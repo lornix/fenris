@@ -1,0 +1,257 @@
+#!/bin/bash
+
+#
+#  fenris - program execution path analysis tool
+#  ---------------------------------------------
+#
+#  Copyright (C) 2001, 2002 by Bindview Corporation
+#  Portions Copyright (C) 2001, 2002 by their respective contributors
+#  Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:$PATH
+
+R=frep.txt
+
+clear
+echo
+echo "Hello, I am your friendly bug reporting utility. I will gather"
+echo "all necessary info about your environment, and ask you to describe the"
+echo "nature of your problem, giving some tips that will allow the author"
+echo "to fix bugs more efficiently. I will only notify the author of this"
+echo "utility, and I will do it by sending e-mail directly to him. You can"
+echo "be assured I won't try to disclose any unneeded and sensitive"
+echo "information about your system."
+echo
+echo "Final report will be presented to you for review before sending it."
+echo
+echo -n "Hit RETURN to continue (Ctrl+C aborts): "
+read x
+
+clear
+echo
+echo "Before reporting a problem, you might want to investigate whether"
+echo "it has already been fixed in newer versions of 'fenris' utility, or if"
+echo "this is a known but not fixed issue (see README). This is not a must,"
+echo "but might save both you and me some time. To do it, please go to fenris"
+echo "homepage, http://lcamtuf.coredump.cx/fenris/. If you have installed"
+echo "'fenris' from binary package, it might be not optimized for your system,"
+echo "and you might have missed some compilation-time warnings or useful hints."
+echo "I strongly recommend you downloading most recent version and trying to"
+echo "recompile it. Thanks!"
+echo
+echo -n "Hit RETURN to continue (Ctrl+C aborts): "
+read x
+
+clear
+echo
+echo "First, I need to know your e-mail address. Providing vaild e-mail"
+echo "address is essential for proper handling of your bugreport. Of course,"
+echo "you can provide something bogus and have your bug reported anonymously,"
+echo "but it is not necessarily the most accurate way to have something fixed ;)"
+echo
+echo -n "Your e-mail address: "
+read email
+
+echo >$R
+echo ">> Report submitted by $email" >>$R
+echo >>$R
+
+clear
+echo 
+echo "Now, I will gather some information about your system. It might"
+echo "take few seconds... "
+echo
+
+echo "[+] Basic system configuration..." 
+
+echo "Date: `date`" >>$R
+echo "System: `uname -s` `uname -r` (`uname -m`)" >>$R
+echo >>$R
+
+echo "[+] libc configuration..."
+
+ls -l /lib/ld* /lib/libdl* /lib/libc.* >>$R 2>&1
+
+echo "[+] gcc version..."
+
+echo >>$R
+gcc -v >>$R 2>&1
+
+echo "[+] gcc code generation..."
+
+echo 'int main() { return getuid(); }' >.testme.c
+
+echo >>$R
+
+gcc .testme.c -o .testme >>$R 2>&1
+rm -f .testme.c
+
+echo "[+] linker information..."
+
+echo "disass getuid" >.test
+echo "break main" >>.test
+echo "run" >>.test
+echo "disass _dl_runtime_resolve" >>.test
+echo "disass __do_global_ctors_aux" >>.test
+gdb -batch -x .test ./.testme >>$R 2>&1
+rm -f .test .testme
+
+echo "[+] /proc/self/maps..."
+
+echo >>$R
+cat /proc/self/maps >>$R 2>&1
+
+echo
+echo -n "Done, hit RETURN to continue (Ctrl+C aborts): "
+read x
+
+clear
+echo 
+echo "Now, I will try to ask you five simple questions about the problem"
+echo "you've encountered. You do not have to provide all answers, if you"
+echo "do not know them. Feel free to extend every answer with any"
+echo "observations or thoughts you might have. It is better to be verbose,"
+echo "so do not be affraid to write even if you are not sure."
+echo
+echo "Please finish every answer by entering line containing single dot (.)"
+echo "alone. You can review your answers and make corrections before sending"
+echo "the report."
+echo
+
+echo -n "Hit RETURN to continue (Ctrl+C aborts): "
+read x
+
+clear
+echo
+echo "1) What happened? Please paste last 20 lines of 'fenris' output at the"
+echo "   time this condition occoured. If you are familiar with debuggers"
+echo "   (gdb, strace or ltrace), providing their output might be helpful."
+echo
+
+CNT=0
+echo -e "\n>> What happened?\n" >>$R
+while :; do
+  CNT=$[CNT+1]
+  echo -n "$CNT: "
+  read x
+  test "$x" = "." && break
+  echo "$x" >>$R
+done
+
+clear
+echo
+echo "2) When did it happen? Describe what program and in which version"
+echo "   were you tracing, and all specific conditions that come to your"
+echo "   mind."
+echo
+
+CNT=0
+echo -e "\n>> Where did it happen?\n" >>$R
+while :; do
+  CNT=$[CNT+1]
+  echo -n "$CNT: "
+  read x
+  test "$x" = "." && break
+  echo "$x" >>$R
+done
+
+clear
+echo
+echo "3) Were you able to reproduce this problem? With any other program?"
+echo "   On other systems? Is there anything specific about your system"
+echo "   configuration (e.g. third-party kernel enhancements)? Did you"
+echo "   compile traced program on your computer and disabled optimization?"
+echo
+
+CNT=0
+echo -e "\n>> Reproductable?\n" >>$R
+while :; do
+  CNT=$[CNT+1]
+  echo -n "$CNT: "
+  read x
+  test "$x" = "." && break
+  echo "$x" >>$R
+done
+
+clear
+echo
+echo "4) Do you remember seeing any compilation-time warnings or errors?"
+echo "   If you installed 'fenris' from a package (such as RPM or pkg), can"
+echo "   you tell where did it come from (shipped with Linux distribution,"
+echo "   downloaded from some site)?"
+echo
+
+CNT=0
+echo -e "\n>> Compilation?\n" >>$R
+while :; do
+  CNT=$[CNT+1]
+  echo -n "$CNT: "
+  read x
+  test "$x" = "." && break
+  echo "$x" >>$R
+done
+
+clear
+echo
+echo "5) This is the last question. Do you have any other comments,"
+echo "   suggestions, requests or thoughts on 'fenris', not necessarily"
+echo "   related to this bug?"
+echo
+
+CNT=0
+echo -e "\n>> Comments?\n" >>$R
+while :; do
+  CNT=$[CNT+1]
+  echo -n "$CNT: "
+  read x
+  test "$x" = "." && break
+  echo "$x" >>$R
+done
+
+clear
+echo
+echo "I have finished gathering necessary information. If you want to"
+echo "review the final report, enter the name of your favorite editor now."
+echo "Hitting RETURN alone will skip this step."
+echo
+echo -n "Enter preferred editor (vim, mcedit, pico, emacs): "
+read edit
+
+if [ ! "$edit" = "" ]; then
+  $edit $R
+fi
+
+clear
+echo 
+echo "Now, we are about to send your report. To do it, please hit RETURN."
+echo "You can abort this process by hitting Ctrl+C."
+echo
+echo -n "Hit RETURN to send: "
+read x
+
+sendmail -f$email lcamtuf@coredump.cx <$R
+
+clear
+echo 
+echo "Thank you for submitting your report!"
+echo "A copy of it can be found in '$R'."
+echo
+
+exit 0
+
+

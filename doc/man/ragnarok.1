@@ -1,0 +1,52 @@
+.TH ragnarok 1 
+.SH NAME
+ragnarok \- html output generator for fenris
+.SH SYNOPSIS
+.B ragnarok
+.I fenris-output
+.I output.html
+.br
+.SH "DESCRIPTION"
+This is a HTML output generator for
+.BR fenris (1).
+It allows you to prepare a neat and useful summary of
+program activity, divided in several individual sections.
+Please refer to
+.BR /usr/doc/fenris/README
+or
+.BR http://lcamtuf.coredump.cx/fenris/
+for more information and examples.
+
+.SH BUGS
+Ragnarok is not too good in handling error conditions in the trace
+file - it will just dump them to stderr and ignore. Also, ragnarok
+is able of tracing only one target at the time, so it won't generate
+output after fork()s, execve(), etc.
+
+Another problem is more related to HTML in general and HTML browsers.
+For large input files, generated HTML will be really huge and will
+load slowly. This can be probably fixed by splitting output into
+a bunch of separate files. Additionally, readability can be improved
+by replacing the table in first section with embedded data, e.g. in
+OpenDX format. This will be done in future releases.
+
+.SH SEE ALSO
+.BR fenris (1),
+.BR aegir (1),
+.BR nc-aegir (1),
+.BR fenris-bug (1),
+.BR fprints (1),
+.BR dress (1),
+.BR getfprints (1),
+.BR ragsplit (1),
+.BR strace (1),
+.BR ltrace (1),
+.BR gdb (1),
+.BR objdump (1),
+.BR ptrace (2),
+.BR fnprints.dat (5).
+
+.SH AUTHOR
+.B ragnarok
+was written by Michal Zalewski <lcamtuf@coredump.cx>.
+

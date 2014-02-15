@@ -1,0 +1,1239 @@
+#!/bin/bash
+
+#
+#  fenris - program execution path analysis tool
+#  ---------------------------------------------
+#
+#  Copyright (C) 2001, 2002 by Bindview Corporation
+#  Portions Copyright (C) 2001, 2002 by their respective contributors
+#  Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+#  05/16/2002: Modified by Marcin Gozdalik to use libfnprints and such.
+
+
+test "$BASH" = "" && echo "Bash shell is required to execute this script."
+test "$BASH" = "" && exit 1
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:$PATH
+
+PROGNAME=fenris
+PROGNAME2=ragnarok
+PROGNAME3=fprints
+PROGNAME4=dress
+PROGNAME5=aegir
+PROGNAME6=nc-aegir
+
+VERSION=0.07-m2
+
+rm -f $PROGNAME6 $PROGNAME5 $PROGNAME3 $PROGNAME4 $PROGNAME $PROGNAME2 scnames.h core core.* *~ .testme.c .testme .testerr .gtmp CTORS.txt *.o a.out test/a.out doc/frep.txt aegir-decl.h fenris-decl.h gprof.out bb.out libdisasm/core test/core libdisasm/*.o libdisasm/a.out tools/fprints NEW-fnprints.dat .tmp NEW-fp.dat test/core.*
+rm -f beta/*.o beta/nc-aegir &>/dev/null
+
+test "$1" = "clean" && echo "[+] Cleanup complete."
+test "$1" = "clean" && exit 0
+
+if [ "$1" = "install" ]; then
+  make install
+  exit 1
+fi
+
+
+CFLAGS="-O9 -fomit-frame-pointer -funroll-loops -fexpensive-optimizations \
+        -ffast-math -Wall"
+
+CFLAGS2="-O9 -fomit-frame-pointer -funroll-loops -fexpensive-optimizations \
+        -ffast-math "
+	
+if [ "$1" = "minimal" ]; then
+  CFLAGS="$CFLAGS -fno-inline -DMINIMAL=1"
+fi
+
+LDFLAGS="-ldl -lbfd -liberty -rdynamic"
+
+if [ "$HOSTNAME" = "nimue.bos.bindview.com" ]; then
+  LDFLAGS="$LDFLAGS -lnoexit"
+fi
+
+
+if [ "$1" = "debug" ]; then
+  CFLAGS="-Wall -ggdb -DDEBUG=1"
+  CFLAGS2="-ggdb -DDEBUG=1"
+  NOSTRIP=1
+fi
+
+
+if [ "$1" = "heavy" ]; then
+  CFLAGS="-Wall -ggdb -DDEBUG=1 -DHEAVY_DEBUG=1"
+  CFLAGS2="-ggdb -DDEBUG=1  -DHEAVY_DEBUG=1"
+  NOSTRIP=1
+fi
+
+
+if [ "$1" = "prof" ]; then
+  CFLAGS="-Wall -DDEBUG=1 -fno-inline -ggdb -pg -DPROFILE=1"
+  CFLAGS2="-DDEBUG=1 -fno-inline -ggdb -pg -DPROFILE=1"
+  NOSTRIP=1
+fi
+
+
+OKLIBC="2.0.7 2.1.92 2.2.2 2.2 2.1.3 2.2.4 2.3.2"
+OKGCC="2.8.1 2.96 2.95.2 2.95.3 3.2.2"
+
+ulimit -c 0 2>/dev/null
+
+clear
+cat doc/fenris.a
+usleep 100000 &>/dev/null
+test "$1" = "" && sleep 2
+clear
+
+echo
+echo "fenris - program execution path analysis tool"
+echo "---------------------------------------------"
+echo "Copyright (C) 2001, 2002 by Bindview Corporation"
+echo "Portions Copyright (C) 2001, 2002 by their respective contributors"
+echo "Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>"
+echo
+
+echo "  Fenris is still under development. Your comments, complaints,"
+echo "  bugfixes, ideas and code are welcome and will be greatly appreciated."
+echo "  If you notice any problems during the compilation process or while"
+echo "  using this software, please consult the documentation and use "
+echo "  'fenris-bug' reporting application. Thanks!"
+echo
+
+test "$1" = "" && sleep 2
+
+
+BUILD=`cat doc/.build 2>/dev/null`
+test "$BUILD" = "" && BUILD=0
+
+if [ "$HOSTNAME" = "nimue.bos.bindview.com" -o "$HOSTNAME" = "io.rogue-squirrel.org" ]; then
+  BUILD=$[BUILD+1]
+  echo "$BUILD" >doc/.build 2>/dev/null
+  echo -n "[?] Changes in this build: "
+  read x
+  if [ ! "$x" = "" ]; then 
+    echo "$VERSION [$BUILD]: $x" >.tmp
+    cat doc/ChangeLog >>.tmp 2>/dev/null
+    cat .tmp >doc/ChangeLog
+    rm -f .tmp
+  fi
+  tar cf /home/lcamtuf/fenris-back.tar /fenris 2>/dev/null
+fi
+
+
+echo "[+] Version (build): $VERSION ($BUILD)"
+
+
+if [ "$2" = "strip" ]; then
+  LAMESTRIP=1
+  echo "[*] Overriding sanity checks! Yuppi!"
+fi
+
+if [ "$1" = "strip" ]; then
+  LAMESTRIP=1
+  echo "[*] Overriding sanity checks! Yuppi!"
+fi
+
+
+echo -n "[+] Operating system check: "
+
+SYSNAME=`uname -s 2>/dev/null`
+
+test "$SYSNAME" = "" && SYSNAME="unknown"
+
+if [ ! "$SYSNAME" = "Linux" ]; then
+  echo "$SYSNAME is not supported!"
+  echo "[-] I do not support your OS yet. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "Linux (supported)"
+
+echo -n "[+] Processor check: "
+
+PROC=`uname -m 2>/dev/null`
+test "$PROC" = "" && PROC="unknown"
+PROCOK=`echo $PROC|grep ^i.86\$ 2>/dev/null`
+
+if [ "$PROCOK" = "" ]; then
+  echo "$PROC is not supported!"
+  echo "[-] I do not support your CPU yet. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "$PROC (supported)"
+
+echo -n "[+] GNU C library version: "
+
+LIBCVER=`/lib/libc.so.6|awk -F'version ' '{print $2}'|awk -F, '{print $1}'|head -1`
+
+if [ "$LIBCVER" = "" ]; then
+  echo "cannot determine libc version!"
+  echo "[-] I am affraid I cannot continue. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo -n "$LIBCVER"
+
+unset VEROK
+for i in $OKLIBC; do test "$LIBCVER" = "$i" && VEROK="1"; done
+
+if [ "$VEROK" = "" ]; then
+  echo " (untested!)"
+  echo "[!] This voids your warranty ;) Please consult documentation."
+  echo "    And, if this is not a big deal, contact author :)"
+  echo
+else
+  echo " (tested)"
+fi
+
+echo -n "[+] GNU C compiler version: "
+
+GCCVER=`gcc -v 2>&1|grep 'gcc version' 2>/dev/null|awk '{print $3}' 2>/dev/null`
+
+if [ "$GCCVER" = "" ]; then
+  echo "problems calling gcc!"
+  echo "[-] I cannot continue. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo -n "$GCCVER"
+
+unset VEROK
+for i in $OKGCC; do test "$GCCVER" = "$i" && VEROK="1"; done
+
+if [ "$VEROK" = "" ]; then
+  echo " (untested!)"
+  echo "[!] This voids your warranty ;) Please consult documentation."
+  echo "    And, if this is not a big deal, contact author :)"
+  echo
+else
+  echo " (tested)"
+fi
+
+echo -n "[+] GNU libc binary test: "
+
+STRILI=`file -L /lib/libc.so.6 2>/dev/null|grep 'not strip'`
+GENLI=`file -L /lib/libc.so.6 2>/dev/null|grep 'strip'`
+
+if [ "$GENLI" = "" ]; then
+  echo "failed!"
+  echo "[-] I cannot read your /lib/libc.so.6 (or your 'file' utility"
+  echo "    is broken). Please fix it. Yes, you need libc6, yes, I need"
+  echo "    to be able to read it. Thanks =)"
+  echo
+  exit 1
+fi
+
+if [ "$STRILI" = "" ]; then
+  echo "stripped?"
+  if [ "$LAMESTRIP" = "" ]; then
+    echo "[-] Come on, you didn't strip your libc binary, did you?;)"
+    echo "    I am sorry, but I really want to read some information"
+    echo "    from there. Can you fix that? If not, please run me providing"
+    echo "    'strip' as second parameter of this script, e.g.:"
+    echo
+    echo "      $0 all strip"
+    echo "      $0 minimal strip"
+    echo
+    echo "    I would not be able to perform some checks, but I'll try to"
+    echo "    continue and, well, maybe everything will be just fine?;)"
+    echo 
+    exit 1
+  fi
+else 
+  echo "passed"
+fi
+
+echo -n "[+] GCC crt code binary test: "
+
+STRILI=`file -L /usr/lib/crt1.o 2>/dev/null|grep 'not strip'`
+GENLI=`file -L /usr/lib/crt1.o 2>/dev/null|grep 'strip'`
+
+if [ "$GENLI" = "" ]; then
+  echo "failed!"
+  echo "[-] I cannot read your /usr/lib/crt1.o (or your 'file' utility"
+  echo "    is broken). Please fix it. Thanks =)"
+  echo
+  exit 1
+fi
+
+if [ "$STRILI" = "" ]; then
+  echo "stripped?"
+  if [ "$LAMESTRIP" = "" ]; then
+    echo "[-] Come on, you didn't strip your crt binary, did you?;)"
+    echo "    I am sorry, but I really want to read some information"
+    echo "    from there. Can you fix that? If not, please run me providing"
+    echo "    'strip' as second parameter of this script, e.g.:"
+    echo
+    echo "      $0 all strip"
+    echo "      $0 minimal strip"
+    echo
+    echo "    I would not be able to perform some checks, but I'll try to"
+    echo "    continue and, well, maybe everything will be just fine?;)"
+    echo 
+    exit 1
+  fi
+else
+  echo "passed"
+fi
+
+echo -n "[+] GNU libc linker test: "
+
+STRILI=`file -L /lib/ld-linux.so.2 2>/dev/null|grep 'not strip'`
+GENLI=`file -L /lib/ld-linux.so.2 2>/dev/null|grep 'strip'`
+
+if [ "$GENLI" = "" ]; then
+  echo "failed!"
+  echo "[-] I cannot read your /lib/ld-linux.so.2 (or your 'file' utility"
+  echo "    is broken). Please fix it. Yes, you need libc6, yes, I need"
+  echo "    to be able to read it. Thanks =)"
+  echo
+  exit 1
+fi
+
+if [ "$STRILI" = "" ]; then
+  echo "stripped?"
+  if [ "$LAMESTRIP" = "" ]; then
+    echo "[-] Come on, you didn't strip your crt binary, did you?;)"
+    echo "    I am sorry, but I really want to read some information"
+    echo "    from there. Can you fix that? If not, please run me providing"
+    echo "    'strip' as second parameter of this script, e.g.:"
+    echo
+    echo "      $0 all strip"
+    echo "      $0 minimal strip"
+    echo
+    echo "    I would not be able to perform some checks, but I'll try to"
+    echo "    continue and, well, maybe everything will be just fine?;)"
+    echo 
+    exit 1
+  fi
+else
+  echo "passed"
+fi
+
+echo -n "[+] Endian and sizeof() checks: "
+
+cat >.testme.c 2>/dev/null <<_EOF_
+#include <assert.h>
+#define AS_UINT(x)      (*((unsigned int*)&(x)))
+char endian_test[4]={1,2,3,4};
+main() {
+  char signtest=100;
+  assert(sizeof(int)==4);
+  assert(sizeof(short int)==2);
+  assert(AS_UINT(endian_test)==0x04030201);
+  assert(sizeof(char)==1);
+  assert(sizeof(void*)==4);
+  signtest+=100;
+  assert(signtest<0);
+  return 0*getuid();
+}
+_EOF_
+
+gcc .testme.c -o .testme &>.testerr
+
+if [ ! -s .testme ]; then
+  echo "gcc failed to compile test code!"
+  echo "[-] I really have to perform tests. Please consult documentation."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testme .testme.c .testerr
+  exit 1
+fi
+
+rm -f .testme.c .testerr
+
+./.testme 2>.testerr
+
+if [ "$?" = "0" ]; then
+  echo "passed"
+  rm -f .testerr
+else
+  echo "failed!"
+  echo "[-] Something odd about this system. Please consult documentation."
+  echo
+  echo "[-] Error message: "
+  cat .testerr
+  echo
+  rm -f .testme core .testerr
+  exit 1
+fi
+
+echo -n "[+] Library mapping address: "
+
+echo "break main" >.testerr 2>/dev/null
+echo "x/2w getuid" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+1" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+2" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+3" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+4" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+5" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+6" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+7" >>.testerr 2>/dev/null
+echo "x/10w __do_global_ctors_aux+8" >>.testerr 2>/dev/null
+
+echo "run" >>.testerr 2>/dev/null
+echo "x open" >>.testerr 2>/dev/null
+echo "x/2w _dl_runtime_resolve+16" >>.testerr 2>/dev/null
+
+gdb -batch -x .testerr ./.testme >.gtmp 2>/dev/null
+
+ADDR=`grep open .gtmp 2>/dev/null|grep ^0x 2>/dev/null | awk '{print $1}' 2>/dev/null`
+
+RES=`grep -F resolve .gtmp 2>/dev/null`
+JMP=`grep -F getuid .gtmp 2>/dev/null`
+
+rm -f .testerr .testme
+
+if [ "$ADDR" = "" ]; then
+  rm -f .gtmp
+  echo "problems executing gdb!"
+  echo "[-] I need gdb to determine your defaults. Please consult documentation."
+  echo
+  exit 1
+fi
+
+MAPSEG=`printf "%x" $[ADDR/(256*256*256)] 2>/dev/null`
+
+if [ "$MAPSEG" = "" ]; then
+  rm -f .gtmp
+  echo "cannot calculate segment address!"
+  echo "[-] That's very bad. Please consult documentation."
+  echo
+  exit 1
+fi
+
+MAPSEG="0x$MAPSEG"
+
+echo "${MAPSEG}nnnnnn"
+
+if [ "$MAPSEG" = "0" ]; then
+  echo "[!] Warning: I might have some problems with Openwall, consult README."
+fi
+
+echo -n "[+] C library _init code: "
+
+for i in `grep -B 1 enter_dynamic fenris.c |grep AS_UI|awk -F== '{print $2}'|awk -F\) '{print $1}'|awk '!(NR % 2) {print DUPA ".*" $1};(NR % 2) {DUPA=$1}'`; do
+  FIKU=`grep "$i" .gtmp`
+  test "$FIKU" = "" || CTORSOK=`echo "$i"|sed 's/\.\*/ /g'`
+done
+
+rm -f .gtmp
+
+if [ ! "$CTORSOK" = "" ]; then
+  echo "supported ($CTORSOK)"
+else
+    echo "no known _init pattern!"
+    echo
+    echo "[!] **WARNING** Your GNU C library does not seem to use known"
+    echo "    __do_global_ctors_aux(...) function code. This means you"
+    echo "    will be able to trace programs in -s (no prolog detection)"
+    echo "    only and that you can't benefit from auto libc init skipping"
+    echo "    feature. Please contact the author (lcamtuf@coredump.cx)"
+    echo "    providing him with CTORS.txt file I've created for you."
+    echo "    Try not to use generated code if you do not have to."
+    echo
+    echo "    Supported libc versions: $OKLIBC"
+    echo "    Your libc version is:    $LIBCVER"
+    echo -e '\b'
+    sleep 3
+    echo "[+] Creating CTORS.txt file..."
+    echo "main(){}" >.testme.c 2>/dev/null
+    gcc -o .testme .testme.c 2>/dev/null
+    echo "[+] $PROGNAME $VERSION ($BUILD)" >CTORS.txt 2>/dev/null
+    echo "[+] CPU $PROC" >>CTORS.txt 2>/dev/null
+    echo "[+] libc: $LIBCVER (supported: $OKLIBC)" >>CTORS.txt 2>/dev/null
+    echo "[+] gcc: $GCCVER (supported: $OKGCC)" >>CTORS.txt 2>/dev/null
+    echo >>CTORS.txt 2>/dev/null
+    gcc -v >>CTORS.txt 2>&1
+    echo >>CTORS.txt 2>/dev/null   
+    echo "disass __do_global_ctors_aux" >>.testerr 2>/dev/null
+    gdb -batch -x .testerr ./.testme >>CTORS.txt 2>&1
+    echo >>CTORS.txt
+    objdump -d ./.testme 2>&1 |grep -A 20 ctors_aux\>: >>CTORS.txt 2>&1
+    rm -f .testerr .testme .testme.c
+    ls -l CTORS.txt
+    sleep 4
+    CFLAGS="$CFLAGS -DNOPROLOG=1"
+fi
+
+echo -n "[+] GNU linker/resolver outro: "
+
+R=`echo "$RES" | grep '0x0487595a.*0x0008c224'`
+
+if [ ! "$R" = "" ]; then
+  echo "valid"
+else
+    echo "no known pattern!"
+    if [ "$LAMESTRIP" = "" ]; then
+      echo
+      echo "[-] Your GNU C library linker does not seem to use known"
+      echo "    _dl_runtime_resolve() function code. This means I would not"
+      echo "    be able to trace and detect libraries properly, and is not"
+      echo "    acceptable for me. Please contact the author (lcamtuf@coredump.cx)"
+      echo "    providing him with RESOLV.txt file I've created for you."
+      echo
+      echo "    Supported libc versions: $OKLIBC"
+      echo "    Your libc version is:    $LIBCVER"
+      echo -e '\b'
+      sleep 3
+      echo "[+] Creating RESOLV.txt file..."
+      echo "main(){}" >.testme.c 2>/dev/null
+      gcc -o .testme .testme.c 2>/dev/null
+      echo "[+] $PROGNAME $VERSION ($BUILD)" >RESOLV.txt 2>/dev/null
+      echo "[+] CPU $PROC" >>RESOLV.txt 2>/dev/null
+      echo "[+] libc: $LIBCVER (supported: $OKLIBC)" >>RESOLV.txt 2>/dev/null
+      echo "[+] gcc: $GCCVER (supported: $OKGCC)" >>RESOLV.txt 2>/dev/null
+      echo >>RESOLV.txt 2>/dev/null
+      gcc -v >>RESOLV.txt 2>&1
+      echo >>RESOLV.txt 2>/dev/null   
+      echo "break main" >.testerr
+      echo "run" >>.testerr
+      echo "disass _dl_runtime_resolve" >>.testerr 2>/dev/null
+      gdb -batch -x .testerr ./.testme >>RESOLV.txt 2>&1
+      rm -f .testerr .testme .testme.c
+      ls -l RESOLV.txt
+      sleep 1
+      exit 1
+   else
+     echo "[+] Just as I expected... heh, stripped libc..."
+   fi
+fi 
+
+echo -n "[+] PLT structure: "
+
+P=`echo "$JMP" | grep '25ff'`
+
+if [ ! "$P" = "" ]; then
+  echo "valid"
+else
+    echo "no known pattern!"
+    echo
+    echo "[-] Your GNU C library linker does not seem to use known PLT"
+    echo "    constructions. This means I would not be able to trace and"
+    echo "    detect libraries properly, and is not acceptable for me."
+    echo "    Please contact the author (lcamtuf@coredump.cx), providing"
+    echo "    him with PLT.txt file I've created for you."
+    echo
+    echo "    Supported libc versions: $OKLIBC"
+    echo "    Your libc version is:    $LIBCVER"
+    echo -e '\b'
+    sleep 3
+    echo "[+] Creating RESOLV.txt file..."
+    echo "main(){ getuid(); }" >.testme.c 2>/dev/null
+    gcc -o .testme .testme.c 2>/dev/null
+    echo "[+] $PROGNAME $VERSION ($BUILD)" >PLT.txt 2>/dev/null
+    echo "[+] CPU $PROC" >>PLT.txt 2>/dev/null
+    echo "[+] libc: $LIBCVER (supported: $OKLIBC)" >>PLT.txt 2>/dev/null
+    echo "[+] gcc: $GCCVER (supported: $OKGCC)" >>PLT.txt 2>/dev/null
+    echo >>PLT.txt 2>/dev/null
+    gcc -v >>PLT.txt 2>&1
+    echo >>PLT.txt 2>/dev/null   
+    echo "disass getuid" >.testerr 2>/dev/null
+    gdb -batch -x .testerr ./.testme >>PLT.txt 2>&1
+    rm -f .testerr .testme .testme.c
+    ls -l PLT.txt
+    sleep 1
+    exit 1
+fi
+
+echo -n "[+] Kernel includes available: "
+
+if [ ! -s /usr/include/asm/unistd.h ]; then
+  echo "no appropriate includes found in /usr/include/asm!"
+  echo "[-] I need up-to-date kernel includes. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "yes"
+
+echo -n "[+] OpenSSL installed: "
+
+HAVE_OSSL=1
+
+if [ ! -f /usr/include/openssl/md5.h ]; then
+  if [ ! -f /usr/local/include/openssl/md5.h ]; then
+    echo "openssl/md5.h not found."
+    unset HAVE_OSSL
+    echo -n "[+] RSA MD5 implementation: "
+    if [ ! -f /usr/include/md5.h ]; then
+      if [ ! -f /usr/include/local/md5.h ]; then
+        echo "md5.h not found!"
+        echo "[-] You need to have OpenSSL MD5 or RSA MD5 libraries installed."
+        echo
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+
+if [ "$HAVE_OSSL" = "1" ]; then
+
+  LDFLAGS="$LDFLAGS -lcrypto"
+  CFLAGS="$CFLAGS -DUSE_OPENSSL=1"
+  CFLAGS2="$CFLAGS2 -DUSE_OPENSSL=1"
+
+  if [ ! -f /usr/lib/libcrypto.so ]; then
+    if [ ! -f /usr/local/lib/libcrypto.so ]; then
+      if [ ! -f /usr/lib/libcrypto.a ]; then
+       if [ ! -f /usr/local/lib/libcrypto.a ]; then
+          echo "libcrypto.so not found!"
+          echo "[-] Please install OpenSSL or RSA MD5 implementation."
+          echo
+          exit 1
+        fi
+      fi
+    fi
+  fi
+
+else
+
+  LDFLAGS="$LDFLAGS -lmd5"
+
+  if [ ! -f /usr/lib/libmd5.so ]; then
+    if [ ! -f /usr/local/lib/libmd5.so ]; then
+  if [ ! -f /usr/lib/libmd5.a ]; then
+    if [ ! -f /usr/local/lib/libmd5.a ]; then
+      echo "libcrypto.so not found!"
+      echo "[-] Please install OpenSSL or RSA MD5 implementation."
+      echo
+      exit 1
+    fi
+  fi
+    fi
+  fi
+
+
+fi
+
+echo "yes"
+
+
+echo -n "[+] binutils installed: "
+
+if [ ! -f /usr/include/bfd.h ]; then
+  if [ ! -f /usr/local/include/bfd.h ]; then
+    echo "bfd.h not found!"
+    echo "[-] Please install binutils with appropriate header files."
+    echo
+    exit 1
+  fi
+fi
+
+if [ ! -f /usr/lib/libbfd.so ]; then
+  if [ ! -f /usr/local/lib/libbfd.so ]; then
+    if [ ! -f /usr/lib/libbfd.a ]; then
+      if [ ! -f /usr/local/lib/libbfd.a ]; then
+        echo "libbfd not found!"
+        echo "[-] Please install binutils libraries."
+        echo
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+echo -n "(libbfd) "
+
+if [ ! -f /usr/lib/libiberty.a ]; then
+  if [ ! -f /usr/local/lib/libiberty.a ]; then
+    if [ ! -f /usr/lib/libiberty.so ]; then
+      if [ ! -f /usr/local/lib/libiberty.so ]; then
+        echo "libiberty not found!"
+        echo "[-] Please install binutils libraries."
+        echo
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+echo "(libiberty)"
+
+echo -n "[+] libreadline installed: "
+
+if [ -f /usr/include/readline/readline.h -o -f /usr/local/include/readline/readline.h ]; then
+
+  if [ -f /usr/lib/libreadline.so -o -f /usr/local/lib/libreadline.so -o -f /usr/lib/libreadline.a -o -f /usr/local/lib/libreadline.a ]; then
+
+    if [ -f /usr/lib/libtinfo.so -o -f /usr/local/lib/libtinfo.so -o -f /usr/lib/libtinfo.a -o -f /usr/local/lib/libtinfo.a ]; then
+      CFLAGS="-DHAVE_READLINE -D__USE_TERMCAP $CFLAGS"
+      LDFLAGS="-lreadline $LDFLAGS"
+      LDFLAGS="$LDFLAGS -ltinfo"
+      echo "yes, with libtinfo"
+    elif [ -f /usr/lib/libtermcap.so -o -f /usr/local/lib/libtermcap.so -o -f /usr/lib/libtermcap.a -o -f /usr/local/lib/libtermcap.a ]; then
+      CFLAGS="-DHAVE_READLINE -D__USE_TERMCAP $CFLAGS"
+      LDFLAGS="-lreadline $LDFLAGS"
+      LDFLAGS="$LDFLAGS -ltermcap"
+      echo "yes, with libtermcap"
+    else
+      echo "no libtermcap or libtinfo, aegir will run in dumb mode!"
+      echo "**********************************************************************"
+      echo "* The debugging shell for Fenris, aegir, will be compiled to run in  *"
+      echo "* the 'dumb terminal' mode, with no editing or history capabilities, *"
+      echo "* because you apparently don't have usable libtermcap / libtinfo and *"
+      echo "* libreadline libraries installed. Please fix this problem.          *"
+      echo "*********************************************************************"
+      sleep 1
+    fi
+  else
+     echo "incomplete, aegir will run in dumb mode!"
+     echo "**********************************************************************"
+     echo "* The debugging shell for Fenris, aegir, will be compiled to run in  *"
+     echo "* the 'dumb terminal' mode, with no editing or history capabilities, *"
+     echo "* because you apparently don't have usable libtermcap / libtinfo and *"
+     echo "* libreadline libraries installed. Please fix this problem.          *"
+     echo "*********************************************************************"
+     sleep 1
+
+  fi
+else
+    echo "no, aegir will run in dumb mode!"
+    echo "**********************************************************************"
+    echo "* The debugging shell for Fenris, aegir, will be compiled to run in  *"
+    echo "* the 'dumb terminal' mode, with no editing or history capabilities, *"
+    echo "* because you apparently don't have usable libtermcap / libtinfo and *"
+    echo "* libreadline libraries installed. Please fix this problem.          *"
+    echo "*********************************************************************"
+    sleep 1
+
+fi
+
+
+echo -n "[+] libncurses installed: "
+
+if [ -f /usr/include/curses.h -o -f /usr/local/include/curses.h ]; then
+  if [ -f /usr/lib/libncurses.so -o -f /usr/local/lib/libncurses.so -o -f /usr/lib/libncurses.a -o -f /usr/local/lib/libncurses.a ]; then
+    echo "yes, nc-aegir will be built."
+    NCAEGIR=yes
+  else
+    echo "no, nc-aegir will not be built."
+  fi
+else
+  echo "no, nc-aegir will not be built."
+fi
+
+if [ ! "$NCAEGIR" = "" ]; then
+  echo -n "[+] 'screen' installed: "
+  if [ -x /usr/bin/screen -o -x /usr/local/bin/screen ]; then
+    echo "yes"
+  else 
+    echo "no, nc-aegir will not be built."
+    unset NCAEGIR
+  fi
+fi
+
+echo -n "[*] Generating syscall names table: "
+
+echo "// Auto-generated (`date`), do not modify." >scnames.h 2>/dev/null
+
+grep -F '#define __NR_' /usr/include/asm/unistd.h | \
+  awk '{print "\"" $2 "\","}' | sed 's/__NR_//g' >>scnames.h 2>/dev/null
+
+LIN=`grep -c . scnames.h 2>/dev/null`
+
+if [ "$LIN" -lt "100" ]; then
+  echo "failed to generate scnames.h!"
+  echo "[-] Something odd about this system. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "$[LIN-1] entries"
+
+echo -n "[*] Generating decl list for fenris.c: "
+
+echo "// Auto-generated (`date`), do not modify." >fenris-decl.h
+grep '(.*) {' fenris.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^	' >>fenris-decl.h
+
+LIN=`grep -c . fenris-decl.h 2>/dev/null`
+
+if [ "$LIN" -lt "10" ]; then
+  echo "failed to generate fenris-decl.h!"
+  echo "[-] Something odd about this system. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "$[LIN-1] entries"
+
+echo -n "[*] Generating decl list for aegir.c: "
+
+echo "// Auto-generated (`date`), do not modify." >aegir-decl.h
+grep '(.*) {' aegir.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^	' >>aegir-decl.h
+
+LIN=`grep -c . aegir-decl.h 2>/dev/null`
+
+if [ "$LIN" -lt "5" ]; then
+  echo "failed to generate aegir-decl.h!"
+  echo "[-] Something odd about this system. Please consult documentation."
+  echo
+  exit 1
+fi
+
+echo "$[LIN-1] entries"
+
+
+echo -n "[*] Compiling libi386: "
+
+gcc -c $CFLAGS2 libdisasm/i386.c 2>.testerr 
+
+if [ ! -s i386.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+
+echo -n "[*] Compiling libdis: "
+
+gcc -c $CFLAGS2 libdisasm/libdis.c 2>.testerr 
+
+if [ ! -s libdis.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling i386-dis: "
+
+gcc -c $CFLAGS2 libdisasm/opcodes2/i386-dis.c 2>.testerr 
+
+if [ ! -s i386-dis.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+
+echo -n "[*] Compiling hooks: "
+
+gcc -c $CFLAGS2 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG  hooks.c 2>.testerr 
+
+if [ ! -s hooks.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+
+echo -n "[*] Compiling opdis: "
+
+gcc -c $CFLAGS2 libdisasm/opcodes2/opdis.c 2>.testerr 
+
+if [ ! -s opdis.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling rstree: "
+
+gcc -c $CFLAGS rstree.c 2>.testerr 
+
+if [ ! -s rstree.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work our. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling allocs: "
+
+gcc -c $CFLAGS allocs.c 2>.testerr 
+
+if [ ! -s allocs.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work our. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling libfnprints: "
+
+gcc -c $CFLAGS libfnprints.c 2>.testerr 
+
+if [ ! -s libfnprints.o ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling $PROGNAME (this might take few minutes): "
+
+gcc $LDFLAGS $CFLAGS $PROGNAME.c -o $PROGNAME -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG i386.o libdis.o rstree.o allocs.o libfnprints.o hooks.o $LDFLAGS 2>.testerr 
+
+if [ ! -s $PROGNAME ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
+
+echo -n "[*] Compiling $PROGNAME2: "
+
+gcc $LDFLAGS $CFLAGS $PROGNAME2.c -o $PROGNAME2 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG 2>.testerr 
+
+if [ ! -s $PROGNAME2 ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+echo -n "[*] Compiling $PROGNAME3: "
+
+gcc $LDFLAGS $CFLAGS $PROGNAME3.c -o $PROGNAME3 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG $LDFLAGS 2>.testerr 
+
+if [ ! -s $PROGNAME3 ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] or, better, temporarily enable some swap memory."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+echo -n "[*] Compiling $PROGNAME4: "
+
+gcc $LDFLAGS $CFLAGS $PROGNAME4.c libfnprints.o -o $PROGNAME4 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG $LDFLAGS 2>.testerr 
+
+if [ ! -s $PROGNAME4 ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+echo -n "[*] Compiling $PROGNAME5: "
+
+gcc $LDFLAGS $CFLAGS $PROGNAME5.c libfnprints.o i386-dis.o opdis.o -o $PROGNAME5 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG 2>.testerr 
+
+if [ ! -s $PROGNAME5 ]; then
+  echo "failed!"
+  echo "[-] Sorry it didn't work out. Please consult the documentation."
+  echo
+  echo "[-] Error messages:"
+  cat .testerr
+  echo
+  rm -f .testerr
+  exit 1
+fi
+
+echo "done"
+
+if [ -s .testerr ]; then
+  echo "[!] Warning messages: "
+  cat .testerr
+fi
+
+rm -f .testerr
+
+
+if [ ! "$NCAEGIR" = "" ]; then
+  echo -n "[*] Compiling $PROGNAME6: "
+  gcc -lncurses $LDFLAGS $CFLAGS $PROGNAME6.c libfnprints.o i386-dis.o opdis.o rstree.o -o $PROGNAME6 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG 2>.testerr 
+  if [ ! -s $PROGNAME6 ]; then
+    echo "failed!"
+    echo "[-] Sorry it didn't work out. Please consult the documentation."
+    echo
+    echo "[-] Error messages:"
+    cat .testerr
+    echo
+    rm -f .testerr
+    exit 1
+  fi
+  echo "done"
+  if [ -s .testerr ]; then
+    echo "[!] Warning messages: "
+    cat .testerr
+  fi
+  rm -f .testerr
+else
+  echo "*********************************************************************"
+  echo "* The debugging GUI for Fenris, nc-aegir, will be not built because *"
+  echo "* you do not have the required libraries and tools (libncurses and  *"
+  echo "* 'screen'). Please fix this problem if you want to use the GUI,    *"
+  echo "* otherwise, you'd have to use traditional gdb-alike shell, aegir.  *"
+  echo "*********************************************************************"
+  sleep 1
+fi
+
+
+
+test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
+test "$NOSTRIP" = "" && strip $PROGNAME4 2>/dev/null
+test "$NOSTRIP" = "" && strip $PROGNAME2 2>/dev/null
+test "$NOSTRIP" = "" && strip $PROGNAME3 2>/dev/null
+test "$NOSTRIP" = "" && strip $PROGNAME5 2>/dev/null
+test "$NOSTRIP" = "" && strip $PROGNAME6 2>/dev/null
+
+HUH=""
+test "$1" = "" && HUH=1
+test "$1" = "all" && HUH=1
+test "$1" = "minimal" && HUH=1
+
+
+if [ "$HUH" = "1" ]; then
+  touch fnprints.dat
+  sort <fnprints.dat >.tmp
+  cat .tmp >fnprints.dat 
+  rm -f .tmp
+  CNT=`grep -c . fnprints.dat`
+  test "$CNT" = "" && CNT=0
+  echo "[*] Updating libc fingerprints database (this will take a while)..."
+  NOBANNER=1 ./getfprints
+  echo "[*] Sorting your fingerprints..."
+
+  cat fnprints.dat NEW-fnprints.dat 2>/dev/null | sort | uniq >.tmp
+  CNT2=`grep -c . .tmp`
+
+  if [ "$CNT2" -lt "$CNT" ]; then
+    echo "[-] Strange failure. Aborting."
+    rm -f .tmp
+    echo
+    exit 1
+  fi
+
+  diff -d 'fnprints.dat' 'NEW-fnprints.dat' | grep '^> ' |awk -F'> ' '{print $2}' >.news
+
+  rm -f NEW-fnprints.dat fnprints.dat
+  mv -f .tmp fnprints.dat
+
+  if [ ! "$CNT2" = "$CNT" ]; then
+
+    gcc -v >NEW-fp.dat 2>&1
+    /lib/libc.so.6 >>NEW-fp.dat
+
+    cat .news >>NEW-fp.dat
+
+    echo
+    echo "[+] Congratulations, your system has $[CNT2-CNT] new fingerprints."
+    echo "    I created a file called NEW-fp.dat for you. It woule be very nice"
+    echo "    if you can send it to the author, lcamtuf@coredump.cx. Thanks!"
+    echo
+    ls -l NEW-fp.dat
+    echo
+    sleep 2
+
+  fi
+
+  rm -f .news .tmp
+
+  echo "[+] You have $[`grep -c . fnprints.dat`] fingerprints."
+
+
+fi
+
+if [ -f test.c ]; then
+  echo "[+] Ah, I see you have test.c here... Lemme compile it for you!"
+  gcc test.c &>/dev/null
+fi
+
+echo "[+] All set. Please read the documentation."
+echo
+exit 0

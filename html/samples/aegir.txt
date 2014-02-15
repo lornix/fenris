@@ -1,0 +1,84 @@
+
+  .---------------------------------------------------------------------.
+  |     -= Welcome to aegir - an interactive debugger for Fenris! =-    |
+  |---------------------------------------------------------------------|
+  |   Copyright (C) 2002 by Michal Zalewski <lcamtuf@bos.bindview.com>  |
+  |    This is a free software and comes with absolutely no warranty.   |
+  | Use "help" to get help, and /usr/bin/fenris-bug to report problems. |
+  `---------------------------------------------------------------------'
+
+  Welcome to Fenris debugger 0.06b build 2844 running at PID 13883.
+  Copyright (C) 2001, 2002 by Michal Zalewski <lcamtuf@coredump.cx>
+
+  Cur. time : Wed May 22 00:31:09 2002
+  Executable: ./a.out
+  Arguments : <NULL>
+
+  [aegir] step
+  >> Singlestep stop at 0x80483b0 [_start].
+  080483b0 [_start]:      xorl   %ebp,%ebp
+
+  [aegir] next
+  At 0x80483b0, continuing to next output line...
+  20394:00 L memset (8049660, 0, 100) = 8049660
+  20394:00 + g/8049660 = local buf
+  20394:00 + g/8049660 = local buf
+  20394:00 \ new buffer candidate: 8049660:100 (buf)
+  20394:00 \ buffer 8049660 modified.
+  >> New line stop at 0x400a5b0c [memset+68].
+  080484bb [main+23]:     addl   $0x10,%esp
+
+  [aegir] info buf
+  Name 'buf' has address 0x08049660.
+  + 8049660 = 8049660:100 <off 0> (first seen in L main:memset)
+    last input: L main:memset
+
+  [aegir] fdinfo 0
+  + fd 0: "/dev/tty6", origin unknown
+
+  [aegir] wwatch 0x08049660 0x08049670
+  Breakpoint #0 added.
+  [aegir] list
+  00: stop on write 0x8049660-0x8049670.
+
+  [aegir] fprint 0x080485a4
+  Matches for signature CC6E587C: printf, wprintf
+
+  [aegir] call
+  At 0x80484bf, continuing to next local call...
+  08048492 [funkcjadwa+6]:        call   $0x804849c <funkcjasiedem>
+  21364:02   local funkcjasiedem ()
+  21364:02   + funkcjasiedem = 0x804849c
+  >> Local call to 0x804849c reached at 0x8048492 [funkcjadwa+6].
+
+  [aegir] back
+  Local function calls history (oldest to most recent calls):
+  From 80484bf [main+11]: fnct_1 [funkcjadwa] 804848c, stack bffffa64 -> ...
+  From 8048492 [funkcjadwa+6]: fnct_2 [funkcjasiedem] 804849c, stack bfff...
+
+The GUI version of Aegir, nc-aegir, works basically the same way, but provides 
+an organized debugging screen with register, memory and code views, integrated 
+Fenris output view, and automatic control over Fenris parameters.
+
+And this is why Aegir is a bit better than other disassemblers / debuggers
+that rely on libbfd:
+
+  $ gdb ./startwu
+  "./startwu": not in executable format: File format not recognized
+
+  $ objdump -d ./startwu
+  objdump: ./startwu: File format not recognized
+
+  $ ./fenris -W /tmp/aegir-sock -X 5 ./startwu &
+  $ aegir /tmp/aegir-sock
+  ...
+  [aegir] disas
+  05371035:       pushl  0x5371008
+  0537103b:       pushf
+  0537103c:       pusha
+  0537103d:       movl   0x5371000,%ecx
+  05371043:       jmp    $0x5371082
+  05371048:       popl   %esi
+  05371049:       movl   %esi,%edi
+
+:-)

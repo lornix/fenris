@@ -1,0 +1,66 @@
+<html>
+<head>
+<title> project fenris </title>
+</head>
+<body bgcolor=white text=black link=green vlink=magenta alink=red>
+<font face="helvetica,arial" size=+0>
+<img src="http://lcamtuf.coredump.cx/fenris/fenris-s.jpg" align=center height=38 width=50 alt="">
+<font size=+2><b>What is Fenris?</b></font>
+<p>
+<center>
+<img src="demos.jpg" width=686 height=233 alt="">
+</center>
+<p>
+Fenris is a suite of tools suitable for <a href="fenris-ui.html">code analysis</a>,
+<a href="be.txt">debugging</a>, protocol analysis, 
+<a href="reverse.txt">reverse engineering</a>, forensics, diagnostics,
+security audits, vulnerability research and many other purposes.
+The main logical components are:<p>
+<ul>
+<li>Fenris: high-level tracer, a tool that detects the logic used in C
+    programs to find and classify functions, logic program structure,
+    calls, buffers, interaction with system and libraries, I/O
+    and many other structures. Fenris is mostly a "what's inside"
+    tracer, as opposed to ltrace or strace, tracers intended to
+    inspect external "symptoms" of the internal program structure.
+    Fenris does not depend on libbfd for
+    accessing ELF structures, and thus is much more robust when
+    dealing with "anti-debugging" code. 
+
+</li>
+<p>
+<li>libfnprints and dress: fingerprinting code that can be used to detect library functions
+    embedded inside a static application, even without symbols, to make
+    code analysis simplier; this functionality is both embedded in other
+    components and available as a standalone tool that adds symtab to
+    ELF binaries and can be used with any debugger or disassembler.</li>
+<p>
+<li>Aegir: an interactive gdb-alike debugger with modular capabilities,
+    instruction by instruction and breakpoint to breakpoint execution, and
+    real-time access to all the goods offered by Fenris, such as high-level
+    information about memory objects or logical code structure.</li>
+<p>
+<li>nc-aegir: a SoftICE-alike GUI for Aegir, with automatic register,
+    memory and code views, integrated Fenris output, and automatic
+    Fenris control (now under development).</li>
+<p>
+<li>Ragnarok: a visualisation tool for Fenris that delivers browsable
+    information about many different aspects of program execution -
+    code flow, function calls, memory object life, I/O, etc (to be
+    redesigned using OpenDX or a similar data exploration interface).</li>
+<p>
+<li>...and some other companion utilities.</li>
+</ul>
+<br>
+<p>
+To read more about Fenris, please <a href="README">click here.</a>
+<br>
+<p>
+<hr>
+<font color=#505050 size=-2>
+- by <a href="http://lcamtuf.coredump.cx">lcamtuf</a>, best viewed with html browser -<br>
+<!--#echo var="REMOTE_ADDR"-->, you are a visitior number
+<!--#exec cgi="../count.cgi"-->.
+
+</body>
+</html>

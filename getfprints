@@ -1,0 +1,112 @@
+#!/bin/bash
+
+#
+#  fenris - program execution path analysis tool
+#  ---------------------------------------------
+#
+#  Copyright (C) 2001, 2002 by Bindview Corporation
+#  Portions Copyright (C) 2001, 2002 by their respective contributors
+#  Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+TRYLIBS="/usr/lib/libc.a /usr/lib/libm.a /usr/lib/libdl.a \
+         /usr/lib/libresolv.a /usr/lib/libreadline.a /usr/lib/libtermcap.a \
+         /usr/lib/libssl.a /usr/lib/libBrokenLocale.a \
+         /usr/lib/libcrypt.a"
+
+if [ ! "$1" = "" ]; then
+  TRYLIBS="$1"
+fi
+
+if [ "$NOBANNER" = "" ]; then
+  echo "auto library function signature collector for fenris -- <lcamtuf@coredump.cx>"
+fi
+
+export FANCY=1
+ACNT=0
+FCNT=0
+O=NEW-fnprints.dat
+
+PATH=$PATH:.
+
+echo -n >$O
+
+TRYTHEM=""
+
+for i in $TRYLIBS; do
+  test -f $i && TRYTHEM="$TRYTHEM $i"
+done
+
+FCOUNT=`echo $TRYTHEM|wc -w`
+
+if [ "$FCOUNT" = "0" ]; then
+  echo "No usable libraries. Tried the following: $TRYLIBS."
+  exit 1
+fi
+
+fprints &>/dev/null
+
+if [ ! "$?" = "1" ]; then
+  echo "Cannot find 'fprints' in your path or in current directory."
+  exit 1
+fi
+
+CAR=0
+
+for i in $TRYTHEM; do
+  CAR=$[CAR+1]
+
+  MIAU=`basename $i`
+
+  LIST=`ar t $i`
+  IC=`echo $LIST | wc -w`
+  ACNT=$[ACNT+1]
+  IN=0
+
+  for j in $LIST; do
+    IN=$[IN+1]
+    ar x $i $j
+    echo -n "[$CAR/$[FCOUNT]] [$[IN*100/IC]%] $MIAU:$j - "
+    fprints $j >>$O 
+    rm -f $j
+    echo -ne "                   \r"
+    FCNT=$[FCNT+1]
+  done
+done
+
+echo 'main() {getuid();}' >.test-$$.c 2>/dev/null
+gcc -static .test-$$.c -o .test-$$ &>/dev/null
+fprints .test-$$ 2>/dev/null >>$O
+rm -f .test-$$.c .test-$$
+
+OCNT=`grep -c . $O`
+
+# cat $O >>miau
+
+export ID="?"
+
+sed 's/ __/ /g;s/_IO_//g;s/ _/ /g' <$O | awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
+     sort | uniq >$O-$$.tmp
+
+cat $O-$$.tmp | grep -vE 'free_mem|Letext' >$O
+rm -f $O-$$.tmp
+
+echo
+echo "Done. Read $ACNT archives, $FCNT files, found $OCNT functions."
+
+rm -f *.o core
+exit 0

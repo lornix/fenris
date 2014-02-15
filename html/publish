@@ -1,0 +1,75 @@
+#!/bin/bash
+
+#
+#  fenris - program execution path analysis tool
+#  ---------------------------------------------
+#
+#  Copyright (C) 2001, 2002 by Bindview Corporation
+#  Portions Copyright (C) 2001, 2002 by their respective contributors
+#  Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+if [ ! "$HOSTNAME" = "io.rogue-squirrel.org" ]; then
+  echo "C'mon... You don't look like my author. He is taller."
+  exit 1
+fi
+
+cd /fenris
+make clean
+
+LCODE=$[`tar cf - /fenris 2>/dev/null | wc -l`]
+FPRINTS=$[`cat /fenris/fnprints.dat /fenris/support/* | grep -c .`]
+BYTES=$[`tar cf - /fenris 2>/dev/null | wc -c`]
+CBUILD="`cat doc/.build`"
+DATE="`date +'%A, %d %B %Y, %H:%M'`"
+
+TAG="$CBUILD ($[BYTES/1024]kB), uploaded at $DATE EST"
+
+tar cfvz /fenris.tgz /fenris
+scp /fenris.tgz lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+rm -f /fenris.tgz
+scp -C /fenris/README lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+
+sed "s/CURRENTBUILD/$TAG/g" </fenris/html/devel.shtml >/tmp/index.shtml
+scp -C /tmp/index.shtml lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/devel.shtml
+rm -f /tmp/index.shtml
+
+cd html
+scp -C index.shtml lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+scp -C whatis.shtml lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+scp -C demos.shtml lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+
+cd samples
+scp -C fenris-ui.html lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+#scp -C aegir.txt lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+#scp -C dress.txt lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+#scp -C nc-aegir.jpg lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+cd ..
+
+cd ../doc
+scp -C reverse.txt lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+scp -p -C other.txt lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+#scp -p -C be.txt lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+
+#scp /fenris/html/fenris.jpg lcamtuf@coredump.cx:/export/www/lcamtuf/fenris/
+
+echo
+echo "Lines of code: $LCODE ($[LCODE-FPRINTS] w/o fprints)"
+echo "Characters:    $BYTES"
+echo "Build:         $CBUILD"
+echo "Date:          $DATE"
+

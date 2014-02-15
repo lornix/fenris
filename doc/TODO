@@ -1,0 +1,27 @@
+Immediate needs not documented in README (in TODO section)...
+
+Ragnarok:
+
+  - ragnarok should trace map access 
+  - mark resize points [?]
+  - better error/warning parsing
+  - see doc/roadmap.txt
+
+Fenris:
+
+  - option for setting argv[0]?
+  - wait4, ipc, uname, mprotect, [rt_]sigprocmask, _llseek, readv, writev,
+    mremap, nanosleep, setresuid, getresuid,
+    poll, setresgid, getresgid, pread, pwrite, getcwd,
+    getgroups, setgroups, sendto, recvfrom, setsockopt, getsockopt,
+    sendmsg, recvmsg
+  - alloca, longjmp
+  - few missing map commands 
+  - see doc/roadmap.txt
+
+Aegir / nc-aegir:
+
+  - symbolic names as params
+  - optimizations
+
+

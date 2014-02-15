@@ -1,0 +1,50 @@
+<html>
+<head>
+<title> project fenris </title>
+</head>
+<body bgcolor=white text=black link=green vlink=magenta alink=red>
+<font face="helvetica,arial" size=+0>
+<img src="http://lcamtuf.coredump.cx/fenris/fenris-s.jpg" align=center height=38 width=50 alt="">
+<font size=+2><b>Demos for various Fenris components:</b></font>
+<p>
+<center>
+<img src="demos.jpg" width=686 height=233>
+</center>
+<p>
+Here are few examples of how the tools in this suite look like:
+<p>
+<ul>
+<li>
+<b>Fenris</b>: [TXT]
+<a href="reverse.txt">click here</a>  
+for the brief write up on how Fenris can be used to deal with a real-life
+case of code analysis, <a href="http://project.honeynet.org/reverse/">The
+Reverse Challenge</a>.<br>
+</li><p><li>
+<b>dress</b>: [TXT] <a href="dress.txt">click here</a> for a quick example
+of how dress used as a standalone tool
+reconstructs symbol tables for binaries to help 'objdump'.<br>
+</li><p><li>
+<b>Aegir</b>: [TXT]
+<a href="aegir.txt">click here</a> for a sample session with Aegir.<br>
+</li><p><li>
+<b>nc-aegir</b>: [JPG] <a href="nc-aegir.gif">click here</a> for a screenshot
+of the GUI for Aegir (this code is now under development). Or <a href="../fdesk.jpg">
+here</a> to see nc-aegir in action on my desktop.<br>
+</li><p><li>
+<b>Ragnarok</b>: [HTML] <a href="fenris-ui.html">click here</a> for an example
+of the code visualisation capabilities provided by this component.<br>
+</li>
+</ul>
+<p>
+To read more about Fenris, please <a href="README">click here.</a>
+<br>
+<p>
+<hr>
+<font color=#505050 size=-2>
+- by <a href="http://lcamtuf.coredump.cx">lcamtuf</a>, best viewed with html browser -<br>
+<!--#echo var="REMOTE_ADDR"-->, you are a visitior number
+<!--#exec cgi="../count.cgi"-->.
+
+</body>
+</html>

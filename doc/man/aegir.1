@@ -1,0 +1,61 @@
+.TH aegir 1
+.SH NAME
+aegir \- interactive debugger frontend for Fenris
+.SH SYNOPSIS
+.B aegir
+.I [%]/path/to/socket
+.br
+.SH "DESCRIPTION"
+Aegir is an interactive debugging frontend for 
+.BR fenris (1),
+a program execution path analysis tool. It has
+.BR gdb -alike 
+capabilities to debug a single process running under Fenris, controlling its 
+flow, executing it step-by-step, setting breakpoints or watchpoints, examining 
+program's internal state. Aegir can provide you with low-level assembler 
+structures, but provides all the goods of Fenris. It supports loadable 
+modules, so you can create your own commands and checks easily.
+
+For users who prefer GUI-based design, there is a clone of Aegir,
+.BR nc-aegir (1),
+available. It incorporates the functionality of Aegir, but provides a nice
+layout, auto memory, register and code display, and full integration with
+Fenris.
+
+There is only one option supported and required, that is, a path to the 
+master socket
+created with -W option when invoking 
+.BR fenris (1) .
+Preceeding this argument with % causes Aegir to run in asynchronous mode,
+where, basically, shell is available even when the code is running.
+All other features are controlled by Fenris, and - generally speaking -
+Fenris is doing most of the debugging work. Aegir is simply a debugging
+shell that can be easily replaced to suit your needs better. To read more 
+about coding Aegir modules
+or writing your own debugging shells, please refer to
+.BI doc/debug-api.txt
+document provided with Fenris sources (now probably located in your
+.BI /usr/doc/fenris
+directory). For more information, please type "help" in the debugging
+shell, or consult the documentation for Fenris.
+
+.SH SEE ALSO
+.BR dress (1),
+.BR nc-aegir (1),
+.BR fenris (1),
+.BR ragnarok (1),
+.BR fprints (1),
+.BR getfprints (1),
+.BR fenris-bug (1),
+.BR ragsplit (1),
+.BR strace (1),
+.BR ltrace (1),
+.BR gdb (1),
+.BR objdump (1),
+.BR ptrace (2),
+.BR fnprints.dat (5).
+
+.SH AUTHOR
+.B aegir
+was written by Michal Zalewski <lcamtuf@coredump.cx>.
+

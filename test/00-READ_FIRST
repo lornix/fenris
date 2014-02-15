@@ -1,0 +1,6 @@
+
+  This directory contains a bunch of test programs in rather arbitrary
+  order. Unless you need some test cases to debug your version, you
+  probably will not find anything interesting here. No makefile or such,
+  it is just to be compiled by hand with many different odd options ;)
+

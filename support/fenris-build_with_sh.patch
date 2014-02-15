@@ -1,0 +1,554 @@
+diff -urN fenris.orig/build fenris/build
+--- fenris.orig/build	Wed May 29 02:42:32 2002
++++ fenris/build	Thu May 30 10:23:18 2002
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ #
+ #  fenris - program execution path analysis tool
+@@ -24,10 +24,6 @@
+ #
+ #  05/16/2002: Modified by Marcin Gozdalik to use libfnprints and such.
+ 
+-
+-test "$BASH" = "" && echo "Bash shell is required to execute this script."
+-test "$BASH" = "" && exit 1
+-
+ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:$PATH
+ 
+ PROGNAME=fenris
+@@ -40,7 +36,7 @@
+ VERSION=0.06b
+ 
+ rm -f $PROGNAME6 $PROGNAME5 $PROGNAME3 $PROGNAME4 $PROGNAME $PROGNAME2 scnames.h core core.* *~ .testme.c .testme .testerr .gtmp CTORS.txt *.o a.out test/a.out doc/frep.txt aegir-decl.h fenris-decl.h gprof.out bb.out libdisasm/core test/core libdisasm/*.o libdisasm/a.out tools/fprints NEW-fnprints.dat .tmp NEW-fp.dat test/core.*
+-rm -f beta/*.o beta/nc-aegir &>/dev/null
++rm -f beta/*.o beta/nc-aegir >/dev/null 2>&1
+ 
+ test "$1" = "clean" && echo "[+] Cleanup complete."
+ test "$1" = "clean" && exit 0
+@@ -105,18 +101,18 @@
+ echo "  'fenris-bug' reporting application. Thanks!"
+ echo
+ 
+-test "$1" = "" && sleep 2
++[ -z "$1" ] && sleep 2
+ 
+ 
+ BUILD=`cat doc/.build 2>/dev/null`
+-test "$BUILD" = "" && BUILD=0
++[ -z "$BUILD" ] && BUILD=0
+ 
+ if [ "$HOSTNAME" = "nimue.bos.bindview.com" ]; then
+-  BUILD=$[BUILD+1]
++  BUILD=$((BUILD+1))
+   echo "$BUILD" >doc/.build 2>/dev/null
+   echo -n "[?] Changes in this build: "
+   read x
+-  if [ ! "$x" = "" ]; then 
++  if [ -n "$x" ]; then 
+     echo "$VERSION [$BUILD]: $x" >.tmp
+     cat doc/ChangeLog >>.tmp 2>/dev/null
+     cat .tmp >doc/ChangeLog
+@@ -144,7 +140,7 @@
+ 
+ SYSNAME=`uname -s 2>/dev/null`
+ 
+-test "$SYSNAME" = "" && SYSNAME="unknown"
++[ -z "$SYSNAME" ] && SYSNAME="unknown"
+ 
+ if [ ! "$SYSNAME" = "Linux" ]; then
+   echo "$SYSNAME is not supported!"
+@@ -158,10 +154,10 @@
+ echo -n "[+] Processor check: "
+ 
+ PROC=`uname -m 2>/dev/null`
+-test "$PROC" = "" && PROC="unknown"
+-PROCOK=`echo $PROC|grep ^i.86\$ 2>/dev/null`
++[ -z "$PROC" ] && PROC="unknown"
++PROCOK=`echo $PROC | grep ^i.86\$ 2>/dev/null`
+ 
+-if [ "$PROCOK" = "" ]; then
++if [ -z "$PROCOK" ]; then
+   echo "$PROC is not supported!"
+   echo "[-] I do not support your CPU yet. Please consult documentation."
+   echo
+@@ -172,9 +168,9 @@
+ 
+ echo -n "[+] GNU C library version: "
+ 
+-LIBCVER=`/lib/libc.so.6|awk -F'version ' '{print $2}'|awk -F, '{print $1}'|head -1`
++LIBCVER=`/lib/libc.so.6 | awk -F'version ' '{print $2}' | awk -F, '{print $1}' | head -1`
+ 
+-if [ "$LIBCVER" = "" ]; then
++if [ -z "$LIBCVER" ]; then
+   echo "cannot determine libc version!"
+   echo "[-] I am affraid I cannot continue. Please consult documentation."
+   echo
+@@ -186,7 +182,7 @@
+ unset VEROK
+ for i in $OKLIBC; do test "$LIBCVER" = "$i" && VEROK="1"; done
+ 
+-if [ "$VEROK" = "" ]; then
++if [ -z "$VEROK" ]; then
+   echo " (untested!)"
+   echo "[!] This voids your warranty ;) Please consult documentation."
+   echo "    And, if this is not a big deal, contact author :)"
+@@ -197,9 +193,9 @@
+ 
+ echo -n "[+] GNU C compiler version: "
+ 
+-GCCVER=`gcc -v 2>&1|grep 'gcc version' 2>/dev/null|awk '{print $3}' 2>/dev/null`
++GCCVER=`gcc -v 2>&1 | grep 'gcc version' 2>/dev/null | awk '{print $3}' 2>/dev/null`
+ 
+-if [ "$GCCVER" = "" ]; then
++if [ -z "$GCCVER" ]; then
+   echo "problems calling gcc!"
+   echo "[-] I cannot continue. Please consult documentation."
+   echo
+@@ -211,7 +207,7 @@
+ unset VEROK
+ for i in $OKGCC; do test "$GCCVER" = "$i" && VEROK="1"; done
+ 
+-if [ "$VEROK" = "" ]; then
++if [ -z "$VEROK" ]; then
+   echo " (untested!)"
+   echo "[!] This voids your warranty ;) Please consult documentation."
+   echo "    And, if this is not a big deal, contact author :)"
+@@ -222,10 +218,10 @@
+ 
+ echo -n "[+] GNU libc binary test: "
+ 
+-STRILI=`file -L /lib/libc.so.6 2>/dev/null|grep 'not strip'`
+-GENLI=`file -L /lib/libc.so.6 2>/dev/null|grep 'strip'`
++STRILI=`file -L /lib/libc.so.6 2>/dev/null | grep 'not strip'`
++GENLI=`file -L /lib/libc.so.6 2>/dev/null | grep 'strip'`
+ 
+-if [ "$GENLI" = "" ]; then
++if [ -z "$GENLI" ]; then
+   echo "failed!"
+   echo "[-] I cannot read your /lib/libc.so.6 (or your 'file' utility"
+   echo "    is broken). Please fix it. Yes, you need libc6, yes, I need"
+@@ -234,9 +230,9 @@
+   exit 1
+ fi
+ 
+-if [ "$STRILI" = "" ]; then
++if [ -z "$STRILI" ]; then
+   echo "stripped?"
+-  if [ "$LAMESTRIP" = "" ]; then
++  if [ -z "$LAMESTRIP" ]; then
+     echo "[-] Come on, you didn't strip your libc binary, did you?;)"
+     echo "    I am sorry, but I really want to read some information"
+     echo "    from there. Can you fix that? If not, please run me providing"
+@@ -256,10 +252,10 @@
+ 
+ echo -n "[+] GCC crt code binary test: "
+ 
+-STRILI=`file -L /usr/lib/crt1.o 2>/dev/null|grep 'not strip'`
+-GENLI=`file -L /usr/lib/crt1.o 2>/dev/null|grep 'strip'`
++STRILI=`file -L /usr/lib/crt1.o 2>/dev/null | grep 'not strip'`
++GENLI=`file -L /usr/lib/crt1.o 2>/dev/null | grep 'strip'`
+ 
+-if [ "$GENLI" = "" ]; then
++if [ -z "$GENLI" ]; then
+   echo "failed!"
+   echo "[-] I cannot read your /usr/lib/crt1.o (or your 'file' utility"
+   echo "    is broken). Please fix it. Thanks =)"
+@@ -267,9 +263,9 @@
+   exit 1
+ fi
+ 
+-if [ "$STRILI" = "" ]; then
++if [ -z "$STRILI" ]; then
+   echo "stripped?"
+-  if [ "$LAMESTRIP" = "" ]; then
++  if [ -z "$LAMESTRIP" ]; then
+     echo "[-] Come on, you didn't strip your crt binary, did you?;)"
+     echo "    I am sorry, but I really want to read some information"
+     echo "    from there. Can you fix that? If not, please run me providing"
+@@ -289,10 +285,10 @@
+ 
+ echo -n "[+] GNU libc linker test: "
+ 
+-STRILI=`file -L /lib/ld-linux.so.2 2>/dev/null|grep 'not strip'`
+-GENLI=`file -L /lib/ld-linux.so.2 2>/dev/null|grep 'strip'`
++STRILI=`file -L /lib/ld-linux.so.2 2>/dev/null | grep 'not strip'`
++GENLI=`file -L /lib/ld-linux.so.2 2>/dev/null | grep 'strip'`
+ 
+-if [ "$GENLI" = "" ]; then
++if [ -z "$GENLI" ]; then
+   echo "failed!"
+   echo "[-] I cannot read your /lib/ld-linux.so.2 (or your 'file' utility"
+   echo "    is broken). Please fix it. Yes, you need libc6, yes, I need"
+@@ -301,9 +297,9 @@
+   exit 1
+ fi
+ 
+-if [ "$STRILI" = "" ]; then
++if [ -z "$STRILI" ]; then
+   echo "stripped?"
+-  if [ "$LAMESTRIP" = "" ]; then
++  if [ -z "$LAMESTRIP" ]; then
+     echo "[-] Come on, you didn't strip your crt binary, did you?;)"
+     echo "    I am sorry, but I really want to read some information"
+     echo "    from there. Can you fix that? If not, please run me providing"
+@@ -340,9 +336,9 @@
+ }
+ _EOF_
+ 
+-gcc .testme.c -o .testme &>.testerr
++gcc .testme.c -o .testme >.testerr 2>&1
+ 
+-if [ ! -s .testme ]; then
++if [ `cat .testme | wc -c` -eq 0 ]; then
+   echo "gcc failed to compile test code!"
+   echo "[-] I really have to perform tests. Please consult documentation."
+   echo
+@@ -389,14 +385,14 @@
+ echo "x/2w _dl_runtime_resolve+16" >>.testerr 2>/dev/null
+ 
+ gdb -batch -x .testerr ./.testme >.gtmp 2>/dev/null
+-ADDR=`grep open .gtmp 2>/dev/null|grep ^0x 2>/dev/null | awk '{print $1}' 2>/dev/null`
++ADDR=`grep open .gtmp 2>/dev/null | grep ^0x 2>/dev/null | awk '{print $1}' 2>/dev/null`
+ 
+ RES=`grep -F resolve .gtmp 2>/dev/null`
+ JMP=`grep -F getuid .gtmp 2>/dev/null`
+ 
+ rm -f .testerr .testme
+ 
+-if [ "$ADDR" = "" ]; then
++if [ -z "$ADDR" ]; then
+   rm -f .gtmp
+   echo "problems executing gdb!"
+   echo "[-] I need gdb to determine your defaults. Please consult documentation."
+@@ -404,9 +400,9 @@
+   exit 1
+ fi
+ 
+-MAPSEG=`printf "%x" $[ADDR/(256*256*256)] 2>/dev/null`
++MAPSEG=`printf "%x" $((16#${ADDR#0x}/256/256/256)) 2>/dev/null`
+ 
+-if [ "$MAPSEG" = "" ]; then
++if [ -z "$MAPSEG" ]; then
+   rm -f .gtmp
+   echo "cannot calculate segment address!"
+   echo "[-] That's very bad. Please consult documentation."
+@@ -424,14 +420,14 @@
+ 
+ echo -n "[+] C library _init code: "
+ 
+-for i in `grep -B 1 enter_dynamic fenris.c |grep AS_UI|awk -F== '{print $2}'|awk -F\) '{print $1}'|awk '!(NR % 2) {print DUPA ".*" $1};(NR % 2) {DUPA=$1}'`; do
++for i in `grep -B 1 enter_dynamic fenris.c | grep AS_UI | awk -F== '{print $2}' | awk -F\) '{print $1}' | awk '!(NR % 2) {print DUPA ".*" $1};(NR % 2) {DUPA=$1}'`; do
+   FIKU=`grep "$i" .gtmp`
+-  test "$FIKU" = "" || CTORSOK=`echo "$i"|sed 's/\.\*/ /g'`
++  [ -z "$FIKU" ] || CTORSOK=`echo "$i" | sed 's/\.\*/ /g'`
+ done
+ 
+ rm -f .gtmp
+ 
+-if [ ! "$CTORSOK" = "" ]; then
++if [ -n "$CTORSOK" ]; then
+   echo "supported ($CTORSOK)"
+ else
+     echo "no known _init pattern!"
+@@ -461,7 +457,7 @@
+     echo "disass __do_global_ctors_aux" >>.testerr 2>/dev/null
+     gdb -batch -x .testerr ./.testme >>CTORS.txt 2>&1
+     echo >>CTORS.txt
+-    objdump -d ./.testme 2>&1 |grep -A 20 ctors_aux\>: >>CTORS.txt 2>&1
++    objdump -d ./.testme 2>&1 | grep -A 20 ctors_aux\>: >>CTORS.txt 2>&1
+     rm -f .testerr .testme .testme.c
+     ls -l CTORS.txt
+     sleep 4
+@@ -472,11 +468,11 @@
+ 
+ R=`echo "$RES" | grep '0x0487595a.*0x0008c224'`
+ 
+-if [ ! "$R" = "" ]; then
++if [ -n "$R" ]; then
+   echo "valid"
+ else
+     echo "no known pattern!"
+-    if [ "$LAMESTRIP" = "" ]; then
++    if [ -z "$LAMESTRIP" ]; then
+       echo
+       echo "[-] Your GNU C library linker does not seem to use known"
+       echo "    _dl_runtime_resolve() function code. This means I would not"
+@@ -515,7 +511,7 @@
+ 
+ P=`echo "$JMP" | grep '25ff'`
+ 
+-if [ ! "$P" = "" ]; then
++if [ -n "$P" ]; then
+   echo "valid"
+ else
+     echo "no known pattern!"
+@@ -569,7 +565,7 @@
+     unset HAVE_OSSL
+     echo -n "[+] RSA MD5 implementation: "
+     if [ ! -f /usr/include/md5.h ]; then
+-      if [ ! -f /usr/include/local/md5.h ]; then
++      if [ ! -f /usr/local/include/md5.h ]; then
+         echo "md5.h not found!"
+         echo "[-] You need to have OpenSSL MD5 or RSA MD5 libraries installed."
+         echo
+@@ -586,14 +582,18 @@
+   CFLAGS="-DUSE_OPENSSL=1"
+   CFLAGS2="-DUSE_OPENSSL=1"
+ 
+-  if [ ! -f /usr/lib/libcrypto.so ]; then
+-    if [ ! -f /usr/local/lib/libcrypto.so ]; then
+-      if [ ! -f /usr/lib/libcrypto.a ]; then
+-       if [ ! -f /usr/local/lib/libcrypto.a ]; then
+-          echo "libcrypto.so not found!"
+-          echo "[-] Please install OpenSSL or RSA MD5 implementation."
+-          echo
+-          exit 1
++  if [ ! -f /lib/libcrypto.so ]; then
++    if [ ! -f /usr/lib/libcrypto.so ]; then
++      if [ ! -f /usr/local/lib/libcrypto.so ]; then
++        if [ ! -f /lib/libcrypto.a ]; then
++          if [ ! -f /usr/lib/libcrypto.a ]; then
++           if [ ! -f /usr/local/lib/libcrypto.a ]; then
++              echo "libcrypto.so not found!"
++              echo "[-] Please install OpenSSL or RSA MD5 implementation."
++              echo
++              exit 1
++	   fi
++          fi
+         fi
+       fi
+     fi
+@@ -603,16 +603,20 @@
+ 
+   LDFLAGS="$LDFLAGS -lmd5"
+ 
+-  if [ ! -f /usr/lib/libmd5.so ]; then
+-    if [ ! -f /usr/local/lib/libmd5.so ]; then
+-  if [ ! -f /usr/lib/libmd5.a ]; then
+-    if [ ! -f /usr/local/lib/libmd5.a ]; then
++  if [ ! -f /lib/libmd5.so ]; then
++    if [ ! -f /usr/lib/libmd5.so ]; then
++      if [ ! -f /usr/local/lib/libmd5.so ]; then
++  if [ ! -f /lib/libmd5.a ]; then
++    if [ ! -f /usr/lib/libmd5.a ]; then
++      if [ ! -f /usr/local/lib/libmd5.a ]; then
+       echo "libcrypto.so not found!"
+       echo "[-] Please install OpenSSL or RSA MD5 implementation."
+       echo
+       exit 1
++      fi
+     fi
+   fi
++      fi
+     fi
+   fi
+ 
+@@ -633,14 +637,18 @@
+   fi
+ fi
+ 
+-if [ ! -f /usr/lib/libbfd.so ]; then
+-  if [ ! -f /usr/local/lib/libbfd.so ]; then
+-    if [ ! -f /usr/lib/libbfd.a ]; then
+-      if [ ! -f /usr/local/lib/libbfd.a ]; then
+-        echo "libbfd not found!"
+-        echo "[-] Please install binutils libraries."
+-        echo
+-        exit 1
++if [ ! -f /lib/libbfd.so ]; then
++  if [ ! -f /usr/lib/libbfd.so ]; then
++    if [ ! -f /usr/local/lib/libbfd.so ]; then
++      if [ ! -f /lib/libbfd.a ]; then
++        if [ ! -f /usr/lib/libbfd.a ]; then
++          if [ ! -f /usr/local/lib/libbfd.a ]; then
++            echo "libbfd not found!"
++            echo "[-] Please install binutils libraries."
++            echo
++            exit 1
++          fi
++	fi
+       fi
+     fi
+   fi
+@@ -648,14 +656,18 @@
+ 
+ echo -n "(libbfd) "
+ 
+-if [ ! -f /usr/lib/libiberty.a ]; then
+-  if [ ! -f /usr/local/lib/libiberty.a ]; then
+-    if [ ! -f /usr/lib/libiberty.so ]; then
+-      if [ ! -f /usr/local/lib/libiberty.so ]; then
+-        echo "libiberty not found!"
+-        echo "[-] Please install binutils libraries."
+-        echo
+-        exit 1
++if [ ! -f /lib/libiberty.a ]; then
++  if [ ! -f /usr/lib/libiberty.a ]; then
++    if [ ! -f /usr/local/lib/libiberty.a ]; then
++      if [ ! -f /lib/libiberty.so ]; then
++        if [ ! -f /usr/lib/libiberty.so ]; then
++          if [ ! -f /usr/local/lib/libiberty.so ]; then
++            echo "libiberty not found!"
++            echo "[-] Please install binutils libraries."
++            echo
++            exit 1
++	  fi
++	fi
+       fi
+     fi
+   fi
+@@ -667,14 +679,14 @@
+ 
+ if [ -f /usr/include/readline/readline.h -o -f /usr/local/include/readline/readline.h ]; then
+ 
+-  if [ -f /usr/lib/libreadline.so -o -f /usr/local/lib/libreadline.so -o -f /usr/lib/libreadline.a -o -f /usr/local/lib/libreadline.a ]; then
++  if [ -f /lib/libreadline.so -o -f /usr/lib/libreadline.so -o -f /usr/local/lib/libreadline.so -o -f /lib/libreadline.a -o -f /usr/lib/libreadline.a -o -f /usr/local/lib/libreadline.a ]; then
+ 
+-    if [ -f /usr/lib/libtinfo.so -o -f /usr/local/lib/libtinfo.so -o -f /usr/lib/libtinfo.a -o -f /usr/local/lib/libtinfo.a ]; then
++    if [ -f /lib/libtinfo.so -o -f /usr/lib/libtinfo.so -o -f /usr/local/lib/libtinfo.so -o -f /lib/libtinfo.a -o -f /usr/lib/libtinfo.a -o -f /usr/local/lib/libtinfo.a ]; then
+       CFLAGS="-DHAVE_READLINE -D__USE_TERMCAP $CFLAGS"
+       LDFLAGS="-lreadline $LDFLAGS"
+       LDGLAGS="$LDFLAGS -ltinfo"
+       echo "yes, with libtinfo"
+-    elif [ -f /usr/lib/libtermcap.so -o -f /usr/local/lib/libtermcap.so -o -f /usr/lib/libtermcap.a -o -f /usr/local/lib/libtermcap.a ]; then
++    elif [ -f /lib/libtermcap.so -o -f /usr/lib/libtermcap.so -o -f /usr/local/lib/libtermcap.so -o -f /lib/libtermcap.a -o -f /usr/lib/libtermcap.a -o -f /usr/local/lib/libtermcap.a ]; then
+       CFLAGS="-DHAVE_READLINE -D__USE_TERMCAP $CFLAGS"
+       LDFLAGS="-lreadline $LDFLAGS"
+       LDFLAGS="$LDFLAGS -ltermcap"
+@@ -716,7 +728,7 @@
+ echo -n "[+] libncurses installed: "
+ 
+ if [ -f /usr/include/curses.h -o -f /usr/local/include/curses.h ]; then
+-  if [ -f /usr/lib/libncurses.so -o -f /usr/local/lib/libncurses.so -o -f /usr/lib/libncurses.a -o -f /usr/local/lib/libncurses.a ]; then
++  if [ -f /lib/libncurses.so -o -f /usr/lib/libncurses.so -o -f /usr/local/lib/libncurses.so -o -f /lib/libncurses.a -o -f /usr/lib/libncurses.a -o -f /usr/local/lib/libncurses.a ]; then
+     echo "yes, nc-aegir will be built."
+     NCAEGIR=yes
+   else
+@@ -726,7 +738,7 @@
+   echo "no, nc-aegir will not be built."
+ fi
+ 
+-if [ ! "$NCAEGIR" = "" ]; then
++if [ -n "$NCAEGIR" ]; then
+   echo -n "[+] 'screen' installed: "
+   if [ -x /usr/bin/screen -o -x /usr/local/bin/screen ]; then
+     echo "yes"
+@@ -752,7 +764,7 @@
+   exit 1
+ fi
+ 
+-echo "$[LIN-1] entries"
++echo "$((LIN-1)) entries"
+ 
+ echo -n "[*] Generating decl list for fenris.c: "
+ 
+@@ -768,7 +780,7 @@
+   exit 1
+ fi
+ 
+-echo "$[LIN-1] entries"
++echo "$((LIN-1)) entries"
+ 
+ echo -n "[*] Generating decl list for aegir.c: "
+ 
+@@ -784,7 +796,7 @@
+   exit 1
+ fi
+ 
+-echo "$[LIN-1] entries"
++echo "$((LIN-1)) entries"
+ 
+ 
+ echo -n "[*] Compiling libi386: "
+@@ -921,7 +933,7 @@
+ rm -f .testerr
+ 
+ 
+-if [ ! "$NCAEGIR" = "" ]; then
++if [ -n "$NCAEGIR" ]; then
+   echo -n "[*] Compiling nc-opdis: "
+   gcc -c $CFLAGS2 libdisasm/opcodes2/nc-opdis.c 2>.testerr 
+ 
+@@ -1026,7 +1038,7 @@
+ fi
+ 
+ rm -f .testerr
+-test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME 2>/dev/null
+ 
+ echo -n "[*] Compiling $PROGNAME2: "
+ 
+@@ -1125,7 +1137,7 @@
+ rm -f .testerr
+ 
+ 
+-if [ ! "$NCAEGIR" = "" ]; then
++if [ -n "$NCAEGIR" ]; then
+   echo -n "[*] Compiling $PROGNAME6: "
+   gcc -lncurses $LDFLAGS $CFLAGS $PROGNAME6.c libfnprints.o i386-dis.o nc-opdis.o -o $PROGNAME6 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG 2>.testerr 
+   if [ ! -s $PROGNAME6 ]; then
+@@ -1156,12 +1168,12 @@
+ 
+ 
+ 
+-test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
+-test "$NOSTRIP" = "" && strip $PROGNAME4 2>/dev/null
+-test "$NOSTRIP" = "" && strip $PROGNAME2 2>/dev/null
+-test "$NOSTRIP" = "" && strip $PROGNAME3 2>/dev/null
+-test "$NOSTRIP" = "" && strip $PROGNAME5 2>/dev/null
+-test "$NOSTRIP" = "" && strip $PROGNAME6 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME4 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME2 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME3 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME5 2>/dev/null
++[ -z "$NOSTRIP" ] && strip $PROGNAME6 2>/dev/null
+ 
+ HUH=""
+ test "$1" = "" && HUH=1
+@@ -1175,7 +1187,7 @@
+   cat .tmp >fnprints.dat 
+   rm -f .tmp
+   CNT=`grep -c . fnprints.dat`
+-  test "$CNT" = "" && CNT=0
++  [ -z "$CNT" ] && CNT=0
+   echo "[*] Updating libc fingerprints database (this will take a while)..."
+   NOBANNER=1 ./getfprints
+   echo "[*] Sorting your fingerprints..."
+@@ -1190,7 +1202,7 @@
+     exit 1
+   fi
+ 
+-  diff -d 'fnprints.dat' 'NEW-fnprints.dat' | grep '^> ' |awk -F'> ' '{print $2}' >.news
++  diff -d 'fnprints.dat' 'NEW-fnprints.dat' | grep '^> ' | awk -F'> ' '{print $2}' >.news
+ 
+   rm -f NEW-fnprints.dat fnprints.dat
+   mv -f .tmp fnprints.dat
+@@ -1203,7 +1215,7 @@
+     cat .news >>NEW-fp.dat
+ 
+     echo
+-    echo "[+] Congratulations, your system has $[CNT2-CNT] new fingerprints."
++    echo "[+] Congratulations, your system has $((CNT2-CNT)) new fingerprints."
+     echo "    I created a file called NEW-fp.dat for you. It woule be very nice"
+     echo "    if you can send it to the author, lcamtuf@coredump.cx. Thanks!"
+     echo
+@@ -1215,14 +1227,14 @@
+ 
+   rm -f .news .tmp
+ 
+-  echo "[+] You have $[`grep -c . fnprints.dat`] fingerprints."
++  echo "[+] You have $((`grep -c . fnprints.dat`)) fingerprints."
+ 
+ 
+ fi
+ 
+ if [ -f test.c ]; then
+   echo "[+] Ah, I see you have test.c here... Lemme compile it for you!"
+-  gcc test.c &>/dev/null
++  gcc test.c >/dev/null 2>&1
+ fi
+ 
+ echo "[+] All set. Please read the documentation."

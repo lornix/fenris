@@ -1,0 +1,407 @@
+Here are some hints for using Fenris for the "Reverse Challenge"
+contest announced by Lance Spitzner and the Honeynet Project in May 2002
+[http://project.honeynet.org/reverse/]. I don't want to spoil the fun,
+but will provide some very basic guidance on how to begin. Fenris is...
+hmm, a debugger, a code tracer, program structure analysis tool, a bit
+of a decompiler, function fingerprinting utility and much more. This text
+applies to Fenris 0.02b or later, but I strongly recommend that you get
+at least release 0.05b. This is for many reasons - 0.05 features an
+interactive debugger, a good replacement for GDB; it features a standalone
+symtab recovery tool for static binaries, if you prefer to do most of
+your work in a different debugger or disassembler, but are tired with
+guessing what function does what; it also features better support for
+tweaked ELFs, such as a binary crypted with burneye - which, while is
+not particularly useful in this case, is probably worth checking out
+neverthless (see doc/be.txt for more info).
+
+Most recent release can be always obtained from:
+http://lcamtuf.coredump.cx/fenris/devel.shtml. 
+
+Before proceeding, read the documentation for Fenris, available at
+http://lcamtuf.coredump.cx/fenris/README, especially the section about 
+security considerations for additional hints and security precautions on 
+using real-time tracers for forensics. Basically, you need to know what
+level of security is provided by Fenris, where to run it, what privileges
+to give, what other tools to use. Generally speaking, using a tracer is
+a stupid idea ;-) But it is also the fastest way to see how things work,
+so you can proceed with in-depth gdb (or Aegir) analysis later, knowing 
+what is  what and how things work. Be advised that Fenris is not supposed 
+to give you all the answers. It is just going to make your life much simplier.
+For in-depth analysis of a single procedure, it is *always* best to use a
+disassembler. Fenris will help you to separate code coming from different
+sources, determine call structure, parameters, general behavior, and so on,
+but you still have to do your homework. Our companion tool, called 'dress',
+will help you to restore symbol table in the binary, so you can use gdb
+or objdump (I will talk about it at the end of this write-up); or you can
+stick with Aegir and beta test it for me, if you're brave :P
+
+This text is not very technical, and for some of you, many sentences can be 
+more than obvious - but it gives a good idea of how Fenris can be used to 
+simplify reverse engineering tasks, and that's its only purpose.
+
+So, let's get started...
+
+First of all, the binary is linked statically. This is quite obvious, try
+'file' on it. It is a C program, compiled with GCC. You can find GCC string
+signatures inside the binary. Then, it came from a libc5 system, which can be 
+told from the "The Linux C library 5.3.12" string inside. The ability to find
+small hints such as this string is extremely important for reverse
+engineering. NEVER RELY ON A SINGLE SOURCE OF INFORMATION. Always verify your
+findings, always look before trying. Forensics is like surgery, it requires
+precision and systematic approach. Even if you train on dummies, mindless
+force won't make you a good surgeon. Take notes. Note every detail, all
+the things to "check out later". Draw a structural graph as you dive
+into the code. Use pen and paper, not your computer... Well, ok, ok, back to
+the code...
+
+So, an obscure libc version not directly supported by Fenris was used.
+Fenris will not be able to detect libc prolog automatically, so you need
+to use -s option. You will get some irrelevant internal libc functions
+at the beginning, not a big deal, just skip them, you can tell them by
+their names. More importantly, to detect what belongs to libc and what comes
+from the author of this code, you'd have to use a special fingerprints 
+database, provided in support/ subdirectory. The database is named 
+'fn-libc5.dat'. You can do one thing before continuing - why not reconstruct
+symbols in your ELF so that using objdump or gdb is less troublesome?
+
+nobody@sandbox$ ./dress -F support/fn-libc5.dat ./the-binary new-binary
+dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>
+[+] Loaded 63405 fingerprints...
+[*] Code section at 0x08048090 - 0x080675cc, offset 144 in the file.
+[*] For your initial breakpoint, use *0x8048090
+[+] Locating CALLs... 371 found.
+[+] Matching fingerprints...
+[*] Writing new ELF file:
+[+] Cloning general ELF data...
+[+] Setting up sections: .init .text .fini .rodata .data .ctors .dtors .bss .note .comment
+[+] Preparing new symbol tables...
+[+] Copying all sections: .init .text .fini .rodata .data .ctors .dtors .bss .note .comment
+[+] All set. Detected fingerprints for 211 of 371 functions.
+
+Before:
+
+ 804bf80:       55                      push   %ebp
+[...]
+ 804bf97:       f6 44 50 01 08          testb  $0x8,0x1(%eax,%edx,2)
+ 804bf9c:       0f 84 b6 00 00 00       je     0x804c058
+
+After:
+
+0804bf80 <gethostbyname>:
+[...]
+ 804bf97:       f6 44 50 01 08          testb  $0x8,0x1(%eax,%edx,2)
+ 804bf9c:       0f 84 b6 00 00 00       je     804c058 <gethostbyname+0xd8>
+
+After:
+
+Wasn't that simple? But, of course, you may prefer to stick with Fenris,
+and do all the disassembly work using Aegir. I'm not going to talk
+about it too much here, but Aegir will let you to fingerprint whatever
+code you want, instantly get information about memory or file descriptor
+history, nesting level, high level constructions related to a assembly
+code you're looking at, fancy breakpoints and watchpoints... For more
+information, please refer to Fenris documentation - for now, let's just
+assume you're using some debugger. Let's track what the code does:
+
+This code is very likely to fork into background, so be sure 
+to trace all execution branches, use -f option. Let the fun begin:
+
+nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat ./the-binary
+...
+19953:03    SYS geteuid () = 99
+19953:03    <805721a> cndt: if-above block (signed) +16 executed
+19953:02   ...return from function = <void>
+19953:02   <8048182> cndt: conditional block +8 executed
+...
+19953:05      SYS exit (-1) = ???
+19953:04     ...function never returned (program exited before).
+19953:03    ...function never returned (program exited before).
+
+Hmm, geteuid() followed by some conditionals followed by exit? That's not 
+very nice, it apparently wants to be launched as root... Humm, let's
+run it again, tracing eip...
+
+nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat -p ./the-binary
+...
+[08057218] 19963:03    SYS geteuid () = 99
+...
+
+The address probably isn't very precise, as Fenris does report syscalls
+after they return - that is, unless you use Aegir, when precise debugging
+information is provided - besides, in Aegir, you can simply set a breakpoint
+on a specific syscall. But well, let's look at the surrounding area:
+
+(gdb) disass 0x0805720f 0x08057220
+Dump of assembler code from 0x805720f to 0x8057220:
+0x805720f:      mov    $0x31,%eax
+0x8057214:      int    $0x80
+0x8057216:      mov    %eax,%edx
+0x8057218:      test   %edx,%edx
+0x805721a:      jge    0x805722c
+0x805721c:      neg    %edx
+0x805721e:      push   %edx
+0x805721f:      call   0x8056e64
+End of assembler dump.
+
+You can also use objdump if you're not sure about the address:
+
+nobody@sandbox$ objdump -d the-binary|grep -A 1 '$0x31,%eax'
+objdump: the-binary: no symbols
+ 805720f:       b8 31 00 00 00          mov    $0x31,%eax
+ 8057214:       cd 80                   int    $0x80
+
+Maybe it makes sense to change 0x805720f to 'mov $0,%eax' and nop out
+'int $0x80'? As syscalls return their results in eax, this way, it'd
+look like it returned 0 to the subsequent code... Hmm... Once again,
+if you're using Aegir, you can do it without restarting the code, but
+this write-up focuses on core Fenris functionality:
+
+nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat -P 0x8057210:0 \
+                -P 0x8057214:0x90 -P 0x8057215:0x90 ./the-binary
+
+We replaced '31', second byte of the mov instruction, and the least
+significant byte of used immediate value (little endian, yup) with 0,
+and both bytes of 'int' instruction with NOP (0x90).
+
+...
+19906:00 local fnct_4 (g/80675d0)
+19906:00 + fnct_4 = 0x8055f08
+19906:00 # No matches for signature D8F7AA72 (36275).
+19915:02   local fnct_10 (l/bffffc1e "./the-binary", 0, 16)
+19915:02   + fnct_10 = 0x8057764
+19915:02   \ new buffer candidate: bffffc1e:17
+19915:02   # Matches for signature 4E05FA21: memset
+19926:02   local fnct_11 (17, 1)
+19926:02   # No matches for signature 8AE66F9A (36275).
+
+Note that Fenris, even for unknown functions, tries to display parameters
+in most useful way. This means, if a parameter looks like a pointer to
+a readable string, it is displayed for you. It also greps our fingerprint
+database and tells you what the function probably is, even thou there is
+no symbols in this binary.
+
+Voila, we got past the execve(). Now, the code is apparently messing with
+its own name. Well, indeed, it will be changed to "[mingetty]" to be
+less suspicious. As you can see, Fenris can tell you what functions belong to
+libc, despite of static linking. Isn't that nice? Of course, don't trust
+this feature blindly, treat it as a nice hint. Write down any comments you
+have about every function Fenris detected. Fenris automatically assigns
+unique names to each function, like fnct_4. You can also use ragnarok to
+do some basic analysis for you and generate function call summaries.
+On some occassions, Fenris will have problems determining the exact numbers of 
+parameters passed to a function because this binary was compiled with heavy 
+optimizations - so your notes and ragnarok would be very helpful to get
+more accurate results.
+
+Also, be advised that it is useful to add -A option if you have reasons
+to believe the binary was highly optimized. Optimized code does not show
+any particular pattern that can differentiate functions with return value
+from ones without return value. Passing -A option will cause Fenris to
+assume all functions return something. In many cases, you have to
+disregard the possible result, but you'll get more information that is
+otherwise missing when Fenris reports as functions as "void".
+
+...
+19926:03    local fnct_12 (17, l/bfffb5e8, l/bfffb5d8)
+19926:03    + l/bfffb5e8 (maxsize 28) = stack of fcnt_11 (0 down)
+19926:03    + l/bfffb5d8 (maxsize 44) = stack of fcnt_11 (0 down)
+19926:03    # No matches for signature 885E11CD (36275).
+19926:04     <80574d4> cndt: conditional block +25 executed
+19926:04     <80574da> cndt: conditional block +12 executed
+19926:04     <80574fd> cndt: if-above block (signed) +17 skipped
+19926:03    ...return from function = <void>
+
+...and here we have some local functions, yes. Trace it with IPs, and
+get a IP range this function is in, then use objdump or gdb to dive into
+details. You can also use -R option of Fenris to get more information
+about all ways this function behaves in the program. 
+
+Soon, the problems begin:
+
+19926:02   local fnct_13 ()
+19926:02   # Matches for signature BCF79788: fork libc_fork vfork
+19926:03    fork () = 19932
+>> OS error       : Operation not permitted [1]
+>> Error condition: PTRACE_ATTACH failed
+>> This condition occoured while tracing pid 19926 (eip 80571f0).
+>> Traced 359 user CPU cycles (0 libcalls, 17 fncalls, 7 syscalls).
+
+So, is there some sort of anti-debugging code? There is. There are
+two quick forks one after another that can trick some tracers and
+make the child fork and exit before it is PTRACE_ATTACHed. The question
+is, was it intentional? Some sources recommend double fork when doing
+setsid() as a good daemon coding practice. On the other hand, most of
+modern daemons fork() only once. Well, whatever the origin is, let's
+get rid of it. First, find the offensive location (syscall 0x2 == fork):
+
+nobody@sandbox$ objdump -d the-binary | grep -A 1 'mov    $0x2,%eax' \
+                | grep -B 1 'int'
+objdump: the-binary: no symbols
+ 80571eb:       b8 02 00 00 00          mov    $0x2,%eax
+ 80571f0:       cd 80                   int    $0x80
+
+Ahh, well done. So, to fool this code, we probably simply have to
+convince the software it forked successfully and is already running as
+a child. Then, we can see if the child tries any further tricks, and get
+rid of the parent who'd exit anyway (try running the binary without -f
+option to investigate this). Child process gets zero result from fork()... 
+This way, the parent execution branch will be ignored, and we're back on the 
+track:
+
+nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat -P 0x8057210:0 \
+                -P 0x8057214:0x90 -P 0x8057215:0x90 -P 0x80571f0:90 \
+                -P 0x80571f1:90 -P 0x80571ec:0 -p ./the-binary
+
+...
+
+[08048211] 20516:02   local fnct_15 (g/80675e3)
+[08048211] 20516:02   + fnct_15 = 0x8057134
+[08048211] 20516:02   # Matches for signature 20F1D1E3: chdir libc_chdir
+[08057144] 20516:03    SYS chdir (80675e3 "/") = 0
+[08057144] 20516:03    \ new buffer candidate: 80675e3:2
+[08057146] 20516:03    <8057146> cndt: if-above block (signed) +16 skipped
+[0805715c] 20516:02   ...return from function = <void>
+
+Oh, good, it prepares to perform normal operations...
+
+...
+
+[0804824b] 20533:02   local fnct_17 (0)
+[0804824b] 20533:02   + fnct_17 = 0x8057444
+[0804824b] 20533:02   # Matches for signature 58B72F00: libc_time time
+[08057454] 20533:03    SYS time (0x0) = 1020875229 [Wed May  8 12:27:09 2002]
+[08057456] 20533:03    <8057456> cndt: if-above block (signed) +16 executed
+[0805746c] 20533:02   ...return from function = <void>
+
+... ahh. So now it thinks it is running in the background, not traced, as
+root, and just settled in.
+
+[08055b9c] 20516:03    local fnct_19 ()
+[08055b9c] 20516:03    # No matches for signature 60DCBA5A (36275).
+[08055e42] 20516:04     <8055e42> cndt: on-match block +36 skipped
+[08055e93] 20516:04     <8055e93> cndt: if-below block (signed) +19 executed
+[08055eba] 20516:04     <8055eba> cndt: if-below block (signed) +10 executed
+[08055ecb] 20516:03    ...return from function = <void>
+[08055b9c] 20516:03    local fnct_19 ()
+[08055b9c] 20516:03    # No matches for signature 60DCBA5A (36275).
+[08055e42] 20516:04     <8055e42> cndt: on-match block +36 skipped
+[08055e93] 20516:04     <8055e93> cndt: if-below block (signed) +19 executed
+[08055eba] 20516:04     <8055eba> cndt: if-below block (signed) +10 executed
+[08055ecb] 20516:03    ...return from function = <void>
+
+Good excercise: this function is called in a conditional loop... and is 
+something internal, not a libc code... is it used to decrypt something?
+copy some data? Or maybe it is some library function linked from some
+obscure library Fenris does not know? Use objdump or Aegir, take your guess!
+
+[08056d20] 20533:03    SYS socket (PF_INET, SOCK_RAW, 11 [unknown]) = -1 (Operation not permitted)
+
+Here's a little problem. It tries to bind to a RAW socket. Why not make it
+UDP, so you can work on it safely and talk to it? Another task for you.
+It can get tricky, you say, there's not enough space to do it? Rest assured,
+there's more than enough areas full of nops somewhere else in the memory,
+feel free to put your UDP code there, and simply "call" it. Pass 
+--disassemble-zeroes option to objdump and be surprised. Also, you have
+lots of space on stack... yes, that's right, portions of stack are not used,
+and this segment is executable. If you specify third parameter to -P
+option, you'll be able to insert your modifications when the code reaches
+certain point, which can be useful.
+
+[08056b76] 20533:03    SYS socketcall_10 (0xbfffb5e0 <invalid>) = -9 (Bad file descriptor)
+[08056b78] 20533:03    <8056b78> cndt: if-above block (signed) +13 executed
+[08056b8f] 20533:02   ...return from function = <void>
+[08056b8f] 20533:02   // function has accessed non-local memory:
+[08056b8f] 20533:02   * READ buffer bfffb5fc
+[08056b8f] 20533:02   + bfffb5fc = bfffb5fc:12 <off 0> (first seen in fnct_21)
+[080482d9] 20533:02   <80482d9> cndt: on-match block +3033 skipped
+[08048ebd] 20533:02   local fnct_22 (10000)
+[08048ebd] 20533:02   + fnct_22 = 0x80555b0
+[08048ebd] 20533:02   # Matches for signature 5186CEA1: usleep
+[080555f0] 20533:03    local fnct_23 (1, 0, 0, 0, l/bfffb5f4)
+[080555f0] 20533:03    + fnct_23 = 0x80574a0
+[080555f0] 20533:03    + l/bfffb5f4 (maxsize 20) = stack of fcnt_22 (0 down)
+[080555f0] 20533:03    # No matches for signature 19F45966 (36275).
+[080574b0] 20533:04     SYS82 select ??? (l/bfffb5e0, 10000, 0) = 0
+[080574b0] 20533:04     + l/bfffb5e0 (maxsize 4) = stack of fcnt_23 (0 down)
+[080574b0] 20533:04     <80574b0> cndt: if-above block (signed) +12 skipped
+[080574c4] 20533:03    ...return from function = <void>
+[080555f8] 20533:02   ...return from function = <void>
+[080555f8] 20533:02   \ discard: mem bfffb5fc:12 (first seen in fnct_21)
+
+Now it enters and endless receive loop, usleep, select, some obscure
+socketcall Fenris couldn't recognize... Well, I'll leave you here.
+Have fun :-) 
+
+Addendum - this is how Aegir sessions look like:
+
+  Cur. time : Wed May 22 00:31:09 2002
+  Executable: ./a.out
+  Arguments : <NULL>
+
+  [aegir] step
+  >> Singlestep stop at 0x80483b0 [_start].
+  080483b0 [_start]:      xorl   %ebp,%ebp
+  [aegir] next
+  At 0x80483b0, continuing to next output line...
+  20394:00 L memset (8049660, 0, 100) = 8049660
+  20394:00 + g/8049660 = local buf
+  20394:00 + g/8049660 = local buf
+  20394:00 \ new buffer candidate: 8049660:100 (buf)
+  20394:00 \ buffer 8049660 modified.
+  20394:00 >> New line stop at 0x400a5b0c [memset+68].
+  080484bb [main+23]:     addl   $0x10,%esp
+
+  [aegir] info buf
+  Name 'buf' has address 0x08049660.
+  + 8049660 = 8049660:100 <off 0> (first seen in L main:memset)
+    last input: L main:memset
+  [aegir] fdinfo 0
+  + fd 0: "/dev/tty6", origin unknown
+
+  [aegir] wwatch 0x08049660 0x08049670
+  Breakpoint #0 added.
+  [aegir] list
+  00: stop on write 0x8049660-0x8049670.
+
+  [aegir] fprint 0x080485a4
+  Matches for signature CC6E587C: printf, wprintf
+
+  [aegir] call
+  At 0x80484bf, continuing to next local call...
+  08048492 [funkcjadwa+6]:        call   $0x804849c <funkcjasiedem>
+  21364:02   local funkcjasiedem ()
+  21364:02   + funkcjasiedem = 0x804849c
+  >> Local call to 0x804849c reached at 0x8048492 [funkcjadwa+6].
+
+  [aegir] back
+  Local function calls history (oldest to most recent calls):
+  From 80484bf [main+11]: fnct_1 [funkcjadwa] 804848c, stack bffffa64 -> ...
+  From 8048492 [funkcjadwa+6]: fnct_2 [funkcjasiedem] 804849c, stack bfff...
+
+The GUI version of Aegir, nc-aegir, works basically the same way,
+but provides an organized debugging screen with register, memory
+and code views, integrated Fenris output view, and automatic
+control over Fenris parameters.
+
+And this is why Aegir is a bit better than other disassemblers / debuggers
+that rely on libbfd (again, see doc/be.txt for more info):
+
+  $ gdb ./startwu
+  "./startwu": not in executable format: File format not recognized
+
+  $ objdump -d ./startwu
+  objdump: ./startwu: File format not recognized
+
+  $ ./fenris -W /tmp/aegir-sock -X 5 ./startwu &
+  $ aegir /tmp/aegir-sock
+  ...
+  [aegir] disas
+  05371035:       pushl  0x5371008
+  0537103b:       pushf
+  0537103c:       pusha
+  0537103d:       movl   0x5371000,%ecx
+  05371043:       jmp    $0x5371082
+  05371048:       popl   %esi
+  05371049:       movl   %esi,%edi
+
+:-)
