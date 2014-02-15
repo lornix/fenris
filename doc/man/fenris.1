@@ -1,4 +1,4 @@
-.TH fenris 1 
+.TH fenris 1
 .SH NAME
 fenris \- program execution path analysis tool
 .SH SYNOPSIS
@@ -67,7 +67,7 @@ moment when it reaches b. Incomplete range can be provided - for
 example, -R :0x12345678 will trace code from the beginning to eip
 0x12345678, and -R 0x12345678: will start tracing at 0x12345678 and
 continue as long as possible. NOTE: think of it as trigger points,
-not a continous range. For example, if you use -R 0x12345678:, but
+not a continuous range. For example, if you use -R 0x12345678:, but
 eip 0x12345678 is never reached, even if 0x23456789 is being
 executed, trace will never start.
 
@@ -101,10 +101,10 @@ This directive means: change a byte at address 'off' to 'val' when
 eip reaches 'ip'. If 'ip' is omitted or zero, this rule will be
 applied immediately to the freshly mapped binary (keep in mind that
 some memory regions mapped later may be not available at this moment).
-Read-only flag is generally overriden, and for files mapped into
+Read-only flag is generally overridden, and for files mapped into
 memory in read-only mode, a local copy of the modified page is spawned.
 All values passed to this parameter can be in decimal or in hex if
-preceeded with 0x, and multiple options are possible. Non-IP entries will
+preceded with 0x, and multiple options are possible. Non-IP entries will
 be applied only once, at the beginning. All others will be applied
 every time a given IP is reached.
 
@@ -210,7 +210,7 @@ etc).
 
 \fB-e\fR
 
-Trace new code loaded by execve().  This option might be convinient in
+Trace new code loaded by execve().  This option might be convenient in
 some cases, but should be used with caution. Also, be warned that -P
 option will be global and apply to both old and new image in memory,
 except for no-IP entries that would be applied only once.
@@ -226,12 +226,12 @@ default fingerprints database locations (in search order)
 
 .SH SECURITY
 This program is not intended to be used on any production system
-to audit binaries originating from unknown sources and of possibly 
+to audit binaries originating from unknown sources and of possibly
 harmful nature. Because
 .BR fenris
 performs real-time tracing, there is no way to ensure that actions
 taken by traced applications are legitimate and that output is not
-tampered with. Please use 
+tampered with. Please use
 .BR objdump (1)
 and
 .BR gdb (1)
@@ -239,7 +239,7 @@ to examine suspected code in trusted systems.
 
 .SH BUGS
 Numerous. Please consult
-.BR /usr/doc/fenris/README 
+.BR /usr/doc/fenris/README
 for a complete list of known bugs, then visit
 .BR http://lcamtuf.coredump.cx/fenris/
 to get the recent version of this program. If this does not help, use
@@ -265,4 +265,3 @@ bug reporting utility or mail the author.
 .SH AUTHOR
 .B fenris
 was written by Michal Zalewski <lcamtuf@coredump.cx>.
-

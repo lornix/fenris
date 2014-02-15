@@ -6,14 +6,14 @@ aegir \- interactive debugger frontend for Fenris
 .I [%]/path/to/socket
 .br
 .SH "DESCRIPTION"
-Aegir is an interactive debugging frontend for 
+Aegir is an interactive debugging frontend for
 .BR fenris (1),
 a program execution path analysis tool. It has
-.BR gdb -alike 
-capabilities to debug a single process running under Fenris, controlling its 
-flow, executing it step-by-step, setting breakpoints or watchpoints, examining 
-program's internal state. Aegir can provide you with low-level assembler 
-structures, but provides all the goods of Fenris. It supports loadable 
+.BR gdb -alike
+capabilities to debug a single process running under Fenris, controlling its
+flow, executing it step-by-step, setting breakpoints or watchpoints, examining
+program's internal state. Aegir can provide you with low-level assembler
+structures, but provides all the goods of Fenris. It supports loadable
 modules, so you can create your own commands and checks easily.
 
 For users who prefer GUI-based design, there is a clone of Aegir,
@@ -22,15 +22,15 @@ available. It incorporates the functionality of Aegir, but provides a nice
 layout, auto memory, register and code display, and full integration with
 Fenris.
 
-There is only one option supported and required, that is, a path to the 
+There is only one option supported and required, that is, a path to the
 master socket
-created with -W option when invoking 
+created with -W option when invoking
 .BR fenris (1) .
 Preceeding this argument with % causes Aegir to run in asynchronous mode,
 where, basically, shell is available even when the code is running.
 All other features are controlled by Fenris, and - generally speaking -
 Fenris is doing most of the debugging work. Aegir is simply a debugging
-shell that can be easily replaced to suit your needs better. To read more 
+shell that can be easily replaced to suit your needs better. To read more
 about coding Aegir modules
 or writing your own debugging shells, please refer to
 .BI doc/debug-api.txt
