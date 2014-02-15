@@ -55,11 +55,11 @@ install: all
 	cp -f dress /usr/bin/
 	cp -f aegir /usr/bin/
 	cp -f nc-aegir /usr/bin/ || true
-	cp -f spliter.pl /usr/bin/
+	cp -f splitter.pl /usr/bin/
 
 uninstall:
 	rm -rf /usr/doc/fenris
-	rm -f /etc/fnprints.dat /usr/bin/fenris /usr/bin/fprints /usr/bin/getfprints /usr/bin/ragnarok /usr/bin/fenris-bug /usr/bin/ragsplit /usr/bin/spliter.pl /usr/bin/dress /usr/bin/aegir /usr/bin/nc-aegir
+	rm -f /etc/fnprints.dat /usr/bin/fenris /usr/bin/fprints /usr/bin/getfprints /usr/bin/ragnarok /usr/bin/fenris-bug /usr/bin/ragsplit /usr/bin/splitter.pl /usr/bin/dress /usr/bin/aegir /usr/bin/nc-aegir
 
 clean:
 	@./build-project clean

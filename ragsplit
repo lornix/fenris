@@ -31,12 +31,12 @@ if [ "$2" = "" ]; then
     exit 1
 fi
 
-WHEREIS=./spliter.pl
+WHEREIS=./splitter.pl
 
-if [ ! -x spliter.pl ]; then
-    WHEREIS=`which spliter.pl 2>/dev/null`
+if [ ! -x splitter.pl ]; then
+    WHEREIS=`which splitter.pl 2>/dev/null`
     if [ "$WHEREIS" = "" ]; then
-        echo "Error: 'spliter.pl' must be in current directory or in path."
+        echo "Error: 'splitter.pl' must be in current directory or in path."
         echo
         exit 1
     fi
