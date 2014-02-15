@@ -755,7 +755,7 @@ echo "$[LIN-1] entries"
 echo -n "[*] Generating decl list for fenris.c: "
 
 echo "// Auto-generated (`date`), do not modify." >fenris-decl.h
-grep '(.*) {' fenris.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^	' >>fenris-decl.h
+grep '(.*) {' fenris.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^      ' >>fenris-decl.h
 
 LIN=`grep -c . fenris-decl.h 2>/dev/null`
 
@@ -771,7 +771,7 @@ echo "$[LIN-1] entries"
 echo -n "[*] Generating decl list for aegir.c: "
 
 echo "// Auto-generated (`date`), do not modify." >aegir-decl.h
-grep '(.*) {' aegir.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^	' >>aegir-decl.h
+grep '(.*) {' aegir.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^       ' >>aegir-decl.h
 
 LIN=`grep -c . aegir-decl.h 2>/dev/null`
 

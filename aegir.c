@@ -140,10 +140,10 @@ struct aegir_cmd cmd[MAXCMD+1] = {
     { "signals", do_signals,     "display signal actions" },
     { "load",    load_module,    "load x: load custom debugging module x" },
     { "exec",    exec_cmd,       "exec x: execute shell command x" },
-    { "help",	display_help,   "display help" },
-    { "?",	display_help,   0 },
-    { "quit",	handle_quit,    "quit, exit: terminate the session" },
-    { "exit",	handle_quit,    0 }
+    { "help",   display_help,   "display help" },
+    { "?",      display_help,   0 },
+    { "quit",   handle_quit,    "quit, exit: terminate the session" },
+    { "exit",   handle_quit,    0 }
 };
 
 #ifdef HAVE_READLINE

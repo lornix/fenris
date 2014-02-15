@@ -65,18 +65,18 @@ int was_blocking;
 
 extern char* scnames[256];
 
-int break_stopped;	// Is the code stopped?
-int sd;			// Our socket to the shell
-int curmode;		// Current mode (see MODE_* in hooks.h)
-int modepar;		// Current mode parameter, if any.
-int break_continuing;	// Recovering from stopped inside singlestep()?
+int break_stopped;      // Is the code stopped?
+int sd;                 // Our socket to the shell
+int curmode;            // Current mode (see MODE_* in hooks.h)
+int modepar;            // Current mode parameter, if any.
+int break_continuing;   // Recovering from stopped inside singlestep()?
 extern char is_static;
 
-#define BP_SYS		1
-#define BP_SIG		2
-#define BP_ADDR		3
-#define BP_R		4
-#define BP_W		5
+#define BP_SYS          1
+#define BP_SIG          2
+#define BP_ADDR         3
+#define BP_R            4
+#define BP_W            5
 
 struct break_bpnt {
     char type;  // BP_*

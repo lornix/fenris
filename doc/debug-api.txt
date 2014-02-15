@@ -29,27 +29,27 @@ parameter. The communication scheme is as follows:
 In the discussion below, dword: means a 32-bit integer value, string: means
 a null terminated string. Supported message types of messages are:
 
-#define DMSG_GETMEM	2
+#define DMSG_GETMEM     2
 // Purpose: get memory region
 // Params: dword:startaddr, dword:endaddr
 // Response: dword:length, raw binary data
 // Notes: returns shorter data if cannot read
 
-#define DMSG_GETNAME	3
+#define DMSG_GETNAME    3
 // Purpose: get name associated with an address
 // Params: dword:addr
 // Response: string:name (empty string = no match)
 // Notes: will also return "shifted" matches, such as fcnt_10+10.
 // Looks up in local names and symbol tables.
 
-#define DMSG_GETADDR	4
+#define DMSG_GETADDR    4
 // Purpose: get address associated with name
 // Params: string:name
 // Response: dword:addres (0 = no match)
 // Note that this function looks up name in both symbol tables
 // and locally assigned names, and supports +nnn.
 
-#define DMSG_GETREGS	5
+#define DMSG_GETREGS    5
 // Purpose: get registers
 // Params: none
 // Response: regs structure from ptrace
@@ -59,7 +59,7 @@ a null terminated string. Supported message types of messages are:
 // Params: regs structure for ptrace
 // Response: string:message to user
 
-#define DMSG_GETBACK	7
+#define DMSG_GETBACK    7
 // Purpose: get stack backtrace
 // Params: none
 // Response: string:data for user
@@ -69,27 +69,27 @@ a null terminated string. Supported message types of messages are:
 // Params: dword:addr
 // Response: string:description
 
-#define DMSG_DESCFD 	9
+#define DMSG_DESCFD     9
 // Purpose: return a description of a file descriptor
 // Params: dword:fd
 // Response: string:description
 
-#define DMSG_ABREAK	10
+#define DMSG_ABREAK     10
 // Purpose: set address-based breakpoint
 // Params: dword:addr
 // Response: string:message for user
 
-#define DMSG_SBREAK	11
+#define DMSG_SBREAK     11
 // Purpose: set syscall-based breakpoint
 // Params: dword:syscall
 // Response: string:message for user
 
-#define DMSG_IBREAK	12
+#define DMSG_IBREAK     12
 // Purpose: set signal-based breakpoint
 // Params: dword:signal
 // Response: string:message for user
 
-#define DMSG_RWATCH	13
+#define DMSG_RWATCH     13
 // Purpose: set on-read watchpoint
 // Params: dword:memstart, dword:memend
 // Response: string:message for user
@@ -99,12 +99,12 @@ a null terminated string. Supported message types of messages are:
 // Params: dword:memstart, dword:memend
 // Response: string:message for user
 
-#define DMSG_STEP	15
+#define DMSG_STEP       15
 // Purpose: advance by n opcodes in local code
 // Params: dword:count
 // Response: string:message for user
 
-#define DMSG_TORET	16
+#define DMSG_TORET      16
 // Purpose: advance to n-th ret in local code
 // Params: dword:count
 // Response: string:message for user
@@ -129,7 +129,7 @@ a null terminated string. Supported message types of messages are:
 // Params: none
 // Response: string:message for user
 
-#define DMSG_TONEXT	21
+#define DMSG_TONEXT     21
 // Purpose: advance to next Fenris output entity
 // Params: none
 // Response: string:message for user
@@ -145,57 +145,57 @@ a null terminated string. Supported message types of messages are:
 // Params: none
 // Response: string:message for user
 
-#define DMSG_STOP	23
+#define DMSG_STOP       23
 // Purpose: stop the running code NOW
 // Params: none
 // Response: string:message for user
 
-#define DMSG_HALT	36
+#define DMSG_HALT       36
 // Purpose: stop the running code as soon as possible
 // Params: none
 // Response: string:message for user
 
-#define DMSG_FPRINT	24
+#define DMSG_FPRINT     24
 // Purpose: fingerprint an address
 // Params: dword:addr
 // Response: string:standard fprint response for user
 
-#define DMSG_SETMEM	25
+#define DMSG_SETMEM     25
 // Purpose: set memory region
 // Params: dword:startaddr, dword:length, raw data
 // Response: string:message for user
 
-#define DMSG_LISTBREAK	26
+#define DMSG_LISTBREAK  26
 // Purpose: list breakpoints
 // Params: none
 // Response: string:list for user
 
-#define DMSG_DEL	27
+#define DMSG_DEL        27
 // Purpose: delete a breakpoint
 // Params: dword:number
 // Response: string:message for user
 
-#define DMSG_GETMAP	29
+#define DMSG_GETMAP     29
 // Purpose: get memory map
 // Params: none
 // Response: string:description of memory regions for user
 
-#define DMSG_FDMAP	30
+#define DMSG_FDMAP      30
 // Purpose: get fd map
 // Params: none
 // Response: string:description for user
 
-#define DMSG_SIGNALS	31
+#define DMSG_SIGNALS    31
 // Purpose: get list of signal handlers
 // Params: none
 // Response: string:description for user
 
-#define DMSG_KILL	32
+#define DMSG_KILL       32
 // Purpose: kill the session
 // Params: none
 // Response: string:goodbye!
 
-#define DMSG_FOO	33
+#define DMSG_FOO        33
 // Purpose: ping / program status check
 // Params: none
 // Response: empty message.
@@ -237,7 +237,7 @@ the syntax by using ":" inside this string - everything before ":" will
 be considered command syntax. So, if commd="foobar" and help="do nothing",
 this will be displayed as:
 
-  foobar  	    - do nothing
+  foobar            - do nothing
 
 But if you use commd="bleh" and help="foobar x [ yyy ]: do nothing x times
 [ displaying string yyy every time ]", it will result in:

@@ -8,9 +8,9 @@
 
   Sections in this document:
 
-  [0x00] What is Fenris?		    [0x01] How does it work?
-  [0x02] How can I use it?		    [0x03] Project limitations
-  [0x04] Security issues / forensics	    [0x05] Tracing mechanism
+  [0x00] What is Fenris?                    [0x01] How does it work?
+  [0x02] How can I use it?                  [0x03] Project limitations
+  [0x04] Security issues / forensics        [0x05] Tracing mechanism
   [0x06] Bug reporting and other feedback   [0x07] Known bugs / TODO
   [0x08] Thanks and credits                 [0x09] Further reading
 
@@ -894,8 +894,8 @@
 
   Additional options:
 
-     -F nnn		- use this file for fingerprint database
-     -S xxx		- use this name as a code section (override .text)
+     -F nnn             - use this file for fingerprint database
+     -S xxx             - use this name as a code section (override .text)
 
   Note that symbols generated are not GDB debugging info. In other words,
   you can view them with nm, objdump, they will be shown in gdb disassembly,
@@ -1760,8 +1760,8 @@
 
       - action is taken before syscall is displayed; if Fenris is reporting
         to stderr and traced program writes to console, write() output
-	will be shown before write() itself is reported. This might be
-	confusing a bit, but strace can put output in the middle of
+        will be shown before write() itself is reported. This might be
+        confusing a bit, but strace can put output in the middle of
         a syscall description, so... ;-)
 
       - if something bad happens to process before syscall returns (e.g.
@@ -1854,38 +1854,38 @@
   I try to keep the following list pretty accurate, but if you feel you
   should be here, do not hesitate to tell me. Our contributors are:
 
-    Rafal Wojtczuk (Nergal)		Mariusz Woloszyn (kil3r)
-    Slawomir Krawczyk (Nises)		Wojtek Kaniewski (wojtekka)
-    Bulba				bighawk
-    none				dvorak
-    charise	                        entropyd
+    Rafal Wojtczuk (Nergal)             Mariusz Woloszyn (kil3r)
+    Slawomir Krawczyk (Nises)           Wojtek Kaniewski (wojtekka)
+    Bulba                               bighawk
+    none                                dvorak
+    charise                             entropyd
     Solar Designer                      Wojtek Walczak (gminick)
     Martin Kluge                        Lluis Mora Hidalgo
-    Robert W. Jaroszuk			Joe Van Andel
+    Robert W. Jaroszuk                  Joe Van Andel
     Neil Jerram                         Hubert Lubaczewski
-    Yair K				Gregory Wright
+    Yair K                              Gregory Wright
     Adam Byrtek                         Gordon Sadler
     Roger Luethi                        Mariusz Marcinkiewicz
     Lukasz Trabinski                    Piotr Meyer
-    Marcin Kaminski			Artur Byszko
+    Marcin Kaminski                     Artur Byszko
     Lukasz Biegaj                       Przemyslaw Skowron
     Gonçalo Gomes                       Timothy Bogdala
     Allen Noe                           piggy
     Stephen Kench                       Bartlomiej Lidke
     Marek Gutkowski                     Tadeusz Wlodarczyk
-    Marcin Gozdalik			William Stearns
-    Artur Skura				klog
-    Fabio Vayr				Han Holl
-    dataspy				Jim Paris
-    Brian Finn				Andrzej Szombierski
-    Greg				Gandalf
-    undefine				GoTaR
-    Paul van Maaren			Piter
-    Krzysztof Gibas			Matthias Hofherr
-    Peter Lopen				Dave Aitel
-    Daniel Polombo			lucipher
+    Marcin Gozdalik                     William Stearns
+    Artur Skura                         klog
+    Fabio Vayr                          Han Holl
+    dataspy                             Jim Paris
+    Brian Finn                          Andrzej Szombierski
+    Greg                                Gandalf
+    undefine                            GoTaR
+    Paul van Maaren                     Piter
+    Krzysztof Gibas                     Matthias Hofherr
+    Peter Lopen                         Dave Aitel
+    Daniel Polombo                      lucipher
     Przemyslaw Czerkas                  Gregory Wright
-    Eli Yukelzon 			Creep
+    Eli Yukelzon                        Creep
 
   Special thanks to developers of 'bastard' libdisasm library available
   at http://bastard.sourceforge.net - portions of their code were used
