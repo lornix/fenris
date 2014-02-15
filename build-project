@@ -806,7 +806,7 @@ gcc -c $CFLAGS2 libdisasm/i386.c 2>.testerr
 if [ ! -s i386.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -833,7 +833,7 @@ gcc -c $CFLAGS2 libdisasm/libdis.c 2>.testerr
 if [ ! -s libdis.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -859,7 +859,7 @@ gcc -c $CFLAGS2 libdisasm/opcodes2/i386-dis.c 2>.testerr
 if [ ! -s i386-dis.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -886,7 +886,7 @@ gcc -c $CFLAGS2 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG  hoo
 if [ ! -s hooks.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -913,7 +913,7 @@ gcc -c $CFLAGS2 libdisasm/opcodes2/opdis.c 2>.testerr
 if [ ! -s opdis.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -939,7 +939,7 @@ gcc -c $CFLAGS rstree.c 2>.testerr
 if [ ! -s rstree.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work our. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -965,7 +965,7 @@ gcc -c $CFLAGS allocs.c 2>.testerr
 if [ ! -s allocs.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work our. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -991,7 +991,7 @@ gcc -c $CFLAGS libfnprints.c 2>.testerr
 if [ ! -s libfnprints.o ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -1017,7 +1017,7 @@ gcc $LDFLAGS $CFLAGS $PROGNAME.c -o $PROGNAME -DVERSION=\"$VERSION\" -DBUILD=\"$
 if [ ! -s $PROGNAME ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -1044,7 +1044,7 @@ gcc $LDFLAGS $CFLAGS $PROGNAME2.c -o $PROGNAME2 -DVERSION=\"$VERSION\" -DBUILD=\
 if [ ! -s $PROGNAME2 ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"
@@ -1068,7 +1068,7 @@ gcc $LDFLAGS $CFLAGS $PROGNAME3.c -o $PROGNAME3 -DVERSION=\"$VERSION\" -DBUILD=\
 if [ ! -s $PROGNAME3 ]; then
   echo "failed!"
   echo "[-] Sorry it didn't work out. Please consult the documentation."
-  echo "[-] Note: if this is because of no memory left, try './build minimal',"
+  echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
   echo "[-] or, better, temporarily enable some swap memory."
   echo
   echo "[-] Error messages:"

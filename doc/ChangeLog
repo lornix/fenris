@@ -185,7 +185,7 @@
 0.01b [1157]: tons of new syscalls
 0.01b [1154]: syslog
 0.01b [1153]: some webpage updates
-0.01b [1151]: fixed problems with ctors in ./build
+0.01b [1151]: fixed problems with ctors in ./build-project
 0.01b [1147]: added fingerprints from pueblo and coredump
 0.01b [1140]: many many new options, better docs, and such
 0.01b [1134]: added -E and -u options
@@ -304,7 +304,7 @@
 0.01b [300]: test/cndrep.c added, conditional-back support
 0.01b [295]: added conditional constructions
 0.01b [291]: fenris-bug utility added
-0.01b [290]: PLT checks in ./build
+0.01b [290]: PLT checks in ./build-project
 0.01b [287]: finally solved PLT and _dl_runtime_resolv mess
 0.01b [280]: symbols and libc tracking works
 

@@ -867,7 +867,7 @@
     /usr/lib/libcrypt.a
     (one static binary)
 
-  This is the way it is invoked by ./build script, and can be used at
+  This is the way it is invoked by ./build-project script, and can be used at
   any time to restore defaults or to update signatures (for new libc
   version, for example). If invoked with one parameter, 'getfprints' will
   go thru this .a file or set of .a files. An example would be:
@@ -1752,7 +1752,7 @@
   - Compilation takes insane amounts of memory and time (can take few hundred
     megs); this is due to GCC - it has problems with large number of inlined 
     functions. Workaround is to change many of them with less ellegant 
-    but much more efficient #defines. Until then, you can './build minimal',
+    but much more efficient #defines. Until then, you can './build-project minimal',
     which added -fno-inline to compilation options, or simply enable some
     swap memory and wait patiently.
     

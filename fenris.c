@@ -37,7 +37,7 @@
  */
 
 #ifndef VERSION
-#error "Please use ./build script."
+#error "Please use ./build-project script."
 #endif /* not VERSION */
 
 #define _GNU_SOURCE

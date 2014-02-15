@@ -24,19 +24,19 @@
 all: fenris
 
 fenris: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build 
+	@./build-project 
 
 minimal: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build minimal
+	@./build-project minimal
 
 debug: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build debug
+	@./build-project debug
 
 heavy: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build heavy
+	@./build-project heavy
 
 prof: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build prof
+	@./build-project prof
 
 test: debug test/trivial1
 	./fenris test/trivial1
@@ -62,5 +62,5 @@ uninstall:
 	rm -f /etc/fnprints.dat /usr/bin/fenris /usr/bin/fprints /usr/bin/getfprints /usr/bin/ragnarok /usr/bin/fenris-bug /usr/bin/ragsplit /usr/bin/spliter.pl /usr/bin/dress /usr/bin/aegir /usr/bin/nc-aegir
 
 clean:
-	@./build clean
+	@./build-project clean
 	@echo "Our bugs run faster."
