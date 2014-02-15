@@ -1,31 +1,29 @@
+Portions of this code are based on libi386 library from 'bastard' project
+developed by mammon and few other guys. Please visit their webpage,
+http://bastard.sourceforge.net to learn more about this very interesting
+project.
 
-  Portions of this code are based on libi386 library from 'bastard' project
-  developed by mammon and few other guys. Please visit their webpage,
-  http://bastard.sourceforge.net to learn more about this very interesting 
-  project.
+This code is derived from release 0.12. Unfortunately, 0.12 had some bugs
+I had to fix; I didn't really care about original functionality,
+writing new code for functions I needed =)
 
-  This code is derived from release 0.12. Unfortunately, 0.12 had some bugs
-  I had to fix; I didn't really care about original functionality, 
-  writing new code for functions I needed =)
-  
-  Modifications include: almost complete rewrite of libdis.c and .h to
-  fit our expectations; complete rewrite of disasm_addr in i386.c to
-  fix serious bugs; master table modifications in i386.h; some typecast 
-  bugfixes in i386.c. This code is used to predict memory writes.
+Modifications include: almost complete rewrite of libdis.c and .h to
+fit our expectations; complete rewrite of disasm_addr in i386.c to
+fix serious bugs; master table modifications in i386.h; some typecast
+bugfixes in i386.c. This code is used to predict memory writes.
 
-  I didn't really wanted to touch i386.c and i386.h, so except for
-  necessary bugfixes and such, both contain tons of unused code and
-  some really nasty constructions. Do not even try to compile it with
-  -Wall.
+I didn't really wanted to touch i386.c and i386.h, so except for
+necessary bugfixes and such, both contain tons of unused code and
+some really nasty constructions. Do not even try to compile it with
+-Wall.
 
-  In opcodes2/ subdirectory, you'll find another x86 disassembler
-  library, derived from from GNU binutils-2.11.93.0.2.
-  Why is that? Simple - it is more stable. I needed a reliable disassembler
-  for Aegir. I needed it much more badly than for Fenris itself. And even
-  thou this code is more stable, it is not suitable for Fenris, where I
-  need to answer a very simple question - what memory region will be
-  affected by this command. This libopcodes code from GNU binutils does not
-  provide this functionality in any reasonable and accessible way. So,
-  as I don't have time to fix libi386, and don't have what I need in
-  libopcodes, I decided to use both, as needed.
-
+In opcodes2/ subdirectory, you'll find another x86 disassembler
+library, derived from from GNU binutils-2.11.93.0.2.
+Why is that? Simple - it is more stable. I needed a reliable disassembler
+for Aegir. I needed it much more badly than for Fenris itself. And even
+thou this code is more stable, it is not suitable for Fenris, where I
+need to answer a very simple question - what memory region will be
+affected by this command. This libopcodes code from GNU binutils does not
+provide this functionality in any reasonable and accessible way. So,
+as I don't have time to fix libi386, and don't have what I need in
+libopcodes, I decided to use both, as needed.

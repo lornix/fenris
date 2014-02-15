@@ -1,50 +1,49 @@
 /*
-   fenris - program execution path analysis tool
-   ---------------------------------------------
-      
-   Copyright (C) 2001, 2002 by Bindview Corporation
-   Portions copyright (C) 2001, 2002 by their respective contributors
-   Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
-   
-   Portions of this code are based on libi386 library from 'bastard' project
-   developed by mammon and few other guys. Please visit their webpage,
-   http://bastard.sourceforge.net to learn more about this very interesting
-   project.
+    fenris - program execution path analysis tool
+    ---------------------------------------------
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+    Copyright (C) 2001, 2002 by Bindview Corporation
+    Portions copyright (C) 2001, 2002 by their respective contributors
+    Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+    Portions of this code are based on libi386 library from 'bastard' project
+    developed by mammon and few other guys. Please visit their webpage,
+    http://bastard.sourceforge.net to learn more about this very interesting
+    project.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-			   
-*/
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ */
 
 #ifndef _HAVE_BASTARD_H
 #define _HAVE_BASTARD_H
-			    
-struct addr_exp {  
-  int  scale, index, base, disp, flags;
-  char used;
+
+struct addr_exp {
+    int  scale, index, base, disp, flags;
+    char used;
 };
 
-
-struct code { 
-  char         mnemonic[16];
-  int          dest, src, aux, mnemType, destType, srcType, auxType;
-  unsigned int destConst, srcConst, auxConst;
+struct code {
+    char         mnemonic[16];
+    int          dest, src, aux, mnemType, destType, srcType, auxType;
+    unsigned int destConst, srcConst, auxConst;
 };
 
 struct code_effect {  /* size 16 */
-  unsigned int id, rva;
-  int reg, change;
+    unsigned int id, rva;
+    int reg, change;
 };
 
 #define OP_R         0x001      /* operand is READ */
@@ -107,10 +106,9 @@ struct code_effect {  /* size 16 */
 #define INS_QWORD     0x80000   /* operand is 64 bits/8 bytes */
 
 #define INS_REPZ     0x0100000
-#define INS_REPNZ    0x0200000  
+#define INS_REPNZ    0x0200000
 #define INS_LOCK     0x0400000 /* lock bus */
 #define INS_DELAY    0x0800000 /* branch delay slot */
-
 
 #define ADDEXP_SCALE_MASK  0x000000FF
 #define ADDEXP_INDEX_MASK  0x0000FF00
@@ -132,7 +130,6 @@ struct code_effect {  /* size 16 */
 #define AddrExp_IndexType(x) ((x & ADDEXP_INDEX_MASK) >> 8)
 #define AddrExp_BaseType(x)  ((x & ADDEXP_BASE_MASK) >> 16)
 #define AddrExp_DispType(x) ((x & ADDEXP_DISP_MASK) >> 24)
-
 
 int AddRegTableEntry(int index, char *name, int size);
 int DefineAddrExp(int scale,int index,int base,int disp,int flags);
