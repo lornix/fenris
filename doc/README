@@ -1827,7 +1827,7 @@
   - Note that Ragnarok does "phone home" if you use a graphical browser.
     More precisely, it downloads Fenris logo from my webpage. I don't see
     any other way to implement it, as not all people who run ragnarok
-    or view raganrok results actually have it installed. If it bugs you,
+    or view ragnarok results actually have it installed. If it bugs you,
     get rid of it, or suggest a better solution. This "call" is rather
     worthless, most browsers would not disclose the local path of the
     file you were viewing in the Referrer: header, so... To get rid of
