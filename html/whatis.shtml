@@ -12,7 +12,7 @@
 </center>
 <p>
 Fenris is a suite of tools suitable for <a href="fenris-ui.html">code analysis</a>,
-<a href="be.txt">debugging</a>, protocol analysis, 
+<a href="be.txt">debugging</a>, protocol analysis,
 <a href="reverse.txt">reverse engineering</a>, forensics, diagnostics,
 security audits, vulnerability research and many other purposes.
 The main logical components are:<p>
@@ -25,7 +25,7 @@ The main logical components are:<p>
     inspect external "symptoms" of the internal program structure.
     Fenris does not depend on libbfd for
     accessing ELF structures, and thus is much more robust when
-    dealing with "anti-debugging" code. 
+    dealing with "anti-debugging" code.
 
 </li>
 <p>

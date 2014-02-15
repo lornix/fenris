@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #
 #  fenris - program execution path analysis tool
 #  ---------------------------------------------
@@ -24,8 +23,8 @@
 #
 
 if [ ! "$HOSTNAME" = "io.rogue-squirrel.org" ]; then
-  echo "C'mon... You don't look like my author. He is taller."
-  exit 1
+    echo "C'mon... You don't look like my author. He is taller."
+    exit 1
 fi
 
 cd /fenris
@@ -72,4 +71,3 @@ echo "Lines of code: $LCODE ($[LCODE-FPRINTS] w/o fprints)"
 echo "Characters:    $BYTES"
 echo "Build:         $CBUILD"
 echo "Date:          $DATE"
-

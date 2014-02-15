@@ -32,4 +32,3 @@ html:
 
 clean:
 	rm -f $(OFILE) test $(OFILE).html a.out core *.o
-

@@ -56,8 +56,8 @@
   From 80484bf [main+11]: fnct_1 [funkcjadwa] 804848c, stack bffffa64 -> ...
   From 8048492 [funkcjadwa+6]: fnct_2 [funkcjasiedem] 804849c, stack bfff...
 
-The GUI version of Aegir, nc-aegir, works basically the same way, but provides 
-an organized debugging screen with register, memory and code views, integrated 
+The GUI version of Aegir, nc-aegir, works basically the same way, but provides
+an organized debugging screen with register, memory and code views, integrated
 Fenris output view, and automatic control over Fenris parameters.
 
 And this is why Aegir is a bit better than other disassemblers / debuggers

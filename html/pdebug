@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #
 #  fenris - program execution path analysis tool
 #  ---------------------------------------------
@@ -24,8 +23,8 @@
 #
 
 if [ ! "$HOSTNAME" = "nimue.bos.bindview.com" ]; then
-  echo "C'mon... You don't look like my author. He is taller."
-  exit 1
+    echo "C'mon... You don't look like my author. He is taller."
+    exit 1
 fi
 
 cd /fenris
