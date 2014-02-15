@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-*/
+ */
 
 #ifndef DIS_ASM_H
 #define DIS_ASM_H
@@ -31,16 +31,16 @@
 typedef int (*fprintf_ftype) PARAMS((PTR, const char*, ...));
 
 typedef struct disassemble_info {
-  fprintf_ftype fprintf_func;
-  PTR stream;
-  PTR application_data;
-  PTR private_data;	/* For use by the disassembler. */
-  int (*read_memory_func) PARAMS ((bfd_vma memaddr, bfd_byte *myaddr, unsigned int length, struct disassemble_info *info));
-  void (*memory_error_func) PARAMS ((int status, bfd_vma memaddr, struct disassemble_info *info));
-  void (*print_address_func) PARAMS ((bfd_vma addr, struct disassemble_info *info));
-  bfd_byte *buffer;
-  bfd_vma buffer_vma;
-  char *disassembler_options;
+    fprintf_ftype fprintf_func;
+    PTR stream;
+    PTR application_data;
+    PTR private_data;     /* For use by the disassembler. */
+    int (*read_memory_func) PARAMS ((bfd_vma memaddr, bfd_byte *myaddr, unsigned int length, struct disassemble_info *info));
+    void (*memory_error_func) PARAMS ((int status, bfd_vma memaddr, struct disassemble_info *info));
+    void (*print_address_func) PARAMS ((bfd_vma addr, struct disassemble_info *info));
+    bfd_byte *buffer;
+    bfd_vma buffer_vma;
+    char *disassembler_options;
 } disassemble_info;
 
 extern int print_insn_i386 PARAMS ((bfd_vma, disassemble_info*));

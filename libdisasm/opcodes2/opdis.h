@@ -20,21 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-*/
+ */
 
 #ifndef _HAVE_OPDIS_H
 #define _HAVE_OPDIS_H 1
 
-#define DIS_NOTN_ATT	0
-#define DIS_NOTN_INTEL	1
+#define DIS_NOTN_ATT    0
+#define DIS_NOTN_INTEL  1
 
 typedef int (*opdis_print_func) (FILE *stream, const char *format, ...);
 
 typedef struct opdis_options
 {
-  opdis_print_func print_func;
-  int notation;
-} 
+    opdis_print_func print_func;
+    int notation;
+}
 opdis_options;
 
 extern void opdis_init(opdis_options *opt);
@@ -44,4 +44,3 @@ extern int opdis_disass_one(FILE *stream, const char *buf, unsigned int addr);
 extern int opdis_getopsize(const char *buf, unsigned int addr);
 
 #endif /* not _HAVE_OPDIS_H */
-
