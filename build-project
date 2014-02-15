@@ -95,7 +95,7 @@ OKGCC="2.8.1 2.96 2.95.2 2.95.3 3.2.2"
 ulimit -c 0 2>/dev/null
 
 clear
-cat doc/fenris.a
+cat doc/fenris.asc
 usleep 100000 &>/dev/null
 test "$1" = "" && sleep 2
 clear
