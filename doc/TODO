@@ -2,7 +2,7 @@ Immediate needs not documented in README (in TODO section)...
 
 Ragnarok:
 
-  - ragnarok should trace map access 
+  - ragnarok should trace map access
   - mark resize points [?]
   - better error/warning parsing
   - see doc/roadmap.txt
@@ -16,7 +16,7 @@ Fenris:
     getgroups, setgroups, sendto, recvfrom, setsockopt, getsockopt,
     sendmsg, recvmsg
   - alloca, longjmp
-  - few missing map commands 
+  - few missing map commands
   - see doc/roadmap.txt
 
 Aegir / nc-aegir:

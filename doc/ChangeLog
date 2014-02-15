@@ -3,7 +3,7 @@
 0.07-m [3214]: make install fixed to work w/o nc-aegir compiled
 0.07-m [3213]: new fingerprints
 0.07-m [3212]: Many fixes from Przemys³aw Czerkas, some tweaks to the build process
-0.07-m [3186]: maintenance release: new fingeprints and stuff
+0.07-m [3186]: maintenance release: new fingerprints and stuff
 0.07b [3184]: fixed a glitch with sbreak and ibreak
 0.07b [3179]: RH7.3 problem fixed!
 0.07b [3178]: fixed RH 7.3 problems?
@@ -25,7 +25,7 @@
 0.06b [2972]: added regoff calls and -G
 0.06b [2942]: some work on nc-aegir, also a minor fix in hooks.c on libcalls
 0.06b [2895]: changed -o # semantics
-0.06b [2888]: changed some CODESEG occourences in hooks.c to LIBCSEG to avoid stupid 'you were in libc' messages
+0.06b [2888]: changed some CODESEG occurrences in hooks.c to LIBCSEG to avoid stupid 'you were in libc' messages
 0.06b [2883]: added support for lea from -O9
 0.06b [2877]: fixed ret-instead-of-nop problem with sighandlers, added problem detection
 0.06b [2844]: added build framework for nc-aegir
@@ -37,7 +37,7 @@
 0.06b [2805]: free after readline
 0.06b [2802]: 0.04 will be skipped; 0.05 should be out soon; 0.06b is now under development
 0.05b [2799]: added -X and such
-0.05b [2794]: ffixed do_memdump
+0.05b [2794]: fixed do_memdump
 0.05b [2790]: fixed a problem with only_nops signatures
 0.04b [2785]: added 'dynamic' to skip linker
 0.04b [2778]: everything looks pretty stable. time for 0.04?
@@ -106,9 +106,9 @@
 0.01b [2222]: some browser compatibility stuff
 0.01b [2221]: buffer tracking in fenris
 0.01b [2193]: -p now works with ragnarok
-0.01b [2177]: added readlink on /proc/pid/fd/nnn for unknown filedescriptors
+0.01b [2177]: added readlink on /proc/pid/fd/nnn for unknown file descriptors
 0.01b [2175]: added fd history. buffer history to go
-0.01b [2174]: added fd tracking, fixed some incosistencies in fenris
+0.01b [2174]: added fd tracking, fixed some inconsistencies in fenris
 0.01b [2115]: some beautifiers added to ragnarok output
 0.01b [2105]: fixed some brain-damaged ifs in ragnarok
 0.01b [2089]: do not report syscalls in known libcalls
@@ -125,7 +125,7 @@
 0.01b [1940]: some bugs in handle_specific fixed
 0.01b [1939]: ragnarok nest level tracing fixed
 0.01b [1919]: ragnarok is now almost complete, except for buffer tracing; nest level is screwed up somewhere, thou...
-0.01b [1906]: ragnarok is closer and closer, text-based functionn trace is almost done
+0.01b [1906]: ragnarok is closer and closer, text-based function trace is almost done
 0.01b [1811]: trying to implement own text I/O in ragnarok
 0.01b [1787]: added merge within
 0.01b [1777]: fixed block merging for authoritative stuff
@@ -205,7 +205,7 @@
 0.01b [1048]: added atmpvc ifdef
 0.01b [1042]: fixed reporting problem
 0.01b [1040]: wooo-hooo, parameter detection works now with -O9
-0.01b [1038]: added function ret check, elliminated push %ebp
+0.01b [1038]: added function ret check, eliminated push %ebp
 0.01b [1033]: fixed endian glitch in socketcall
 0.01b [1031]: added some more socket calls
 0.01b [1030]: improved syscall ret when signaled
@@ -253,7 +253,7 @@
 0.01b [731]: added ioctls.h and ioctl()
 0.01b [726]: added pipe, signal
 0.01b [715]: much more new syscalls
-0.01b [713]: iproved libc check (wojtekka)
+0.01b [713]: improved libc check (wojtekka)
 0.01b [710]: some output format changes
 0.01b [696]: added utime
 0.01b [694]: added tests/syms.c, finished local symbols tracing
@@ -310,5 +310,5 @@
 
 fenris version 0.01b, build 280: ChangeLog initiated. Project
 status at this time: core tracker functional, adding features,
-memory tracking, symbol detection, extensions, TODO is still 
+memory tracking, symbol detection, extensions, TODO is still
 pretty long.

@@ -12,7 +12,7 @@ Fenris development roadmap - "must-have"s:
           - plus whatever cool ideas we have
 
   0.08:   - syscall and libcall handlers moved to a separate parsed
-            file that uses some smart notation to elliminate
+            file that uses some smart notation to eliminate
             redundant C code
           - smarter segment matching
           - support line numbers and other stuff from .debug* sections

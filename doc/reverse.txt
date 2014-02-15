@@ -12,21 +12,21 @@ your work in a different debugger or disassembler, but are tired with
 guessing what function does what; it also features better support for
 tweaked ELFs, such as a binary crypted with burneye - which, while is
 not particularly useful in this case, is probably worth checking out
-neverthless (see doc/be.txt for more info).
+nevertheless (see doc/be.txt for more info).
 
 Most recent release can be always obtained from:
-http://lcamtuf.coredump.cx/fenris/devel.shtml. 
+http://lcamtuf.coredump.cx/fenris/devel.shtml.
 
 Before proceeding, read the documentation for Fenris, available at
-http://lcamtuf.coredump.cx/fenris/README, especially the section about 
-security considerations for additional hints and security precautions on 
+http://lcamtuf.coredump.cx/fenris/README, especially the section about
+security considerations for additional hints and security precautions on
 using real-time tracers for forensics. Basically, you need to know what
 level of security is provided by Fenris, where to run it, what privileges
 to give, what other tools to use. Generally speaking, using a tracer is
 a stupid idea ;-) But it is also the fastest way to see how things work,
-so you can proceed with in-depth gdb (or Aegir) analysis later, knowing 
-what is  what and how things work. Be advised that Fenris is not supposed 
-to give you all the answers. It is just going to make your life much simplier.
+so you can proceed with in-depth gdb (or Aegir) analysis later, knowing
+what is  what and how things work. Be advised that Fenris is not supposed
+to give you all the answers. It is just going to make your life much simpler.
 For in-depth analysis of a single procedure, it is *always* best to use a
 disassembler. Fenris will help you to separate code coming from different
 sources, determine call structure, parameters, general behavior, and so on,
@@ -35,15 +35,15 @@ will help you to restore symbol table in the binary, so you can use gdb
 or objdump (I will talk about it at the end of this write-up); or you can
 stick with Aegir and beta test it for me, if you're brave :P
 
-This text is not very technical, and for some of you, many sentences can be 
-more than obvious - but it gives a good idea of how Fenris can be used to 
+This text is not very technical, and for some of you, many sentences can be
+more than obvious - but it gives a good idea of how Fenris can be used to
 simplify reverse engineering tasks, and that's its only purpose.
 
 So, let's get started...
 
 First of all, the binary is linked statically. This is quite obvious, try
 'file' on it. It is a C program, compiled with GCC. You can find GCC string
-signatures inside the binary. Then, it came from a libc5 system, which can be 
+signatures inside the binary. Then, it came from a libc5 system, which can be
 told from the "The Linux C library 5.3.12" string inside. The ability to find
 small hints such as this string is extremely important for reverse
 engineering. NEVER RELY ON A SINGLE SOURCE OF INFORMATION. Always verify your
@@ -59,8 +59,8 @@ Fenris will not be able to detect libc prolog automatically, so you need
 to use -s option. You will get some irrelevant internal libc functions
 at the beginning, not a big deal, just skip them, you can tell them by
 their names. More importantly, to detect what belongs to libc and what comes
-from the author of this code, you'd have to use a special fingerprints 
-database, provided in support/ subdirectory. The database is named 
+from the author of this code, you'd have to use a special fingerprints
+database, provided in support/ subdirectory. The database is named
 'fn-libc5.dat'. You can do one thing before continuing - why not reconstruct
 symbols in your ELF so that using objdump or gdb is less troublesome?
 
@@ -103,7 +103,7 @@ code you're looking at, fancy breakpoints and watchpoints... For more
 information, please refer to Fenris documentation - for now, let's just
 assume you're using some debugger. Let's track what the code does:
 
-This code is very likely to fork into background, so be sure 
+This code is very likely to fork into background, so be sure
 to trace all execution branches, use -f option. Let the fun begin:
 
 nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat ./the-binary
@@ -117,7 +117,7 @@ nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat ./the-binary
 19953:04     ...function never returned (program exited before).
 19953:03    ...function never returned (program exited before).
 
-Hmm, geteuid() followed by some conditionals followed by exit? That's not 
+Hmm, geteuid() followed by some conditionals followed by exit? That's not
 very nice, it apparently wants to be launched as root... Humm, let's
 run it again, tracing eip...
 
@@ -188,8 +188,8 @@ this feature blindly, treat it as a nice hint. Write down any comments you
 have about every function Fenris detected. Fenris automatically assigns
 unique names to each function, like fnct_4. You can also use ragnarok to
 do some basic analysis for you and generate function call summaries.
-On some occassions, Fenris will have problems determining the exact numbers of 
-parameters passed to a function because this binary was compiled with heavy 
+On some occasions, Fenris will have problems determining the exact numbers of
+parameters passed to a function because this binary was compiled with heavy
 optimizations - so your notes and ragnarok would be very helpful to get
 more accurate results.
 
@@ -214,7 +214,7 @@ otherwise missing when Fenris reports as functions as "void".
 ...and here we have some local functions, yes. Trace it with IPs, and
 get a IP range this function is in, then use objdump or gdb to dive into
 details. You can also use -R option of Fenris to get more information
-about all ways this function behaves in the program. 
+about all ways this function behaves in the program.
 
 Soon, the problems begin:
 
@@ -223,7 +223,7 @@ Soon, the problems begin:
 19926:03    fork () = 19932
 >> OS error       : Operation not permitted [1]
 >> Error condition: PTRACE_ATTACH failed
->> This condition occoured while tracing pid 19926 (eip 80571f0).
+>> This condition occurred while tracing pid 19926 (eip 80571f0).
 >> Traced 359 user CPU cycles (0 libcalls, 17 fncalls, 7 syscalls).
 
 So, is there some sort of anti-debugging code? There is. There are
@@ -244,8 +244,8 @@ Ahh, well done. So, to fool this code, we probably simply have to
 convince the software it forked successfully and is already running as
 a child. Then, we can see if the child tries any further tricks, and get
 rid of the parent who'd exit anyway (try running the binary without -f
-option to investigate this). Child process gets zero result from fork()... 
-This way, the parent execution branch will be ignored, and we're back on the 
+option to investigate this). Child process gets zero result from fork()...
+This way, the parent execution branch will be ignored, and we're back on the
 track:
 
 nobody@sandbox$ ./fenris -s -f -L support/fn-libc5.dat -P 0x8057210:0 \
@@ -289,7 +289,7 @@ root, and just settled in.
 [08055eba] 20516:04     <8055eba> cndt: if-below block (signed) +10 executed
 [08055ecb] 20516:03    ...return from function = <void>
 
-Good excercise: this function is called in a conditional loop... and is 
+Good exercise: this function is called in a conditional loop... and is
 something internal, not a libc code... is it used to decrypt something?
 copy some data? Or maybe it is some library function linked from some
 obscure library Fenris does not know? Use objdump or Aegir, take your guess!
@@ -300,7 +300,7 @@ Here's a little problem. It tries to bind to a RAW socket. Why not make it
 UDP, so you can work on it safely and talk to it? Another task for you.
 It can get tricky, you say, there's not enough space to do it? Rest assured,
 there's more than enough areas full of nops somewhere else in the memory,
-feel free to put your UDP code there, and simply "call" it. Pass 
+feel free to put your UDP code there, and simply "call" it. Pass
 --disassemble-zeroes option to objdump and be surprised. Also, you have
 lots of space on stack... yes, that's right, portions of stack are not used,
 and this segment is executable. If you specify third parameter to -P
@@ -330,7 +330,7 @@ certain point, which can be useful.
 
 Now it enters and endless receive loop, usleep, select, some obscure
 socketcall Fenris couldn't recognize... Well, I'll leave you here.
-Have fun :-) 
+Have fun :-)
 
 Addendum - this is how Aegir sessions look like:
 

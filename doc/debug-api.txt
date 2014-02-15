@@ -1,23 +1,22 @@
-
-This file consists of two interleaved pieces. First is an introduction to 
+This file consists of two interleaved pieces. First is an introduction to
 general Fenris <-> debugging shell communication protocol, and another is an
 introduction to writing modules for the default debugging shell, Aegir.
 
-The communication protocol used between Fenris running with -W option and 
-debugger shells: to establish a session, the shell has to connect to the 
-unix socket created earlier by Fenris under the filename passed as -W 
+The communication protocol used between Fenris running with -W option and
+debugger shells: to establish a session, the shell has to connect to the
+unix socket created earlier by Fenris under the filename passed as -W
 parameter. The communication scheme is as follows:
 
   Debugger sends DMSG_* messages in appropriate format described by
   struct dmsg_header in fdebug.h. Message header is followed by
   message-dependent information, as discussed later. Every message
   has to be acknowledged by Fenris by sending DMSG_REPLY with appropriate
-  response, which is also message-dependent. All messages and responses are 
-  either fixed size or use null-terminated strings, so while there's no 
-  guarantee the data will arrive in one packet, it is possible to determine 
-  packet boundaries. Responses from Fenris can be preceeded or followed by 
-  (but not interrupted with) any number of DMSG_ASYNC messages that are used 
-  to report normal debugger output not directly related to issuing any 
+  response, which is also message-dependent. All messages and responses are
+  either fixed size or use null-terminated strings, so while there's no
+  guarantee the data will arrive in one packet, it is possible to determine
+  packet boundaries. Responses from Fenris can be preceded or followed by
+  (but not interrupted with) any number of DMSG_ASYNC messages that are used
+  to report normal debugger output not directly related to issuing any
   command. The rule is that DMSG_ASYNC will carry a last message entity
   from Fenris at the time it stopped, if any appeared since last stop
   condition. If not, an empty DMSG_ASYNC (one-byte data, null-terminator
@@ -41,7 +40,7 @@ a null terminated string. Supported message types of messages are:
 // Params: dword:addr
 // Response: string:name (empty string = no match)
 // Notes: will also return "shifted" matches, such as fcnt_10+10.
-// Looks up in local names and symbol tabls.
+// Looks up in local names and symbol tables.
 
 #define DMSG_GETADDR	4
 // Purpose: get address associated with name
@@ -179,7 +178,7 @@ a null terminated string. Supported message types of messages are:
 #define DMSG_GETMAP	29
 // Purpose: get memory map
 // Params: none
-// Response: string:description of memory reigons for user
+// Response: string:description of memory regions for user
 
 #define DMSG_FDMAP	30
 // Purpose: get fd map
@@ -224,7 +223,7 @@ no parameters and returns no value, and should register at least one
 command, so that the module can be invoked by users. This is done by calling
 function register_command(char* commd,void* handler,char* help). "commd"
 parameter should be set to the name of the command you want to bind.
-Non-ambigious abbreviations are automatically handled by Aegir, so try to
+Non-ambiguous abbreviations are automatically handled by Aegir, so try to
 give meaningful names instead of simple ones. "Handler" has to point to
 a function that accepts char* parameter and returns no value, and will
 be called every time this command is issued. Eventual parameters provided
@@ -240,7 +239,7 @@ this will be displayed as:
 
   foobar  	    - do nothing
 
-But if you use commd="bleh" and help="foobar x [ yyy ]: do nothing x times 
+But if you use commd="bleh" and help="foobar x [ yyy ]: do nothing x times
 [ displaying string yyy every time ]", it will result in:
 
   foobar x [ yyy ]  - do nothing x times [ displaying string yyy every time ]
@@ -253,31 +252,31 @@ Once your module is loaded and commands binded, your command handlers have
 to communicate with Fenris to send appropriate messages - that is, unless
 all you want them to do is to say "Hello world"... This (communicating,
 not saying "hello world") can be done with send_message(int message_type,
-char* data,char* store) function, which returns a response acquired from 
-Fenris (response data as char*). This function takes care of asynchronous 
+char* data,char* store) function, which returns a response acquired from
+Fenris (response data as char*). This function takes care of asynchronous
 messages and queues them, so you don't have to worry. Last parameter, "store",
 should be set to 0, unless you want the function to store received data
-somewhere outside a static buffer returned by default. Once you leave your 
-handler, the last entity will be displayed, if any received, unless you call 
+somewhere outside a static buffer returned by default. Once you leave your
+handler, the last entity will be displayed, if any received, unless you call
 destroy_async() function - which is not very useful, but perhaps there
 are situations when you want to inhibit Fenris output and just present
 your own results.
 
-You can easily write your own breakpoint that, say, stops when two different 
-regions of memory have exactly the same value, and third region is set to 42, 
-but only right after open(). How to do it? You have to constantly issue 
+You can easily write your own breakpoint that, say, stops when two different
+regions of memory have exactly the same value, and third region is set to 42,
+but only right after open(). How to do it? You have to constantly issue
 DMSG_TOSYSCALL, DMSG_STEP or other preferred continuation message,
-then probably call function wait_for_stopped(void) - which waits until the 
-traced application is stopped. The purpose of calling wait_for_stopped() is 
-that Aegir is asynchronous - that is, traced process can be running and you 
+then probably call function wait_for_stopped(void) - which waits until the
+traced application is stopped. The purpose of calling wait_for_stopped() is
+that Aegir is asynchronous - that is, traced process can be running and you
 still can read registers and such - and in this case, you want to examine
 the state only when a step is finished or breakpoint is reached. Well,
 as a matter of fact, it was so troublesome that I changed the default,
 but you can still go back to async operations by adding '%' before the
 parameter to Aegir ;-)
 
-When the program is stopped at the location you wanted, fetch interesting 
-memory region using DMSG_GETMEM, and do the comparsion or evaluate any
+When the program is stopped at the location you wanted, fetch interesting
+memory region using DMSG_GETMEM, and do the comparison or evaluate any
 other fancy condition. If you got it, simply write a message to the console
 using debug() and return from your handler leaving the program in stopped
 state. If not, try again.

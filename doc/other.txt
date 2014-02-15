@@ -1,10 +1,9 @@
-
 This is a list of more or less known open-source projects useful for
 all kinds of reverse engineering, code behavior analysis, binary
 forensics, debugging and so on. I wanted to create a comprehensive
 list that includes very basic tools, but also some unique, not very
 popular, yet promising and interesting one-of-the-kind projects.
-I found it pretty annoying there is no good refernce list like this,
+I found it pretty annoying there is no good reference list like this,
 and pretty often we have to reinvent the wheel every time we want
 to complete some obscure task. Unlike some other "rev-eng" lists (e.g.
 the one at packetstorm), this avoids listing many almost completely
@@ -23,7 +22,7 @@ Please mail me with any submissions or corrections at <lcamtuf@coredump.cx>.
  2) Name: ltrace
     Desc: A popular library call tracer
     URL:  http://packages.debian.org/stable/utils/ltrace.html
-  
+
  3) Name: gdb
     Desc: The GNU debugger
     URL:  http://www.gnu.org/software/gdb/gdb.html
@@ -36,7 +35,7 @@ Please mail me with any submissions or corrections at <lcamtuf@coredump.cx>.
     Desc: A nice non-ptrace debugger, our savior!
     URL:  http://the-dude.sourceforge.net
 
- 6) Name: bastard 
+ 6) Name: bastard
     Desc: Very extensive debugging environment
     URL:  http://bastard.sourceforge.net
 
@@ -73,7 +72,7 @@ Please mail me with any submissions or corrections at <lcamtuf@coredump.cx>.
 14) Name: xtrace
     Desc: C code tracer (for debugging code only)
     URL:  ???
- 
+
 15) Name: fenris, ragnarok, aegir, nc-aegir
     Desc: application tracer, its "GUI", and an interactive debugger / GUI
     URL:  http://lcamtuf.coredump.cx/fenris/devel.shtml

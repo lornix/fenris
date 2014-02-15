@@ -3,7 +3,7 @@ crypted with burneye. Of course, it can't crack them without a password
 (used algorithm is pretty strong, and brute force attacks are not discussed
 here), but it can disassemble, trace or modify the decryptor routine, and
 can disassemble, trace, modify or analyze the underlying binary. This is
-just a side effect of Fenris not using libbfd, but it is nice neverthless:
+just a side effect of Fenris not using libbfd, but it is nice nevertheless:
 
   $ gdb ./startwu
   "./startwu": not in executable format: File format not recognized

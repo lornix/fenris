@@ -4,7 +4,7 @@ Required:
 ---------
 
   - Linux 2.x
- 
+
     Currently, only Linux is supported, and only 2.x kernels
     (2.0, 2.2, 2.4, 2.5) were tested. Base Linux system configuration,
     including GNU textutils and other basic applications, is assumed.
@@ -44,7 +44,7 @@ Required:
   - OpenSSL or RSA libmd5 [with development headers]
 
     Required for MD5 hashing and signature recognition.
-  
+
 
 Recommended:
 ------------

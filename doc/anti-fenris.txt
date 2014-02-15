@@ -1,39 +1,39 @@
 
 i w4N7 t0 k0d3 l33T 4nt1-ph33nR1s pr0t3kti0n f0r |\/|Y xpl01tz!!!
 
-Seek no more! There are quite a few ways to fool Fenris. You can crash 
-the program executed under Fenris that wouldn't otherwise crash (set a 
-handler for some fictional signal to point somewhere in the middle of a 
-function, call the function), you can make Fenris refuse to trace an 
-application (bogus clone() call anywhere). You can stop Fenris from 
-reporting what the code is doing (relocate to 0x40... segment, simulate 
-multiple RETs). You can make Fenris exit for some other reason, for example, 
-excessive number of calls without ret. You can kill Fenris by using the old 
-ptrace-back trick I described long time ago in the paper about Samhain, as it 
-is using common ptrace() interface. You can detect Fenris running by detecting 
-system semantics changes caused by ptrace. With a bit of invention and some 
+Seek no more! There are quite a few ways to fool Fenris. You can crash
+the program executed under Fenris that wouldn't otherwise crash (set a
+handler for some fictional signal to point somewhere in the middle of a
+function, call the function), you can make Fenris refuse to trace an
+application (bogus clone() call anywhere). You can stop Fenris from
+reporting what the code is doing (relocate to 0x40... segment, simulate
+multiple RETs). You can make Fenris exit for some other reason, for example,
+excessive number of calls without ret. You can kill Fenris by using the old
+ptrace-back trick I described long time ago in the paper about Samhain, as it
+is using common ptrace() interface. You can detect Fenris running by detecting
+system semantics changes caused by ptrace. With a bit of invention and some
 time, you can even hijack Fenris session and manipulate it, as with any other
-tracer and debugger. Or you can simply fool Fenris, spoofing C constructions 
+tracer and debugger. Or you can simply fool Fenris, spoofing C constructions
 and then invoking real code in some obscure manner (such as call-by-ret).
 
 At the same time, most of the techniques mentioned here can be easily
-defeated under Aegir. Fake signal handlers can be avoided by removing signal() 
-call, same about clone() calls, and, generally, all sorts of single point 
+defeated under Aegir. Fake signal handlers can be avoided by removing signal()
+call, same about clone() calls, and, generally, all sorts of single point
 anti-debugging routines. Obscure segments can be traced with -X option, RETs
 and excessive calls can be ignored with -x. If they become overly popular,
-I will probably add some automated support for defeating this protection. If 
-you make your anti-debugging code non-localized, for example a bogus call 
+I will probably add some automated support for defeating this protection. If
+you make your anti-debugging code non-localized, for example a bogus call
 every line, you're making someone else's life more miserable - but at worst,
 he'd simply resort to using a different, lower level tool (even fenris -G
 can be an option), maybe something less popular but more interesting :-)
 
 So... my general advice would be, unless you have a good reason, don't do
-that to be distributed to public. There's much more harm than good from 
+that to be distributed to public. There's much more harm than good from
 distributing tools that are supposed to make reverse engineering more difficult
-(even burneye is a good example). Why? Simply put, many people don't have 
-excellent reverse engineering skills, but they surely should have the 
-privilege to guess what some code they found on their machine does. By giving 
-the ability to defeat basic tools to script kiddies, you are not helping 
+(even burneye is a good example). Why? Simply put, many people don't have
+excellent reverse engineering skills, but they surely should have the
+privilege to guess what some code they found on their machine does. By giving
+the ability to defeat basic tools to script kiddies, you are not helping
 anyone. Keep it to yourself, protect your code only.
 
 Ah - most likely, there are some ways to trash Fenris because of my programming
