@@ -1,7 +1,6 @@
-
-  For the first development snapshot I've found on my disk, go to
-  http://lcamtuf.coredump.cx/fenris/vintage.tgz . It is dated 
-  October 2001, and you'll probably find it amusing. The stuff in
-  this directory is: lunete.conf - some evidence of my really ancient
-  project that did something remotely similar to Fenris; and some
-  kernel 2.0 headers for adding new syscalls, ignore them.
+For the first development snapshot I've found on my disk, go to
+http://lcamtuf.coredump.cx/fenris/vintage.tgz . It is dated
+October 2001, and you'll probably find it amusing. The stuff in
+this directory is: lunete.conf - some evidence of my really ancient
+project that did something remotely similar to Fenris; and some
+kernel 2.0 headers for adding new syscalls, ignore them.
