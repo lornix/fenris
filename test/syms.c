@@ -6,9 +6,9 @@ trzy(void* x) { printf("%x\n",x); }
 int fiutk;
 
 main() {
-	printf("Jestem.\n");
-	trzy(dwa);
-	dwa("malym");
-	trzy(dwa);
-	trzy(&fiutk);
+    printf("Jestem.\n");
+    trzy(dwa);
+    dwa("malym");
+    trzy(dwa);
+    trzy(&fiutk);
 }

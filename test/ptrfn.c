@@ -3,7 +3,7 @@
 innafunkcja() {printf("dupa\n"); }
 
 main() {
-  int (*fn)();
-  fn=innafunkcja;
-  fn();
+    int (*fn)();
+    fn=innafunkcja;
+    fn();
 }
