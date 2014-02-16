@@ -101,9 +101,10 @@ unsigned int Wcode_addr;
 
 /******************************************************************************/
 
+//FIXME: hardcoded?!?  more than 300+ for i386
 const char* scnames[256]= {
     0,
-#include "scnames.h"
+#include "syscallnames.h"
     0
 };
 
@@ -999,6 +1000,7 @@ void do_sbreak(char* param) {
     } else {
         if (sscanf(param,"%lld",&l1)!=1) {
 
+            //FIXME: hardcoded?!?  more than 300+ for i386
             for (st=0;st<256;st++)
                 if (scnames[st])
                     if (!strcasecmp(scnames[st],param)) break;
@@ -1885,6 +1887,7 @@ void Wcode_set_addr(unsigned int addr) {
     } else {
         if (!stopped && syscnum<0) {
             werase(Wcode);
+            //FIXME: hardcoded?!?  more than 300+ for i386
             wprintw(Wcode,"%08x:\t<inside a blocking syscall %d [%s]>",addr, -syscnum, scnames[-syscnum & 0xff]);
             wnoutrefresh(Wcode);
         }

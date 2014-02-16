@@ -64,6 +64,7 @@ extern char T_goaway;
 
 int was_blocking;
 
+//FIXME: hardcoded?!?  more than 300+ for i386
 extern char* scnames[256];
 
 int break_stopped;      // Is the code stopped?
@@ -158,6 +159,7 @@ void del_break(int i) {
         case 0:       send_synctext("There is no such breakpoint active.\n");
                       break;
 
+                      //FIXME: hardcoded?!?  more than 300+ for i386
         case BP_SYS:  sprintf(buf,"Deleted on-syscall breakpoint previously set to '%s'.\n",scnames[bp[i].param & 0xff]);
                       send_synctext(buf);
                       break;
@@ -215,6 +217,7 @@ void list_break(void) {
         if (!bp[i].type) continue;
         tot++;
         switch (bp[i].type) {
+            //FIXME: hardcoded?!?  more than 300+ for i386
             case BP_SYS:  sprintf(buf,"%02d: stop on syscall %s (%d)\n",i,scnames[bp[i].param & 0xff],bp[i].param);
                           strcat(obuf,buf);
                           break;
@@ -528,6 +531,7 @@ loopover:
                                  //FIXME: 64bit
                                  sprintf(buf,"Trying to stop at 0x%llx, but in blocking call %d [%s]...\n"
                                          "Send SIGTRAP to pid %d or try 'halt' command to stop immediately.\n",r.rip,blocking_syscall,
+                                         //FIXME: hardcoded?!?  more than 300+ for i386
                                          scnames[blocking_syscall & 0xff],pid);
                              } else {
                                  //FIXME: 64bit
@@ -545,6 +549,7 @@ loopover:
                                  sprintf(buf,">> Forced stop at 0x%llx in blocking call %d [%s].\n",
                                          //FIXME: 64bit
                                          r.rip,blocking_syscall,
+                                         //FIXME: hardcoded?!?  more than 300+ for i386
                                          scnames[blocking_syscall & 0xff]);
                                  blocking_syscall=0;
                              } else {
@@ -939,6 +944,7 @@ void break_syscall(unsigned int num) {
                 break_stopped=1;
                 break_sendentity();
                 //FIXME: 64bit
+                //FIXME: hardcoded?!?  more than 300+ for i386
                 sprintf(buf,">> SYSCALL breakpoint #%d [%d, %s] stop at 0x%llx [%s].\n",i,num,scnames[num & 0xff],r.rip,break_getname(r.rip));
                 send_asynctext(buf);
             }
@@ -949,6 +955,7 @@ void break_syscall(unsigned int num) {
         break_stopped=1;
         break_sendentity();
         //FIXME: 64bit
+        //FIXME: hardcoded?!?  more than 300+ for i386
         sprintf(buf,">> Syscall %d (%s) reached at 0x%llx [%s].\n",num,scnames[num & 0xff],r.rip,break_getname(r.rip));
         send_asynctext(buf);
     }

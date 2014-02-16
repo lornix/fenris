@@ -1,2 +1,4 @@
 *.o
 *~
+# temporary file
+syscallnames.h

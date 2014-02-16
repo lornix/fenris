@@ -163,8 +163,9 @@ char* runasuser;
 FILE* ostream;                             // Output stream
 
 int innest = PRETTYSMALL;
-int STACKSEG,CODESEG;
+unsigned int STACKSEG, CODESEG;
 
+//FIXME: hardcoded?!?  more than 300+ for i386
 const char* scnames[256]= {
     0,
 #include "syscallnames.h"
@@ -173,12 +174,7 @@ const char* scnames[256]= {
 
 #define MPS (MAXFNAME*2)
 
-#define RD() reset_pdescr()
-#define DD() dump_pdescr(0)
-
 char pdescr[MAXPDESC+1];
-
-#define reset_pdescr() pdescr[0]=0
 
 struct hacking_table {
     unsigned int ip;
@@ -234,10 +230,15 @@ void fatal(const char* x, const int err) {
     if (T_dostep && !fatal_there) { fatal_there=1; break_sendentity_force(); }
 
     if (pid>0) {
-        if (current && current->syscall)
-            debug(">> This condition occurred during syscall %s (%d) in pid %d (eip %x).\n",
-                    scnames[current->syscall & 0xff],current->syscall,pid,(int)r.eip);
-        else debug(">> This condition occurred while tracing pid %d (eip %x).\n",pid,(int)r.eip);
+        if (current && current->syscall) {
+            //FIXME: 64bit
+            debug(">> This condition occurred during syscall %s (%d) in pid %d (rip %llx).\n",
+                    //FIXME: hardcoded?!?  more than 300+ for i386
+                    scnames[current->syscall & 0xff],current->syscall,pid,r.rip);
+        } else {
+            //FIXME: 64bit
+            debug(">> This condition occurred while tracing pid %d (eip %llx).\n",pid,r.rip);
+        }
     }
 
     if (current && (current->cycles))
@@ -298,7 +299,8 @@ inline void indent(const int corr) {
 
     }
 
-    if (T_addip) debug("[%08x] ",(int)r.eip);
+    //FIXME: 64bit
+    if (T_addip) debug("[%08llx] ",r.rip);
 
     if ((current->nest+corr)<0) debug("%d:-- %s",pid,intbuf);
     else debug("%d:%02d %s",pid,corr+current->nest,intbuf);
@@ -343,6 +345,15 @@ int start_child(const char** argv) {
     fatal("cannot execute requested binary",-1);
     return 0; // sanity.
 
+}
+
+/*************************
+ * Remove signal handler *
+ *************************/
+
+inline unsigned int get_handler(int i) {
+    if (i<0 || i>=MAXSIG) return 0;
+    return current->sh[i];
 }
 
 /*******************************************
@@ -406,12 +417,296 @@ inline void set_withret(int i,char val) {
 }
 
 /*************************
- * Remove signal handler *
+ * Lookup memory address *
  *************************/
 
-inline unsigned int get_handler(int i) {
-    if (i<0 || i>=MAXSIG) return 0;
-    return current->sh[i];
+inline struct fenris_mem* lookup_mem(const unsigned int addr) {
+    unsigned int i;
+
+    for (i=0;i<current->memtop;i++) {
+
+        if (!(*current->mem)[i].descr) continue;
+        if ((*current->mem)[i].addr <= addr)
+            if (((*current->mem)[i].addr + (*current->mem)[i].len) > addr)  {
+                return &(*current->mem)[i];
+            }
+    }
+
+    return 0;
+}
+
+/****************************************
+ * Lookup any buffer inside given range *
+ ****************************************/
+
+inline struct fenris_mem* lookup_inrange(const unsigned int addr,const unsigned int len) {
+    unsigned int end=addr+len;
+    unsigned int i;
+
+    for (i=0;i<current->memtop;i++) {
+
+        if (!(*current->mem)[i].descr) continue;
+
+        if ((*current->mem)[i].addr >= addr)
+            if ((*current->mem)[i].addr < end)
+                if ((*current->mem)[i].addr + (*current->mem)[i].len >= addr)
+                    if ((*current->mem)[i].addr + (*current->mem)[i].len < end)
+                        return &(*current->mem)[i];
+
+    }
+
+    return 0;
+
+}
+
+/*************************************
+ * Find or assign unique function id *
+ *************************************/
+
+inline int find_id(unsigned int c,unsigned int addnew) {
+    unsigned int i;
+
+    if (!current->fnaddr) {
+        if (!addnew) return 0;
+        current->fnaddr=malloc(TABINC*4+4);
+    }
+
+    for (i=0;i<current->idtop;i++)
+        if ((*current->fnaddr)[i]==c) return i+1;
+
+    if (!addnew) return 0;
+
+    current->idtop++;
+
+    if (!((current->idtop) % TABINC))
+        current->fnaddr=realloc(current->fnaddr,(current->idtop+1+TABINC)*4);
+
+    (*current->fnaddr)[current->idtop-1]=c;
+
+    return current->idtop;
+
+}
+
+/************************
+ * Lookup function name *
+ ************************/
+
+inline char* lookup_fnct(unsigned int c, unsigned int add,char prec) {
+    unsigned int i;
+    int mindif=100000000, best=-1;
+    int addplus=0;
+
+    if (add==123456) { add=0; addplus=1; }
+
+    if (add) {
+        find_id(c,1);
+    }
+
+    if (!current->b) {
+
+        int size;
+        bfd* b;
+
+        if (current->symfail || T_nosym) {
+            // Do not retry.
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            return fnm_buf;
+        }
+
+        sprintf(fnm_buf,"/proc/%d/exe",pid);
+        b = bfd_openr(fnm_buf,0);
+
+        if (!b) {
+            current->symfail=1;
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            return fnm_buf;
+        }
+
+        if (bfd_check_format(b,bfd_archive)) {
+            current->symfail=1;
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            bfd_close(b);
+            return fnm_buf;
+        }
+
+        bfd_check_format_matches(b,bfd_object,0);
+
+        if ((bfd_get_file_flags(b) & HAS_SYMS) == 0) {
+            current->symfail=1;
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            bfd_close(b);
+            return fnm_buf;
+        }
+
+        size = bfd_get_symtab_upper_bound(b);
+
+        if (size <= 0) {
+            current->symfail=1;
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            bfd_close(b);
+            return fnm_buf;
+        }
+
+        current->syms=(asymbol**)malloc(size);
+
+        if (!current->syms) {
+            current->symfail=1;
+            if (!find_id(c,0)) return 0;
+            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+            bfd_close(b);
+            return fnm_buf;
+        }
+
+        //FIXME: can't fail, unsigned values
+        /*
+         * if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
+         *     fatal("bfd_canonicalize_symtab failed",0);
+         */
+
+        current->b=b;
+
+    }
+
+    for (i=0;i<current->symcnt;i++)
+        if (current->syms[i] && (current->syms[i]->flags!=1) ) {
+            if (prec) {
+                if (bfd_asymbol_value(current->syms[i])!=c) continue;
+                if (!bfd_asymbol_name(current->syms[i]) || !strlen(bfd_asymbol_name(current->syms[i]))) continue;
+            } else {
+                int dif;
+                dif=c-(bfd_asymbol_value(current->syms[i]));
+                if (dif<0) continue;
+                if (!bfd_asymbol_name(current->syms[i]) || !strlen(bfd_asymbol_name(current->syms[i]))) continue;
+                if (dif<=mindif) { mindif=dif; best=i; }
+                if (dif) continue;
+            }
+
+            strcpy(fnm_buf,bfd_asymbol_name(current->syms[i]));
+
+            if (fnm_buf[0]) return fnm_buf;
+
+        }
+
+    if ((!prec) && (best>0)) {
+        strcpy(fnm_buf,bfd_asymbol_name(current->syms[best]));
+        if (addplus)
+            sprintf(&fnm_buf[strlen(fnm_buf)],"+%d",mindif);
+        return fnm_buf;
+    }
+
+    if (!find_id(c,0)) return 0;
+    sprintf(fnm_buf,"fnct_%d",find_id(c,0));
+    return fnm_buf;
+
+}
+
+/***************************
+ * Try to find symbol name *
+ ***************************/
+
+Dl_info di;
+char fn_buf[64];
+
+inline char* find_name(const unsigned int addr) {
+
+    unsigned int i;
+
+    for (i=0;i<current->mtop+1;i++) {
+
+        if (!(*current->map)[i].name) continue;
+        if ((*current->map)[i].addr <= addr) {
+            if (((*current->map)[i].addr + (*current->map)[i].len) > addr) {
+
+                void* x;
+                unsigned int off;
+                unsigned long int b;
+                int f;
+
+                off=addr-(*current->map)[i].addr;
+
+                // Offset 0x10 should be equal to 0x03. Otherwise, we do not
+                // want to dlopen() this "thing".
+
+                f=open((*current->map)[i].name,O_RDONLY);
+                if (f<0) {
+                    sprintf(fn_buf,"P:lib_%x",addr);
+                    return fn_buf;
+                }
+
+                lseek(f,0x10,SEEK_SET);
+                read(f,fn_buf,1);
+                close(f);
+                if (fn_buf[0]!=0x03) {
+                    sprintf(fn_buf,"S:lib_%x",addr);
+                    return fn_buf;
+                }
+
+                if (T_nosym) x=0; else
+                    x=dlopen((*current->map)[i].name,RTLD_LAZY|RTLD_GLOBAL|RTLD_NODELETE);
+
+                if (!x) {
+                    sprintf(fn_buf,"L:lib_%x",addr);
+                    return fn_buf;
+                }
+
+                b=*((int*)x)+off;
+
+                if (!dladdr((void*)b,&di)) {
+                    dlclose(x);
+                    sprintf(fn_buf,"A:lib_%x",current->lentry);
+                    return fn_buf;
+                }
+
+                if (!di.dli_sname) {
+#ifndef DO_NOT_DLCLOSE
+                    dlclose(x);
+#endif
+                    sprintf(fn_buf,"<unnamed:%lx>%+ld",(unsigned long int)di.dli_saddr,b-(unsigned long int)di.dli_saddr);
+                    return fn_buf;
+                }
+
+                if (di.dli_saddr!=(void*)b) {
+#ifndef DO_NOT_DLCLOSE
+                    dlclose(x);
+#endif
+                    snprintf(fn_buf,sizeof(fn_buf),"%s%+ld",
+                            di.dli_sname,b-(unsigned long int)di.dli_saddr);
+                    return fn_buf;
+                }
+
+#ifndef DO_NOT_DLCLOSE
+                dlclose(x);
+#endif
+                return (char*)di.dli_sname;
+
+            }
+
+        }
+
+    }
+
+    sprintf(fn_buf,"F:lib_%x",addr);
+    return fn_buf;
+
+}
+
+inline char* find_name_ex(unsigned int c,char prec,char non) {
+    char* ret=find_name(c);
+    if (non) if (strchr(ret,':')) return 0;
+    if (prec==1) {
+        if (strchr(ret,'+')) return 0;
+        if (strchr(ret,'-')) return 0;
+    } else if (prec==2) {
+        char* q;
+        if ((q=strchr(ret,'+'))) *q=0;
+        if ((q=strchr(ret,'-'))) *q=0;
+    }
+    return ret;
 }
 
 /*******************************************
@@ -420,7 +715,7 @@ inline unsigned int get_handler(int i) {
 
 inline void add_mem(unsigned int start, int len, unsigned int newaddr,const char* who,char auth) {
 
-    int i;
+    unsigned int i;
     char* doingmerge=0;
     unsigned int owner=0;
     char U=0;
@@ -744,131 +1039,18 @@ inline void append_wlog(const char* what) {
     }
 
     if (current->wlog[current->fntop]) {
-        curlen=strlen(current->wlog[current->fntop]);
-        if (strstr(current->wlog[current->fntop],what)) return;
+        curlen=strlen((char*)current->wlog[current->fntop]);
+        if (strstr((char*)current->wlog[current->fntop],what)) return;
     }
     current->wlog[current->fntop]=realloc(current->wlog[current->fntop],curlen+strlen(what)+4);
-    strcat(current->wlog[current->fntop],what);
-}
-
-/************************
- * Lookup function name *
- ************************/
-
-inline char* lookup_fnct(unsigned int c, unsigned int add,char prec) {
-    int i;
-    int mindif=100000000, best=-1;
-    int addplus=0;
-
-    if (add==123456) { add=0; addplus=1; }
-
-    if (add) find_id(c,1);
-
-    if (!current->b) {
-
-        int size;
-        bfd* b;
-
-        if (current->symfail || T_nosym) {
-            // Do not retry.
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            return fnm_buf;
-        }
-
-        sprintf(fnm_buf,"/proc/%d/exe",pid);
-        b = bfd_openr(fnm_buf,0);
-
-        if (!b) {
-            current->symfail=1;
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            return fnm_buf;
-        }
-
-        if (bfd_check_format(b,bfd_archive)) {
-            current->symfail=1;
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            bfd_close(b);
-            return fnm_buf;
-        }
-
-        bfd_check_format_matches(b,bfd_object,0);
-
-        if ((bfd_get_file_flags(b) & HAS_SYMS) == 0) {
-            current->symfail=1;
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            bfd_close(b);
-            return fnm_buf;
-        }
-
-        size = bfd_get_symtab_upper_bound(b);
-
-        if (size <= 0) {
-            current->symfail=1;
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            bfd_close(b);
-            return fnm_buf;
-        }
-
-        current->syms=(asymbol**)malloc(size);
-
-        if (!current->syms) {
-            current->symfail=1;
-            if (!find_id(c,0)) return 0;
-            sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-            bfd_close(b);
-            return fnm_buf;
-        }
-
-        if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
-            fatal("bfd_canonicalize_symtab failed",0);
-
-        current->b=b;
-
-    }
-
-    for (i=0;i<current->symcnt;i++)
-        if (current->syms[i] && (current->syms[i]->flags!=1) ) {
-            if (prec) {
-                if (bfd_asymbol_value(current->syms[i])!=c) continue;
-                if (!bfd_asymbol_name(current->syms[i]) || !strlen(bfd_asymbol_name(current->syms[i]))) continue;
-            } else {
-                int dif;
-                dif=c-(bfd_asymbol_value(current->syms[i]));
-                if (dif<0) continue;
-                if (!bfd_asymbol_name(current->syms[i]) || !strlen(bfd_asymbol_name(current->syms[i]))) continue;
-                if (dif<=mindif) { mindif=dif; best=i; }
-                if (dif) continue;
-            }
-
-            strcpy(fnm_buf,bfd_asymbol_name(current->syms[i]));
-
-            if (fnm_buf[0]) return fnm_buf;
-
-        }
-
-    if ((!prec) && (best>0)) {
-        strcpy(fnm_buf,bfd_asymbol_name(current->syms[best]));
-        if (addplus)
-            sprintf(&fnm_buf[strlen(fnm_buf)],"+%d",mindif);
-        return fnm_buf;
-    }
-
-    if (!find_id(c,0)) return 0;
-    sprintf(fnm_buf,"fnct_%d",find_id(c,0));
-    return fnm_buf;
-
+    strcat((char*)current->wlog[current->fntop],what);
 }
 
 void* libc_sym;
 
 // Used only for debugging. Be careless.
 inline int lookup_fnname(char* name) {
-    int i;
+    unsigned int i;
     char fnm_buf[1000];
     char* fifi;
     int add=0;
@@ -884,8 +1066,8 @@ inline int lookup_fnname(char* name) {
     // First, try the simplest solution.
     if (sscanf(name,"fnct_%d",&i)==1) {
         if (current->fnaddr) {
-            i-=1;
-            if (i>=0 && i<current->idtop) return (*current->fnaddr)[i]+add;
+            --i;
+            if (i>0 && i<current->idtop) return (*current->fnaddr)[i]+add;
         }
         return 0;
     }
@@ -899,7 +1081,7 @@ inline int lookup_fnname(char* name) {
         if (!libc_sym) goto no_libc;
     }
 
-    i=(int)dlsym(libc_sym,name);
+    i=(unsigned long int)dlsym(libc_sym,name);
     if (i) return i+add;
 
 no_libc:
@@ -951,8 +1133,11 @@ no_libc:
             return 0;
         }
 
-        if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
-            fatal("bfd_canonicalize_symtab failed",0);
+        //FIXME: unsigned < 0 always false
+        /*
+         * if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
+         *     fatal("bfd_canonicalize_symtab failed",0);
+         */
 
         current->b=b;
 
@@ -1001,7 +1186,7 @@ void delete_mem(unsigned int start,char auth) {
  * Die mysteriously *
  ********************/
 
-void segfault(int x) {
+void segfault(int x __attribute__((unused))) {
     write(2,spell,strlen(spell));
 
     debug("Fatal exception occurred. Fenris will terminate now. If you feel\n"
@@ -1009,60 +1194,18 @@ void segfault(int x) {
             "report this problem to the maintainer. Thank you :-)\n\n");
 
     if (current) {
-        debug("Fault parameters: pid:%d eip:%x esp:%x nest:%d memtop:%d\n"
+        //FIXME: 64bit
+        debug("Fault parameters: pid:%d eip:%llx esp:%llx nest:%d memtop:%d\n"
                 "\tidtop:%d mtop:%d memtop:%d fntop:%d symcnt:%d\n\n",
-                current->pid,(int)r.eip,(int)r.esp,current->nest,current->memtop,
+                current->pid,r.rip,r.rsp,current->nest,current->memtop,
                 current->idtop,current->mtop,current->memtop,current->fntop,current->symcnt);
     }
 
     abort();
 }
 
-void pipefault(int x) {
+void pipefault(int x __attribute__((unused))) {
     fatal("connection dropped? terminal disappeared?",-1);
-}
-
-/*************************
- * Lookup memory address *
- *************************/
-
-inline struct fenris_mem* lookup_mem(const unsigned int addr) {
-    int i;
-
-    for (i=0;i<current->memtop;i++) {
-
-        if (!(*current->mem)[i].descr) continue;
-        if ((*current->mem)[i].addr <= addr)
-            if (((*current->mem)[i].addr + (*current->mem)[i].len) > addr)  {
-                return &(*current->mem)[i];
-            }
-    }
-
-    return 0;
-}
-
-/****************************************
- * Lookup any buffer inside given range *
- ****************************************/
-
-inline struct fenris_mem* lookup_inrange(const unsigned int addr,const unsigned int len) {
-    unsigned int end=addr+len;
-    int i;
-
-    for (i=0;i<current->memtop;i++) {
-
-        if (!(*current->mem)[i].descr) continue;
-
-        if ((*current->mem)[i].addr >= addr)
-            if ((*current->mem)[i].addr < end)
-                if ((*current->mem)[i].addr + (*current->mem)[i].len >= addr)
-                    if ((*current->mem)[i].addr + (*current->mem)[i].len < end)
-                        return &(*current->mem)[i];
-
-    }
-
-    return 0;
-
 }
 
 /**************
@@ -1070,7 +1213,7 @@ inline struct fenris_mem* lookup_inrange(const unsigned int addr,const unsigned 
  **************/
 
 inline struct fenris_map* lookup_map(const unsigned int addr) {
-    int i;
+    unsigned int i;
 
     for (i=0;i<current->mtop+1;i++) {
 
@@ -1090,7 +1233,7 @@ inline struct fenris_map* lookup_map(const unsigned int addr) {
  ******************************/
 
 inline void invalidate_mem(void) {
-    int i;
+    unsigned int i;
     unsigned int s;
 
     for (i=0;i<current->memtop;i++) {
@@ -1112,137 +1255,24 @@ inline void push_fnid(const unsigned int id) {
 
     if (current->fntop>=MAXNEST) {
         if (T_noskip) {
-            debug("* WARNING: fntop MAXNEST exceeded at 0x%x, pretending that nothing happened.\n",(int)r.eip);
+            //FIXME: 64bit
+            debug("* WARNING: fntop MAXNEST exceeded at 0x%llx, pretending that nothing happened.\n",r.rip);
             current->fntop--;
         } else fatal("fntop MAXNEST exceeded",0);
     }
 
-    current->frstart[current->fntop] = r.esp + current->curpcnt * 4;
+    //FIXME: 64bit
+    current->frstart[current->fntop] = r.rsp + current->curpcnt * 4;
 
     current->fntop++;
     current->fnid[current->fntop]=id;
-    current->fneip[current->fntop]=r.eip;
+    //FIXME: 64bit
+    current->fneip[current->fntop]=r.rip;
 
     current->frstart[current->fntop]=0;
-    current->frend[current->fntop]=r.esp + 4;
+    //FIXME: 64bit
+    current->frend[current->fntop]=r.rsp + 4;
 
-}
-
-/******************************
- * Return from local function *
- ******************************/
-
-inline void fn_ret(void) {
-
-    if (current->fntop>0) {
-        dump_memchg(0);
-        invalidate_mem();
-        current->fntop--;
-        return;
-    }
-
-}
-
-/******************************
- * Add new pupils to ps table *
- ******************************/
-
-void add_process(const int mpid) {
-    int i;
-
-    for (i=0;i<MAXCHILDREN;i++)
-
-        if (!ps[i].pid) {
-            bzero(&ps[i],sizeof(struct fenris_process));
-            ps[i].pid=mpid;
-            ps[i].nest=innest;
-            ps[i].is_static=is_static;
-            current=&ps[i];
-            add_ldmap();
-            return;
-        }
-
-    fatal("too many child processes (table overflow)",0);
-
-}
-
-/********************************
- * Describe function parameters *
- ********************************/
-
-inline void display_value(const unsigned int q,const char* where) {
-
-    if ((q >> 24) == CODESEG)       debug("g/%x",q); // global
-    else if ((q >> 24) == STACKSEG) debug("l/%x",q); // local
-    else if (INLIBC(q))  debug("s/%x",q); // shared
-    else debug("%d",q);
-
-    add_pdescr(q);
-    print_string(q,where);
-
-}
-
-/*********************************************
- * Modify last input parameter for SOMETHING *
- *********************************************/
-
-inline void modify_lasti(unsigned int sth,char* where,int fd,unsigned int map,char* what) {
-    char buf[MAXDESCR*2];
-    struct fenris_map* ma=0;
-    struct fenris_mem* me=0;
-
-    if (!sth || (sth>0xffffff00)) return;
-
-    strncpy(buf,where,MAXDESCR);
-
-    if (map)  sprintf(&buf[strlen(buf)]," on map %x",map);
-    else if (fd) sprintf(&buf[strlen(buf)]," on file \"%s\"",get_fname(fd));
-    else if (what && what[0]) snprintf(&buf[strlen(buf)],MAXDESCR," on %s",what);
-
-    me=lookup_mem(sth);
-
-    if (me) {
-        if (me->lasti) free(me->lasti);
-        me->lasti=strdup(buf);
-        if (current->nest>=0 && !be_silent) {
-            indent(0);
-            debug("\\ buffer %x modified.\n",me->addr);
-        }
-        return;
-    }
-
-    ma=lookup_map(sth);
-
-    if (ma) {
-        if (ma->lasti) free(ma->lasti);
-        ma->lasti=strdup(buf);
-        if (current->nest>=0 && !be_silent) {
-            indent(0);
-            debug("\\ buffer %x modified.\n",ma->addr);
-        }
-        return;
-    }
-
-    // Doh. Nothing.
-}
-
-/**************************************
- * Some fast-action debug() functions *
- **************************************/
-
-inline unsigned int Xv(const unsigned int q) {
-    if (q) add_pdescr(q);
-    return q;
-}
-
-inline int Xf(int q) {
-    if (q>=0) add_fd_pdescr(q);
-    return q;
-}
-
-inline unsigned int Wv(const unsigned int q) {
-    if (q) add_wdescr(q,1);
-    return q;
 }
 
 /*******************************
@@ -1332,7 +1362,7 @@ inline void add_pdescr(const unsigned int q) {
     // it does point there.
 
     if (miau==2) {
-        int i;
+        unsigned int i;
         for (i=1;i<=current->fntop;i++) {
             if (q >= current->frstart[i])
                 if (q < current->frend[i]) {
@@ -1356,64 +1386,189 @@ inline void add_pdescr(const unsigned int q) {
 
 }
 
-inline char* get_addrdescr(const unsigned int q) {
-    int miau=1;
+/***********************
+ * Add unknown filedes *
+ ***********************/
+
+void unknown_filedes(const int fd,const char* fname) {
+
+    char tmpbuf[MAXDESCR];
+
+    if (!current->fd) {
+        current->fd=malloc(TABINC*sizeof(struct fenris_fd));
+        current->fdtop=TABINC;
+    }
+
+    while (current->fdtop<=(unsigned int)fd) {
+        current->fdtop+=TABINC;
+        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
+    }
+
+    (*current->fd)[fd].special=0;
+    (*current->fd)[fd].name=strdup(fname);
+
+    snprintf(tmpbuf,MAXDESCR,"origin unknown");
+
+    (*current->fd)[fd].descr=strdup(tmpbuf);
+    (*current->fd)[fd].p=0;
+
+}
+
+/***************
+ * Describe fd *
+ ***************/
+
+inline void add_fd_pdescr(const int fd) {
     char tmp[MAXDESCR];
-    char ret[MAXDESCR];
+
+    if (T_nodesc) return;
+
+    if ((fd<0) || ((unsigned int)fd>=current->fdtop)) {
+        char buf[100];
+        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
+        if (fd==0 || fd==1 || fd==2 ||!access(buf,F_OK)) {
+            char b[1024];
+            bzero(b,sizeof(b));
+            readlink(buf,b,1000);
+            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
+            nappend(pdescr,tmp,MAXPDESC);
+            unknown_filedes(fd,b);
+        }
+        return;
+    }
+
+    if (!((*current->fd)[fd].name)) {
+        char buf[100];
+        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
+        if (fd==0 || fd==1 || fd==2 || !access(buf,F_OK)) {
+            char b[1024];
+            bzero(b,sizeof(b));
+            readlink(buf,b,1000);
+            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
+            nappend(pdescr,tmp,MAXPDESC);
+            unknown_filedes(fd,b);
+        }
+        return;
+    }
+
+    sprintf(tmp,"+ fd %d: \"%s\", %s\n",fd,(*current->fd)[fd].name,
+            (*current->fd)[fd].descr);
+
+    nappend(pdescr,tmp,MAXPDESC);
+
+    // What are you looking for here, you poor little lost soul?
+    // But since you're already here, what would you say for a
+    // little trivia? http://lcamtuf.coredump.cx/simple.txt :-)
+
+}
+
+inline unsigned int appr_addr(const unsigned int addr) {
+
+    char fn_buf[64];
+    unsigned int i;
+
+    for (i=0;i<current->mtop+1;i++) {
+
+        if (!(*current->map)[i].name) continue;
+        if ((*current->map)[i].addr <= addr) {
+            if (((*current->map)[i].addr + (*current->map)[i].len) > addr) {
+
+                void* x;
+                unsigned int off;
+                unsigned long int b;
+                int f;
+
+                off=addr-(*current->map)[i].addr;
+
+                f=open((*current->map)[i].name,O_RDONLY);
+                if (f<0) return addr;
+
+                lseek(f,0x10,SEEK_SET);
+                read(f,fn_buf,1);
+                close(f);
+                if (fn_buf[0]!=0x03) return addr;
+
+                if (T_nosym) x=0; else
+                    x=dlopen((*current->map)[i].name,RTLD_LAZY|RTLD_GLOBAL|RTLD_NODELETE);
+
+                if (!x) return addr;
+
+                b=*((int*)x)+off;
+
+                if (!dladdr((void*)b,&di)) {
+                    dlclose(x);
+                    return addr;
+                }
+
+                dlclose(x);
+                return (unsigned long int)di.dli_saddr;
+
+            }
+
+        }
+
+    }
+
+    return addr;
+
+}
+
+/****************
+ * Get filename *
+ ****************/
+
+inline char* get_fname(const int fd) {
+
+    if ((fd<0) || ((unsigned int)fd>=current->fdtop)) return "<unknown>";
+
+    if (!(*current->fd)[fd].name) return "<unknown>";
+
+    return (*current->fd)[fd].name;
+
+}
+
+/*********************************************
+ * Modify last input parameter for SOMETHING *
+ *********************************************/
+
+inline void modify_lasti(unsigned int sth,char* where,int fd,unsigned int map,char* what) {
+    char buf[MAXDESCR*2];
     struct fenris_map* ma=0;
     struct fenris_mem* me=0;
 
-    ret[0]=0;
+    if (!sth || (sth>0xffffff00)) return;
 
-    if (miau) {
-        me=lookup_mem(q);
-        if (me) {
-            if (!tmp[0]) {
-                snprintf(tmp,MAXDESCR,"+ %x = %x:%d <off %d> (%s)\n",q,
-                        me->addr,me->len,q-me->addr,me->descr);
-                nappend(ret,tmp,MAXPDESC);
-            } else {
-                sprintf(tmp,":%d\n",me->len);
-                pdescr[strlen(pdescr)-1]=0;
-                nappend(ret,tmp,MAXPDESC);
-            }
-            if (me->lasti) {
-                snprintf(tmp,MAXDESCR,"  last input: %s\n",me->lasti);
-                nappend(ret,tmp,MAXPDESC);
-            }
+    strncpy(buf,where,MAXDESCR);
+
+    if (map)  sprintf(&buf[strlen(buf)]," on map %x",map);
+    else if (fd) sprintf(&buf[strlen(buf)]," on file \"%s\"",get_fname(fd));
+    else if (what && what[0]) snprintf(&buf[strlen(buf)],MAXDESCR," on %s",what);
+
+    me=lookup_mem(sth);
+
+    if (me) {
+        if (me->lasti) free(me->lasti);
+        me->lasti=strdup(buf);
+        if (current->nest>=0 && !be_silent) {
+            indent(0);
+            debug("\\ buffer %x modified.\n",me->addr);
         }
-        if (!me) ma=lookup_map(q);
-        if (ma) {
-            if (!tmp[0]) {
-                snprintf(tmp,MAXDESCR,"+ %x = map %x:%d <off %d> (%s)\n",q,
-                        ma->addr,ma->len,q-ma->addr,ma->descr);
-                nappend(ret,tmp,MAXPDESC);
-            }
-            if (ma->lasti) {
-                snprintf(tmp,MAXDESCR,"  last input: %s\n",ma->lasti);
-                nappend(ret,tmp,MAXPDESC);
-            }
-        }
+        return;
     }
 
-    // Last resort: try do determine where does it point on stack, if
-    // it does point there.
+    ma=lookup_map(sth);
 
-    if ((q >> 24) == STACKSEG) {
-        int i;
-        for (i=1;i<=current->fntop;i++) {
-            if (q >= current->frstart[i])
-                if (q < current->frend[i]) {
-                    sprintf(tmp,"+ l/%x (maxsize %d) = stack of fcnt_%d (%d down)\n",
-                            q,current->frend[i]-q,current->fnid[i],current->fntop-i);
-
-                    nappend(ret,tmp,MAXPDESC);
-                }
+    if (ma) {
+        if (ma->lasti) free(ma->lasti);
+        ma->lasti=strdup(buf);
+        if (current->nest>=0 && !be_silent) {
+            indent(0);
+            debug("\\ buffer %x modified.\n",ma->addr);
         }
+        return;
     }
 
-    return ret;
-
+    // Doh. Nothing.
 }
 
 /********************************************
@@ -1500,7 +1655,7 @@ inline void add_wdescr(unsigned int q,char wri) {
     // it does point there.
 
     if (miau==2) {
-        int i;
+        unsigned int i;
         for (i=1;i<=current->fntop;i++) {
 
             if (q >= current->frstart[i])
@@ -1527,94 +1682,23 @@ inline void add_wdescr(unsigned int q,char wri) {
 
 }
 
-/***************
- * Describe fd *
- ***************/
+/**************************************
+ * Some fast-action debug() functions *
+ **************************************/
 
-inline void add_fd_pdescr(const int fd) {
-    char tmp[MAXDESCR];
-
-    if (T_nodesc) return;
-
-    if ((fd<0) || (fd>=current->fdtop)) {
-        char buf[100];
-        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
-        if (fd==0 || fd==1 || fd==2 ||!access(buf,F_OK)) {
-            char b[1024];
-            bzero(b,sizeof(b));
-            readlink(buf,b,1000);
-            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
-            nappend(pdescr,tmp,MAXPDESC);
-            unknown_filedes(fd,b);
-        }
-        return;
-    }
-
-    if (!((*current->fd)[fd].name)) {
-        char buf[100];
-        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
-        if (fd==0 || fd==1 || fd==2 || !access(buf,F_OK)) {
-            char b[1024];
-            bzero(b,sizeof(b));
-            readlink(buf,b,1000);
-            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
-            nappend(pdescr,tmp,MAXPDESC);
-            unknown_filedes(fd,b);
-        }
-        return;
-    }
-
-    sprintf(tmp,"+ fd %d: \"%s\", %s\n",fd,(*current->fd)[fd].name,
-            (*current->fd)[fd].descr);
-
-    nappend(pdescr,tmp,MAXPDESC);
-
-    // What are you looking for here, you poor little lost soul?
-    // But since you're already here, what would you say for a
-    // little trivia? http://lcamtuf.coredump.cx/simple.txt :-)
-
+inline unsigned int Xv(const unsigned int q) {
+    if (q) add_pdescr(q);
+    return q;
 }
 
-inline char* get_fddescr(const int fd) {
-    char tmp[MAXDESCR];
-    char ret[MAXDESCR];
-
-    ret[0]=0;
-
-    if ((fd<0) || (fd>=current->fdtop) || !((*current->fd)[fd].name)) {
-        char buf[100];
-        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
-        if (fd==0 || fd==1 || fd==2 || !access(buf,F_OK)) {
-            char b[1024];
-            bzero(b,sizeof(b));
-            readlink(buf,b,1000);
-            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
-            nappend(ret,tmp,MAXPDESC);
-            return ret;
-        }
-        return "";
-    }
-
-    sprintf(tmp,"+ fd %d: \"%s\", %s\n",fd,(*current->fd)[fd].name,
-            (*current->fd)[fd].descr);
-
-    nappend(ret,tmp,MAXPDESC);
-    return ret;
-
+inline int Xf(int q) {
+    if (q>=0) add_fd_pdescr(q);
+    return q;
 }
 
-/****************
- * Get filename *
- ****************/
-
-inline char* get_fname(const int fd) {
-
-    if ((fd<0) || (fd>=current->fdtop)) return "<unknown>";
-
-    if (!(*current->fd)[fd].name) return "<unknown>";
-
-    return (*current->fd)[fd].name;
-
+inline unsigned int Wv(const unsigned int q) {
+    if (q) add_wdescr(q,1);
+    return q;
 }
 
 /****************
@@ -1634,7 +1718,7 @@ inline void dump_pdescr(const int ind) {
         x++;
     }
 
-    RD();
+    pdescr[0]=0;
 
 }
 
@@ -1643,14 +1727,14 @@ inline void dump_pdescr(const int ind) {
  **************/
 
 inline void dump_memchg(const int ind) {
-    char *x=current->wlog[current->fntop], *old,*y;
+    char *x=(char*)current->wlog[current->fntop], *old,*y;
 
     if (!x) return;
     if (T_nodesc) return;
 
     indent(ind);
     debug("// function has accessed non-local memory:\n");
-    RD();
+    pdescr[0]=0;
 
     while ((x=strchr(old=x,'\n'))) {
         indent(ind);
@@ -1670,815 +1754,18 @@ inline void dump_memchg(const int ind) {
 
 }
 
-/*********************************
- * Read stack and display params *
- *********************************/
+/******************************
+ * Return from local function *
+ ******************************/
 
-inline void display_fparams(unsigned int esP,int pcnt,const char* where) {
-    int i;
-    unsigned int q;
-    RD();
-    for (i=0;i<pcnt;i++) {
-        q=ptrace(PTRACE_PEEKDATA,pid,esP+4*i,0);
-        display_value(q,where);
-        if (i!=pcnt-1) debug(", ");
+inline void fn_ret(void) {
+
+    if (current->fntop>0) {
+        dump_memchg(0);
+        invalidate_mem();
+        current->fntop--;
+        return;
     }
-}
-
-inline void warn_opt(int d, int p) {
-    if (d!=p) {
-        current->bopt++;
-        if (!current->Owarn) {
-            current->Owarn=1;
-            debug(""
-                    "**********************************************************\n"
-                    "* This function is supposed to have different number of  *\n"
-                    "* parameters than I've detected. Because this particular *\n"
-                    "* library call is known to me, it will be displayed      *\n"
-                    "* properly - however, parameter number auto-detection    *\n"
-                    "* for unknown library calls and local functions might be *\n"
-                    "* inaccurate. This is very likely to be a result of high *\n"
-                    "* optimization of traced binary. Try documentation.      *\n"
-                    "**********************************************************\n");
-        }
-    } else current->gopt++;
-}
-
-/*****************************************
- * Try to find a match for this function *
- *****************************************/
-
-inline void display_specific(void) {
-
-    char n[MAXDESCR];
-    char* f=current->lcname;
-    char buf[MAXDESCR];
-    char b2[MAXDESCR];
-
-    if (current->idtop)
-        sprintf(n,"L %s:%s",lookup_fnct((*current->fnaddr)[current->idtop-1],0,1),f);
-    else sprintf(n,"L main:%s",f);
-
-    debug("L %s (",f);
-
-    RD();
-
-    if (!strcmp(f,"strlen")) {
-        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
-        debug(" = %d\n",(int)r.eax);
-        DD();
-        warn_opt(1,current->lcpcnt);
-        add_mem(current->lcpar[0],r.eax+1,0,n,0);
-    }
-
-    else if (!strcmp(f,"malloc")) {
-        debug("%d)",current->lcpar[0]);
-        debug(" = %x\n",(int)r.eax);
-        DD();
-        warn_opt(1,current->lcpcnt);
-        if (r.eax) add_mem(r.eax,current->lcpar[0],0,n,1);
-    }
-
-    else if (!strcmp(f,"strdup")) {
-        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
-        debug(" = %x\n",(int)r.eax);
-        DD();
-        warn_opt(1,current->lcpcnt);
-        if (r.eax) add_mem(r.eax,strlen(buf),0,n,1);
-    }
-
-    else if (!strcmp(f,"calloc")) {
-        debug("%d, %d)",current->lcpar[0],current->lcpar[1]);
-        debug(" = %x\n",(int)r.eax);
-        DD();
-        warn_opt(2,current->lcpcnt);
-        if (r.eax) add_mem(r.eax,current->lcpar[0]*current->lcpar[1],0,n,1);
-    }
-
-    else if (!strcmp(f,"realloc")) {
-        debug("%x, %d)",Xv(current->lcpar[0]),current->lcpar[1]);
-        debug(" = %x\n",(int)r.eax);
-        DD();
-        warn_opt(2,current->lcpcnt);
-        if (current->lcpar[0]) {
-            if (r.eax) add_mem(current->lcpar[0],current->lcpar[1],r.eax,n,1);
-        } else {
-            if (r.eax) add_mem(r.eax,current->lcpar[1],0,n,1);
-        }
-    }
-
-    else if (!strcmp(f,"free")) {
-        debug("%x) = <void>\n",Xv(current->lcpar[0]));
-        DD();
-        warn_opt(1,current->lcpcnt);
-        delete_mem(current->lcpar[0],1);
-    }
-
-    else if (!strcmp(f,"getenv")) {
-        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        if (r.eax) get_string_from_child(r.eax,b2,sizeof(buf));
-        debug("%x \"%s\") = %x",Xv(current->lcpar[0]),buf,(int)r.eax);
-        if (r.eax) debug("\"%s\"\n",b2); else debug("\n");
-        DD();
-        warn_opt(1,current->lcpcnt);
-        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
-        add_mem(r.eax,strlen(b2)+1,0,n,0);
-    }
-
-    else if (!strcmp(f,"atexit")) {
-        debug("%x) = %d\n",Xv(current->lcpar[0]),(int)r.eax);
-        DD();
-        debug("*******************************************************\n"
-                "* In some cases, atexit() statement can be not traced *\n"
-                "* properly (see documentation).                       *\n"
-                "*******************************************************\n");
-        warn_opt(1,current->lcpcnt);
-    }
-
-    else if (!strcmp(f,"strcpy")) {
-        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        debug("%x, %x \"%s\") = %x\n",Xv(current->lcpar[0]),
-                Xv(current->lcpar[1]),b2,(int)r.eax);
-        DD();
-        warn_opt(2,current->lcpcnt);
-        add_mem(current->lcpar[0],strlen(b2)+1,0,n,0);
-        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
-        modify_lasti(current->lcpar[0],n,0,0,0);
-        indent(0);
-        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
-    }
-
-    else if (!strcmp(f,"memcpy") || !strcmp(f,"memmove")) {
-        debug("%x, %x, %d) = %x\n",Xv(current->lcpar[0]),
-                Xv(current->lcpar[1]),current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
-        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
-        modify_lasti(current->lcpar[0],n,0,0,0);
-        indent(0);
-        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
-    }
-
-    else if (!strcmp(f,"memset")) {
-        debug("%x, %x, %d) = %x\n",Xv(current->lcpar[0]),
-                current->lcpar[1],current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
-        modify_lasti(current->lcpar[0],n,0,0,0);
-        indent(0);
-    }
-
-    else if (!strcmp(f,"bzero")) {
-        debug("%x, %d) = %x\n",Xv(current->lcpar[0]),
-                current->lcpar[1],(int)r.eax);
-        DD();
-        warn_opt(2,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[1],0,n,0);
-        modify_lasti(current->lcpar[0],n,0,0,0);
-    }
-
-    else if (!strcmp(f,"bcopy")) {
-        debug("%x, %x, %d) = %x\n",Xv(current->lcpar[0]),
-                Xv(current->lcpar[1]),current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
-        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
-        modify_lasti(current->lcpar[1],n,0,0,0);
-        indent(0);
-        debug("\\ data migration: %x to %x\n",current->lcpar[0],current->lcpar[1]);
-    }
-
-    else if (!strcmp(f,"memcmp") || !strcmp(f,"bcmp")) {
-        debug("%x, %x, %d) = %x\n",Xv(current->lcpar[0]),
-                Xv(current->lcpar[1]),current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
-        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
-    }
-
-    else if (!strcmp(f,"getc")) {
-        FILE x;
-        int fd;
-        int off=((int)&x._fileno - (int)&x);
-        fd=ptrace(PTRACE_PEEKDATA,pid,current->lcpar[0]+off,0);
-        debug("%x [%d]) = '%c' %d\n",Xv(current->lcpar[0]),
-                Xf(fd),isprint(r.eax)?(int)r.eax:'?',(int)r.eax);
-        DD();
-        warn_opt(1,current->lcpcnt);
-        add_mem(current->lcpar[0],sizeof(x),0,n,0);
-    }
-
-    else if (!strcmp(f,"strcmp")) {
-        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        debug("%x \"%s\", %x \"%s\") = %x\n",current->lcpar[0],buf,
-                current->lcpar[1],b2,(int)r.eax);
-        DD();
-        warn_opt(2,current->lcpcnt);
-        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
-        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
-    }
-
-    else if (!strcmp(f,"strncmp")) {
-        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        debug("%x \"%s\", %x \"%s\", %d) = %x\n",Xv(current->lcpar[0]),buf,
-                Xv(current->lcpar[1]),b2,current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
-        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
-    }
-
-    else if (!strcmp(f,"strncpy")) {
-        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        debug("%x, %x \"%s\", %d) = %x\n",Xv(current->lcpar[0]),
-                Xv(current->lcpar[1]),b2,current->lcpar[2],(int)r.eax);
-        DD();
-        warn_opt(3,current->lcpcnt);
-        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
-        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
-        modify_lasti(current->lcpar[0],n,0,0,0);
-        indent(0);
-        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
-    }
-
-    else fatal("display_specific called on something non-specific",0);
-
-    RD();
-
-}
-
-/*****************************************************************
- * Check if we handle this one separately, save all the stuff... *
- *****************************************************************/
-
-inline char check_specific(char* n,unsigned int esP,int pcnt) {
-    int i;
-
-    if (strcmp(n,"strlen"))
-        if (strcmp(n,"getenv"))
-            if (strcmp(n,"strcpy"))
-                if (strcmp(n,"memcpy"))
-                    if (strcmp(n,"strdup"))
-                        if (strcmp(n,"calloc"))
-                            if (strcmp(n,"malloc"))
-                                if (strcmp(n,"realloc"))
-                                    if (strcmp(n,"free"))
-                                        if (strcmp(n,"getc"))
-                                            if (strcmp(n,"strcmp"))
-                                                if (strcmp(n,"strncmp"))
-                                                    if (strcmp(n,"strncpy"))
-                                                        if (strcmp(n,"atexit"))
-                                                            if (strcmp(n,"memmove"))
-                                                                if (strcmp(n,"memset"))
-                                                                    if (strcmp(n,"bzero"))
-                                                                        if (strcmp(n,"bcopy"))
-                                                                            if (strcmp(n,"memcmp"))
-                                                                                if (strcmp(n,"bcmp"))
-
-                                                                                    return 0;
-
-    strncpy(current->lcname,n,MAXNAME);
-    current->lcpcnt=pcnt;
-
-    for (i=0;i<MAXPARS;i++)
-        current->lcpar[i]=ptrace(PTRACE_PEEKDATA,pid,esP+i*4,0);
-
-    return 1;
-
-}
-
-/*********************
- * Clean up old mess *
- *********************/
-
-void remove_process(void) {
-    int i;
-
-    if (!current)
-        fatal("trying to remove process but current is NULL",0);
-
-    if (current->gopt+current->bopt)
-        debug("+++ Parameter prediction %0.2f%% successful [%d:%d] +++\n",100.0*((float)current->gopt)/((float)(current->gopt+current->bopt)),current->bopt,current->gopt);
-
-    if (T_dostep) break_exitcond();
-
-    for (i=0;i<MAXNEST;i++) {
-        if (current->wlog[i]) free(current->wlog[i]);
-    }
-
-    if (current->mem) {
-        int i;
-        for (i=0;i<current->memtop;i++)
-            if ((*current->mem)[i].descr) free((*current->mem)[i].descr);
-        for (i=0;i<current->memtop;i++)
-            if ((*current->mem)[i].lasti) free((*current->mem)[i].lasti);
-        free(current->mem);
-    }
-
-    if (current->b) bfd_close(current->b);
-    if (current->syms) free(current->syms);
-
-    if (current->map) {
-        int i;
-        for (i=0;i<current->mtop+1;i++) {
-            if ((*current->map)[i].name) free((*current->map)[i].name);
-            if ((*current->map)[i].descr) free((*current->map)[i].descr);
-            if ((*current->map)[i].lasti) free((*current->map)[i].lasti);
-        }
-        free(current->map);
-    }
-
-    if (current->fd) {
-        int i;
-        for (i=0;i<current->fdtop;i++) {
-            if ((*current->fd)[i].name) free((*current->fd)[i].name);
-            if ((*current->fd)[i].descr) free((*current->fd)[i].descr);
-        }
-        free(current->fd);
-    }
-
-    if (current->fnaddr) free(current->fnaddr);
-    bzero(current,sizeof(struct fenris_process));
-    current=0;
-
-}
-
-/********************************************
- * Duplicate some structures. I do not even *
- * want to think how would it look like for *
- * partially shared process info (clone()). *
- ********************************************/
-
-void clone_process(const int newpid) {
-    int i;
-    struct fenris_process *p;
-
-    if (!current)
-        fatal("trying to clone process but current is NULL",0);
-
-    p=current;
-    add_process(newpid);
-    memcpy(current,p,sizeof(struct fenris_process));
-    current->pid=newpid;
-    current->syscall=0;
-
-    for (i=0;i<MAXNEST;i++) {
-        if (current->wlog[i]) current->wlog[i]=strdup(current->wlog[i]);
-    }
-
-    if (current->mem) {
-        int i;
-        current->mem=malloc((1+TABINC+current->memtop)*sizeof(struct fenris_mem));
-        memcpy(current->mem,p->mem,(1+TABINC+current->memtop)*sizeof(struct fenris_mem));
-        for (i=0;i<current->memtop;i++) {
-            if ((*p->mem)[i].descr) (*current->mem)[i].descr=strdup((*p->mem)[i].descr);
-            if ((*p->mem)[i].lasti) (*current->mem)[i].lasti=strdup((*p->mem)[i].lasti);
-        }
-    }
-
-    if (current->map) {
-        int i;
-        current->map=malloc((1+TABINC+current->mtop)*sizeof(struct fenris_map));
-        memcpy(current->map,p->map,(1+TABINC+current->mtop)*sizeof(struct fenris_map));
-        for (i=0;i<current->mtop;i++) {
-            if ((*p->map)[i].descr) (*current->map)[i].descr=strdup((*p->map)[i].descr);
-            if ((*p->map)[i].name) (*current->map)[i].name=strdup((*p->map)[i].name);
-            if ((*p->map)[i].lasti) (*current->map)[i].lasti=strdup((*p->map)[i].lasti);
-        }
-    }
-
-    if (current->fd) {
-        int i;
-        current->fd=malloc((1+TABINC+current->fdtop)*sizeof(struct fenris_fd));
-        memcpy(current->fd,p->fd,(TABINC+current->fdtop+1)*sizeof(struct fenris_fd));
-        for (i=0;i<current->fdtop;i++) {
-            if ((*p->fd)[i].descr) (*current->fd)[i].descr=strdup((*p->fd)[i].descr);
-            if ((*p->fd)[i].name) (*current->fd)[i].name=strdup((*p->fd)[i].name);
-        }
-    }
-
-    if (current->fnaddr) {
-        current->fnaddr=malloc((1+TABINC+current->idtop)*sizeof(int));
-        memcpy(current->fnaddr,p->fnaddr,current->idtop*sizeof(int));
-    }
-
-    current->b=0; current->syms=0;
-
-    current=p;
-
-}
-
-/*********************************
- * Get string from ptraced child *
- *********************************/
-
-inline void get_string_from_child(const unsigned int addr, char* buf,int max) {
-    int i=0;
-    char *b=buf;
-
-    while (b<buf+max) {
-        AS_UINT(*b)=ptrace(PTRACE_PEEKDATA,pid,addr+i,0);
-
-        if (AS_UINT(*b)==-1) {
-            *b=0;
-            return; // Lame, but what can I do? For strings, acceptable.
-        }
-
-        if (b[0] && ((!isprint(b[0])) || (b[0]=='"'))) b[0]='?';
-        if (b[1] && ((!isprint(b[1])) || (b[1]=='"'))) b[1]='?';
-        if (b[2] && ((!isprint(b[2])) || (b[2]=='"'))) b[2]='?';
-        if (b[3] && ((!isprint(b[3])) || (b[3]=='"'))) b[3]='?';
-        if (!(b[0] && b[1] && b[2] && b[3])) return;
-        b+=4; i+=4;
-    }
-
-    buf[max-1]=0;
-
-}
-
-inline int issuit(const char c) {
-    if (isprint(c)) return 1;
-    if (/*c=='\n' || */ c=='\t') return 1;
-    return 0;
-}
-
-inline void print_string(const unsigned int addr,const char* where) {
-    char b[5] = {0,0,0,0,0};
-    int miau=0;
-    AS_UINT(b) = ptrace(PTRACE_PEEKDATA,pid,addr,0);
-    if (issuit(b[0]) && issuit(b[1]) && issuit(b[2]) && issuit(b[3])) {
-        debug(" \"%s",b);
-        miau=4;
-        while (strlen(b)==4) {
-            AS_UINT(b) = ptrace(PTRACE_PEEKDATA,pid,addr+miau,0);
-            if (b[0] && !isprint(b[0])) b[0]='?';
-            if (b[1] && !isprint(b[1])) b[1]='?';
-            if (b[2] && !isprint(b[2])) b[2]='?';
-            if (b[3] && !isprint(b[3])) b[3]='?';
-            if (miau<MAXUNKNOWN) debug("%s",b);
-            miau+=strlen(b);
-        }
-        debug("\"");
-        if (miau>=MAXUNKNOWN) debug("...");
-    }
-    if (miau) add_mem(addr,miau+1,2,where,0);
-}
-
-/****************************
- * Get memory from child :> *
- ****************************/
-
-inline void get_mem_from_child(const unsigned int addr,
-        char* buf,int max) {
-    int i=0;
-    char *b=buf;
-
-    while (max % 4) max--;
-
-    while (b<buf+max) {
-        AS_UINT(*b)=ptrace(PTRACE_PEEKDATA,pid,addr+i,0);
-        b+=4; i+=4;
-    }
-
-}
-
-/*******************
- * Check for error *
- *******************/
-
-char errbuf[64];
-
-inline char* toerror(int q) {
-    if (q<0) sprintf(errbuf,"%d (%s)",q,strerror(-q));
-    else sprintf(errbuf,"%d",q);
-    return errbuf;
-}
-
-/************************
- * Quick fork() handler *
- ************************/
-
-void trace_fork(void) {
-
-    int p=0,q=0,off,ser;
-    struct user u;
-
-    off=(unsigned int)&u.regs.eax - (unsigned int)&u;
-    errno=1234;
-    // This is the speed zone.
-    ptrace(PTRACE_SINGLESTEP,pid,1,0);
-    while (errno) p=ptrace(PTRACE_PEEKUSER,pid,off, errno=0);
-    if (p>0) q=ptrace(PTRACE_ATTACH,p,0,0);
-    // End of speed zone.
-
-    ser=errno;
-    indent(0);
-    debug("%sfork () = %s\n",in_libc?"[L] ":"",toerror((int)p));
-
-    if (q) fatal("PTRACE_ATTACH failed",ser);
-    debug("+++ New process %d attached +++\n",p);
-    clone_process(p);
-    r.eax=p;
-
-}
-
-/****************************************************
- * Handle int $0x80 calls - no matter why and where *
- ****************************************************/
-
-inline void want_ret(void) {
-    current->syscall=r.eax;
-    memcpy(&current->pr,&r,sizeof(r));
-}
-
-/********************
- * "Before" handler *
- ********************/
-
-void handle_syscall(void) {
-    char buf[MAXFNAME];
-    unsigned int addr;
-
-    if (current->nest>=-1) current->syscalls++;
-
-    switch (r.eax) {
-
-        case __NR_clone:
-
-            debug("***************************************************************\n"
-                    "* This application uses clone(). This is probably  a sign of  *\n"
-                    "* multi-threaded application. Multi-threading involves shared *\n"
-                    "* memory segments, file descriptors and such, and I am not    *\n"
-                    "* able to handle it properly for now. Sorry...                *\n"
-                    "***************************************************************\n");
-
-            fatal("clone() is not supported",0);
-
-            break;
-
-        case __NR_fork:
-#ifdef __NR_vfork
-        case __NR_vfork:
-#endif /* __NR_vfork */
-
-            if (T_forks) trace_fork(); else {
-                remove_traps();
-                want_ret();
-            }
-            break;
-
-        case __NR_exit:
-
-            indent(0);
-            debug("%sSYS exit (%d) = ???\n",in_libc?"[L] ":"",
-                    (int)r.ebx);
-
-            while (--current->nest>= -1 ) {
-                indent(0);
-                debug("...function never returned (program exited before).\n");
-                if (current->nest<0 || current->isfnct[current->nest]) {
-                    dump_memchg(0);
-                    if (current->fntop) current->fntop--;
-                }
-                if (T_dostep) break_nestdown();
-            }
-
-            break;
-
-        case __NR_execve:
-
-            indent(0);
-
-            get_string_from_child(r.ebx,buf,MAXFNAME);
-
-            RD();
-
-            debug("%sSYS execve (%x \"%s\", 0x%x, 0x%x) = ",in_libc?"[L] ":"",
-                    Xv(r.ebx),buf,Xv(r.ecx),Xv(r.edx));
-
-            DD();
-
-            current->syscall=__NR_execve;
-            break;
-
-        case __NR_sigaction:
-#ifdef __NR_rt_sigaction
-        case __NR_rt_sigaction:
-#endif /* __NR_rt_sigaction */
-
-            // Modify address in memory structure.
-            addr=ptrace(PTRACE_PEEKDATA,pid,r.ecx,0);
-
-            if (!addr) break;
-
-            if ((addr >> 24) == CODESEG)
-                ptrace(PTRACE_POKEDATA,pid,r.ecx,addr-1);
-            else break;
-
-            goto aftersig;
-
-        case __NR_signal:
-
-            // Simply adjust address in register.
-            addr=r.ecx;
-
-            if (!addr) break;
-            if ((addr >> 24) == CODESEG || INLIBC(addr)) r.ecx--;
-            else break;
-
-            ptrace(PTRACE_SETREGS,pid,0,&r);
-            r.ecx++;
-            // So __NR_signal handler won't have to do anything.
-
-aftersig:
-
-            // Inject int3 into code.
-            if (addr)
-                if ((addr >> 24) == CODESEG || INLIBC(addr)) {
-                    unsigned int chg,c2;
-                    chg=ptrace(PTRACE_PEEKDATA,pid,addr-1,0);
-                    if ((current->signals < r.ebx) && (r.ebx < MAXSIG))
-                        current->signals=r.ebx;
-
-                    if (((chg & 0xff) != 0x90) && ((chg & 0xff) != 0xc3) && ((chg & 0xff) != 0xcc)) {
-                        c2=ptrace(PTRACE_PEEKDATA,pid,addr-3,0);
-                        if ((c2 & 0xffffff) != 0x00768d) // Stupid gcc -O9 lea
-                            debug("* WARNING: Handler for sig %d (%x) w/o leading NOP or RET, problems!\n",(int)r.ebx,addr);
-                    }
-
-                    if ((chg & 0xff) == 0xc3) set_withret(r.ebx,1); else
-                        if ((chg & 0xff) == 0x90) set_withret(r.ebx,0);
-                    chg = ( chg & 0xffffff00 ) + 0xcc; /* cc: int3 */
-                    ptrace(PTRACE_POKEDATA,pid,addr-1,chg);
-
-                }
-
-        default:
-            want_ret();
-
-    }
-
-    if (T_dostep && current) {
-        fflush(0);
-        break_syscall(r.eax);
-    }
-
-}
-
-/************************
- * Add item to fd table *
- ************************/
-
-void add_filedes(const int fd,const char* fname,char* who,int p) {
-
-    char tmpbuf[MAXDESCR];
-
-    if (!current->fd) {
-        current->fd=malloc(TABINC*sizeof(struct fenris_fd));
-        current->fdtop=TABINC;
-    }
-
-    while (current->fdtop<=fd) {
-        current->fdtop+=TABINC;
-        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
-    }
-
-    (*current->fd)[fd].special=0;
-    (*current->fd)[fd].name=strdup(fname);
-
-    snprintf(tmpbuf,MAXDESCR,"opened in %s",who);
-
-    (*current->fd)[fd].descr=strdup(tmpbuf);
-    (*current->fd)[fd].p=p;
-
-    if (current->nest>=-1 && !T_nodesc) {
-        indent(0);
-        debug("@ created fd %d (%s)\n",fd,fname);
-    }
-
-}
-
-/***********************
- * Add unknown filedes *
- ***********************/
-
-void unknown_filedes(const int fd,const char* fname) {
-
-    char tmpbuf[MAXDESCR];
-
-    if (!current->fd) {
-        current->fd=malloc(TABINC*sizeof(struct fenris_fd));
-        current->fdtop=TABINC;
-    }
-
-    while (current->fdtop<=fd) {
-        current->fdtop+=TABINC;
-        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
-    }
-
-    (*current->fd)[fd].special=0;
-    (*current->fd)[fd].name=strdup(fname);
-
-    snprintf(tmpbuf,MAXDESCR,"origin unknown");
-
-    (*current->fd)[fd].descr=strdup(tmpbuf);
-    (*current->fd)[fd].p=0;
-
-}
-
-/**********************
- * Duplicate filedes. *
- **********************/
-
-void dup_filedes(const int old,const int fd,char* who) {
-    char tmpbuf[MAXDESCR];
-
-    if (current->fdtop<=old) fatal("dup_filedes with excessive fd",0);
-    if (old<0 || fd<0) fatal("dup_filedes with excessive fd",0);
-
-    while (current->fdtop<=fd) {
-        current->fdtop+=TABINC;
-        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
-    }
-
-    if ((*current->fd)[fd].name) {
-        RD(); Xf(fd); DD();
-        remove_filedes(fd);
-    }
-
-    if (!(*current->fd)[old].name) (*current->fd)[fd].name=strdup("<unknown>");
-    else (*current->fd)[fd].name=strdup((*current->fd)[old].name);
-
-    snprintf(tmpbuf,MAXDESCR,"cloned in %s",who);
-    (*current->fd)[fd].descr=strdup(tmpbuf);
-    (*current->fd)[fd].p=(*current->fd)[old].p;
-
-    if (current->nest>=-1 && !T_nodesc) {
-        indent(0);
-        debug("@ new duplicate fd %d from %d (%s)\n",fd,old,(*current->fd)[fd].name);
-    }
-
-}
-
-/*****************************
- * Remove item from fd table *
- *****************************/
-
-void remove_filedes(const int fd) {
-
-    if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name) {
-
-        if (current->nest>=-1 && !T_nodesc) {
-            indent(0);
-            debug("@ removed fd %d (%s)\n",fd,(*current->fd)[fd].name);
-        }
-
-        free((*current->fd)[fd].name);
-        free((*current->fd)[fd].descr);
-        (*current->fd)[fd].name=0;
-        (*current->fd)[fd].descr=0;
-
-    }
-
-}
-
-/***********************
- * Change filedes info *
- ***********************/
-
-void modify_filedes(const int fd,const char* newt, int newp) {
-
-    if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name) {
-
-        if (newt) {
-            free((*current->fd)[fd].name);
-            (*current->fd)[fd].name=strdup(newt);
-        }
-
-        if (newp) (*current->fd)[fd].p=newp;
-
-    }
-
-}
-
-/***************************
- * Get .p parameter (port) *
- ***************************/
-
-int get_filep(const int fd) {
-
-    if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name)
-        return (*current->fd)[fd].p;
-
-    return 0;
 
 }
 
@@ -2489,13 +1776,13 @@ int get_filep(const int fd) {
 void add_map(const int fd,const unsigned int addr,
         const unsigned int len,char* who) {
 
-    int i;
+    unsigned int i;
     char* file;
     char* descr="<ERROR>";
     char tmpbuf[MAXDESCR];
 
     if (fd>0)
-        if (fd>=current->fdtop) fatal("excessive fd in add_map",0);
+        if ((unsigned int)fd>=current->fdtop) fatal("excessive fd in add_map",0);
 
     if (!current->map)
         current->map=malloc(TABINC*sizeof(struct fenris_map));
@@ -2562,12 +1849,965 @@ void add_ldmap(void) {
     fatal("cannot find ld-linux.so.2 in /proc/self/maps",0);
 }
 
+/******************************
+ * Add new pupils to ps table *
+ ******************************/
+
+void add_process(const int mpid) {
+    int i;
+
+    for (i=0;i<MAXCHILDREN;i++)
+
+        if (!ps[i].pid) {
+            bzero(&ps[i],sizeof(struct fenris_process));
+            ps[i].pid=mpid;
+            ps[i].nest=innest;
+            ps[i].is_static=is_static;
+            current=&ps[i];
+            add_ldmap();
+            return;
+        }
+
+    fatal("too many child processes (table overflow)",0);
+
+}
+
+inline int issuit(const char c) {
+    if (isprint(c)) return 1;
+    if (/*c=='\n' || */ c=='\t') return 1;
+    return 0;
+}
+
+inline void print_string(const unsigned int addr,const char* where) {
+    char b[5] = {0,0,0,0,0};
+    int miau=0;
+    AS_UINT(b) = ptrace(PTRACE_PEEKDATA,pid,addr,0);
+    if (issuit(b[0]) && issuit(b[1]) && issuit(b[2]) && issuit(b[3])) {
+        debug(" \"%s",b);
+        miau=4;
+        while (strlen(b)==4) {
+            AS_UINT(b) = ptrace(PTRACE_PEEKDATA,pid,addr+miau,0);
+            if (b[0] && !isprint(b[0])) b[0]='?';
+            if (b[1] && !isprint(b[1])) b[1]='?';
+            if (b[2] && !isprint(b[2])) b[2]='?';
+            if (b[3] && !isprint(b[3])) b[3]='?';
+            if (miau<MAXUNKNOWN) debug("%s",b);
+            miau+=strlen(b);
+        }
+        debug("\"");
+        if (miau>=MAXUNKNOWN) debug("...");
+    }
+    if (miau) add_mem(addr,miau+1,2,where,0);
+}
+
+/********************************
+ * Describe function parameters *
+ ********************************/
+
+inline void display_value(const unsigned int q,const char* where) {
+
+    if ((q >> 24) == CODESEG)       debug("g/%x",q); // global
+    else if ((q >> 24) == STACKSEG) debug("l/%x",q); // local
+    else if (INLIBC(q))  debug("s/%x",q); // shared
+    else debug("%d",q);
+
+    add_pdescr(q);
+    print_string(q,where);
+
+}
+
+inline char* get_addrdescr(const unsigned int q) {
+    int miau=1;
+    char tmp[MAXDESCR];
+    static char ret[MAXDESCR];
+    struct fenris_map* ma=0;
+    struct fenris_mem* me=0;
+
+    ret[0]=0;
+
+    if (miau) {
+        me=lookup_mem(q);
+        if (me) {
+            if (!tmp[0]) {
+                snprintf(tmp,MAXDESCR,"+ %x = %x:%d <off %d> (%s)\n",q,
+                        me->addr,me->len,q-me->addr,me->descr);
+                nappend(ret,tmp,MAXPDESC);
+            } else {
+                sprintf(tmp,":%d\n",me->len);
+                pdescr[strlen(pdescr)-1]=0;
+                nappend(ret,tmp,MAXPDESC);
+            }
+            if (me->lasti) {
+                snprintf(tmp,MAXDESCR,"  last input: %s\n",me->lasti);
+                nappend(ret,tmp,MAXPDESC);
+            }
+        }
+        if (!me) ma=lookup_map(q);
+        if (ma) {
+            if (!tmp[0]) {
+                snprintf(tmp,MAXDESCR,"+ %x = map %x:%d <off %d> (%s)\n",q,
+                        ma->addr,ma->len,q-ma->addr,ma->descr);
+                nappend(ret,tmp,MAXPDESC);
+            }
+            if (ma->lasti) {
+                snprintf(tmp,MAXDESCR,"  last input: %s\n",ma->lasti);
+                nappend(ret,tmp,MAXPDESC);
+            }
+        }
+    }
+
+    // Last resort: try do determine where does it point on stack, if
+    // it does point there.
+
+    if ((q >> 24) == STACKSEG) {
+        unsigned int i;
+        for (i=1;i<=current->fntop;i++) {
+            if (q >= current->frstart[i])
+                if (q < current->frend[i]) {
+                    sprintf(tmp,"+ l/%x (maxsize %d) = stack of fcnt_%d (%d down)\n",
+                            q,current->frend[i]-q,current->fnid[i],current->fntop-i);
+
+                    nappend(ret,tmp,MAXPDESC);
+                }
+        }
+    }
+
+    return ret;
+
+}
+
+inline char* get_fddescr(const int fd) {
+    char tmp[MAXDESCR];
+    static char ret[MAXDESCR];
+
+    ret[0]=0;
+
+    if ((fd<0) || ((unsigned int)fd>=current->fdtop) || !((*current->fd)[fd].name)) {
+        char buf[100];
+        sprintf(buf,"/proc/%d/fd/%d",current->pid,fd);
+        if (fd==0 || fd==1 || fd==2 || !access(buf,F_OK)) {
+            char b[1024];
+            bzero(b,sizeof(b));
+            readlink(buf,b,1000);
+            sprintf(tmp,"+ fd %d: \"%s\", origin unknown\n",fd,b);
+            nappend(ret,tmp,MAXPDESC);
+            return ret;
+        }
+        return "";
+    }
+
+    sprintf(tmp,"+ fd %d: \"%s\", %s\n",fd,(*current->fd)[fd].name,
+            (*current->fd)[fd].descr);
+
+    nappend(ret,tmp,MAXPDESC);
+    return ret;
+
+}
+
+/*********************************
+ * Read stack and display params *
+ *********************************/
+
+inline void display_fparams(unsigned int esP,int pcnt,const char* where) {
+    int i;
+    unsigned int q;
+    pdescr[0]=0;
+    for (i=0;i<pcnt;i++) {
+        q=ptrace(PTRACE_PEEKDATA,pid,esP+4*i,0);
+        display_value(q,where);
+        if (i!=pcnt-1) debug(", ");
+    }
+}
+
+inline void warn_opt(int d, int p) {
+    if (d!=p) {
+        current->bopt++;
+        if (!current->Owarn) {
+            current->Owarn=1;
+            debug(""
+                    "**********************************************************\n"
+                    "* This function is supposed to have different number of  *\n"
+                    "* parameters than I've detected. Because this particular *\n"
+                    "* library call is known to me, it will be displayed      *\n"
+                    "* properly - however, parameter number auto-detection    *\n"
+                    "* for unknown library calls and local functions might be *\n"
+                    "* inaccurate. This is very likely to be a result of high *\n"
+                    "* optimization of traced binary. Try documentation.      *\n"
+                    "**********************************************************\n");
+        }
+    } else current->gopt++;
+}
+
+/*********************************
+ * Get string from ptraced child *
+ *********************************/
+
+inline void get_string_from_child(const unsigned int addr, char* buf,int max) {
+    int i=0;
+    char *b=buf;
+
+    while (b<buf+max) {
+        AS_UINT(*b)=ptrace(PTRACE_PEEKDATA,pid,addr+i,0);
+
+        //FIXME: no, really.. how does an UINT == -1?
+        /*
+         * if (AS_UINT(*b)==-1) {
+         *     *b=0;
+         *     return; // Lame, but what can I do? For strings, acceptable.
+         * }
+         */
+
+        if (b[0] && ((!isprint(b[0])) || (b[0]=='"'))) b[0]='?';
+        if (b[1] && ((!isprint(b[1])) || (b[1]=='"'))) b[1]='?';
+        if (b[2] && ((!isprint(b[2])) || (b[2]=='"'))) b[2]='?';
+        if (b[3] && ((!isprint(b[3])) || (b[3]=='"'))) b[3]='?';
+        if (!(b[0] && b[1] && b[2] && b[3])) return;
+        b+=4; i+=4;
+    }
+
+    buf[max-1]=0;
+
+}
+
+/*****************************************
+ * Try to find a match for this function *
+ *****************************************/
+
+inline void display_specific(void) {
+
+    char n[MAXDESCR];
+    char* f=(char*)current->lcname;
+    char buf[MAXDESCR];
+    char b2[MAXDESCR];
+
+    if (current->idtop)
+        sprintf(n,"L %s:%s",lookup_fnct((*current->fnaddr)[current->idtop-1],0,1),f);
+    else sprintf(n,"L main:%s",f);
+
+    debug("L %s (",f);
+
+    pdescr[0]=0;
+
+    if (!strcmp(f,"strlen")) {
+        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
+        debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
+        //FIXME: 64bit
+        debug(" = %lld\n",r.rax);
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        //FIXME: 64bit
+        add_mem(current->lcpar[0],r.rax+1,0,n,0);
+    }
+
+    else if (!strcmp(f,"malloc")) {
+        debug("%d)",current->lcpar[0]);
+        //FIXME: 64bit
+        debug(" = %llx\n",r.rax);
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        //FIXME: 64bit
+        if (r.rax) add_mem(r.rax,current->lcpar[0],0,n,1);
+    }
+
+    else if (!strcmp(f,"strdup")) {
+        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
+        debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
+        //FIXME: 64bit
+        debug(" = %llx\n",r.rax);
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        //FIXME: 64bit
+        if (r.rax) add_mem(r.rax,strlen(buf),0,n,1);
+    }
+
+    else if (!strcmp(f,"calloc")) {
+        debug("%d, %d)",current->lcpar[0],current->lcpar[1]);
+        //FIXME: 64bit
+        debug(" = %llx\n",r.rax);
+        dump_pdescr(0);
+        warn_opt(2,current->lcpcnt);
+        //FIXME: 64bit
+        if (r.rax) add_mem(r.rax,current->lcpar[0]*current->lcpar[1],0,n,1);
+    }
+
+    else if (!strcmp(f,"realloc")) {
+        debug("%x, %d)",Xv(current->lcpar[0]),current->lcpar[1]);
+        //FIXME: 64bit
+        debug(" = %llx\n",r.rax);
+        dump_pdescr(0);
+        warn_opt(2,current->lcpcnt);
+        if (current->lcpar[0]) {
+            //FIXME: 64bit
+            if (r.rax) add_mem(current->lcpar[0],current->lcpar[1],r.rax,n,1);
+        } else {
+            //FIXME: 64bit
+            if (r.rax) add_mem(r.rax,current->lcpar[1],0,n,1);
+        }
+    }
+
+    else if (!strcmp(f,"free")) {
+        debug("%x) = <void>\n",Xv(current->lcpar[0]));
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        delete_mem(current->lcpar[0],1);
+    }
+
+    else if (!strcmp(f,"getenv")) {
+        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
+        //FIXME: 64bit
+        if (r.rax) get_string_from_child(r.rax,b2,sizeof(buf));
+        //FIXME: 64bit
+        debug("%x \"%s\") = %llx",Xv(current->lcpar[0]),buf,r.rax);
+        //FIXME: 64bit
+        if (r.rax) debug("\"%s\"\n",b2); else debug("\n");
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
+        //FIXME: 64bit
+        add_mem(r.rax,strlen(b2)+1,0,n,0);
+    }
+
+    else if (!strcmp(f,"atexit")) {
+        //FIXME: 64bit
+        debug("%x) = %lld\n",Xv(current->lcpar[0]),r.rax);
+        dump_pdescr(0);
+        debug("*******************************************************\n"
+                "* In some cases, atexit() statement can be not traced *\n"
+                "* properly (see documentation).                       *\n"
+                "*******************************************************\n");
+        warn_opt(1,current->lcpcnt);
+    }
+
+    else if (!strcmp(f,"strcpy")) {
+        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
+        //FIXME: 64bit
+        debug("%x, %x \"%s\") = %llx\n",Xv(current->lcpar[0]),
+                Xv(current->lcpar[1]),b2,r.rax);
+        dump_pdescr(0);
+        warn_opt(2,current->lcpcnt);
+        add_mem(current->lcpar[0],strlen(b2)+1,0,n,0);
+        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
+        modify_lasti(current->lcpar[0],n,0,0,0);
+        indent(0);
+        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
+    }
+
+    else if (!strcmp(f,"memcpy") || !strcmp(f,"memmove")) {
+        //FIXME: 64bit
+        debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
+                Xv(current->lcpar[1]),current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
+        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
+        modify_lasti(current->lcpar[0],n,0,0,0);
+        indent(0);
+        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
+    }
+
+    else if (!strcmp(f,"memset")) {
+        //FIXME: 64bit
+        debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
+                current->lcpar[1],current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
+        modify_lasti(current->lcpar[0],n,0,0,0);
+        indent(0);
+    }
+
+    else if (!strcmp(f,"bzero")) {
+        //FIXME: 64bit
+        debug("%x, %d) = %llx\n",Xv(current->lcpar[0]),
+                current->lcpar[1],r.rax);
+        dump_pdescr(0);
+        warn_opt(2,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[1],0,n,0);
+        modify_lasti(current->lcpar[0],n,0,0,0);
+    }
+
+    else if (!strcmp(f,"bcopy")) {
+        //FIXME: 64bit
+        debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
+                Xv(current->lcpar[1]),current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
+        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
+        modify_lasti(current->lcpar[1],n,0,0,0);
+        indent(0);
+        debug("\\ data migration: %x to %x\n",current->lcpar[0],current->lcpar[1]);
+    }
+
+    else if (!strcmp(f,"memcmp") || !strcmp(f,"bcmp")) {
+        //FIXME: 64bit
+        debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
+                Xv(current->lcpar[1]),current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
+        add_mem(current->lcpar[1],current->lcpar[2],0,n,0);
+    }
+
+    else if (!strcmp(f,"getc")) {
+        FILE x;
+        int fd;
+        long int off=((unsigned long int)&x._fileno - (unsigned long int)&x);
+        fd=ptrace(PTRACE_PEEKDATA,pid,current->lcpar[0]+off,0);
+        //FIXME: 64bit
+        debug("%x [%d]) = '%c' %lld\n",Xv(current->lcpar[0]),
+                Xf(fd),isprint(r.rax)?(unsigned char)r.rax:'?',r.rax);
+        dump_pdescr(0);
+        warn_opt(1,current->lcpcnt);
+        add_mem(current->lcpar[0],sizeof(x),0,n,0);
+    }
+
+    else if (!strcmp(f,"strcmp")) {
+        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
+        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
+        //FIXME: 64bit
+        debug("%x \"%s\", %x \"%s\") = %llx\n",current->lcpar[0],buf,
+                current->lcpar[1],b2,r.rax);
+        dump_pdescr(0);
+        warn_opt(2,current->lcpcnt);
+        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
+        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
+    }
+
+    else if (!strcmp(f,"strncmp")) {
+        get_string_from_child(current->lcpar[0],buf,sizeof(buf));
+        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
+        //FIXME: 64bit
+        debug("%x \"%s\", %x \"%s\", %d) = %llx\n",Xv(current->lcpar[0]),buf,
+                Xv(current->lcpar[1]),b2,current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
+        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
+    }
+
+    else if (!strcmp(f,"strncpy")) {
+        get_string_from_child(current->lcpar[1],b2,sizeof(buf));
+        //FIXME: 64bit
+        debug("%x, %x \"%s\", %d) = %llx\n",Xv(current->lcpar[0]),
+                Xv(current->lcpar[1]),b2,current->lcpar[2],r.rax);
+        dump_pdescr(0);
+        warn_opt(3,current->lcpcnt);
+        add_mem(current->lcpar[0],current->lcpar[2],0,n,0);
+        add_mem(current->lcpar[1],strlen(b2)+1,0,n,0);
+        modify_lasti(current->lcpar[0],n,0,0,0);
+        indent(0);
+        debug("\\ data migration: %x to %x\n",current->lcpar[1],current->lcpar[0]);
+    }
+
+    else fatal("display_specific called on something non-specific",0);
+
+    pdescr[0]=0;
+
+}
+
+/*****************************************************************
+ * Check if we handle this one separately, save all the stuff... *
+ *****************************************************************/
+
+inline char check_specific(char* n,unsigned int esP,int pcnt) {
+    int i;
+
+    if (strcmp(n,"strlen"))
+        if (strcmp(n,"getenv"))
+            if (strcmp(n,"strcpy"))
+                if (strcmp(n,"memcpy"))
+                    if (strcmp(n,"strdup"))
+                        if (strcmp(n,"calloc"))
+                            if (strcmp(n,"malloc"))
+                                if (strcmp(n,"realloc"))
+                                    if (strcmp(n,"free"))
+                                        if (strcmp(n,"getc"))
+                                            if (strcmp(n,"strcmp"))
+                                                if (strcmp(n,"strncmp"))
+                                                    if (strcmp(n,"strncpy"))
+                                                        if (strcmp(n,"atexit"))
+                                                            if (strcmp(n,"memmove"))
+                                                                if (strcmp(n,"memset"))
+                                                                    if (strcmp(n,"bzero"))
+                                                                        if (strcmp(n,"bcopy"))
+                                                                            if (strcmp(n,"memcmp"))
+                                                                                if (strcmp(n,"bcmp"))
+
+                                                                                    return 0;
+
+    strncpy((char*)current->lcname,n,MAXNAME);
+    current->lcpcnt=pcnt;
+
+    for (i=0;i<MAXPARS;i++)
+        current->lcpar[i]=ptrace(PTRACE_PEEKDATA,pid,esP+i*4,0);
+
+    return 1;
+
+}
+
+/*********************
+ * Clean up old mess *
+ *********************/
+
+void remove_process(void) {
+    int i;
+
+    if (!current)
+        fatal("trying to remove process but current is NULL",0);
+
+    if (current->gopt+current->bopt)
+        debug("+++ Parameter prediction %0.2f%% successful [%d:%d] +++\n",100.0*((float)current->gopt)/((float)(current->gopt+current->bopt)),current->bopt,current->gopt);
+
+    if (T_dostep) break_exitcond();
+
+    for (i=0;i<MAXNEST;i++) {
+        if (current->wlog[i]) free(current->wlog[i]);
+    }
+
+    if (current->mem) {
+        unsigned int i;
+        for (i=0;i<current->memtop;i++)
+            if ((*current->mem)[i].descr) free((*current->mem)[i].descr);
+        for (i=0;i<current->memtop;i++)
+            if ((*current->mem)[i].lasti) free((*current->mem)[i].lasti);
+        free(current->mem);
+    }
+
+    if (current->b) bfd_close(current->b);
+    if (current->syms) free(current->syms);
+
+    if (current->map) {
+        unsigned int i;
+        for (i=0;i<current->mtop+1;i++) {
+            if ((*current->map)[i].name) free((*current->map)[i].name);
+            if ((*current->map)[i].descr) free((*current->map)[i].descr);
+            if ((*current->map)[i].lasti) free((*current->map)[i].lasti);
+        }
+        free(current->map);
+    }
+
+    if (current->fd) {
+        unsigned int i;
+        for (i=0;i<current->fdtop;i++) {
+            if ((*current->fd)[i].name) free((*current->fd)[i].name);
+            if ((*current->fd)[i].descr) free((*current->fd)[i].descr);
+        }
+        free(current->fd);
+    }
+
+    if (current->fnaddr) free(current->fnaddr);
+    bzero(current,sizeof(struct fenris_process));
+    current=0;
+
+}
+
+/********************************************
+ * Duplicate some structures. I do not even *
+ * want to think how would it look like for *
+ * partially shared process info (clone()). *
+ ********************************************/
+
+void clone_process(const int newpid) {
+    int i;
+    struct fenris_process *p;
+
+    if (!current)
+        fatal("trying to clone process but current is NULL",0);
+
+    p=current;
+    add_process(newpid);
+    memcpy(current,p,sizeof(struct fenris_process));
+    current->pid=newpid;
+    current->syscall=0;
+
+    for (i=0;i<MAXNEST;i++) {
+        if (current->wlog[i]) current->wlog[i]=strdup(current->wlog[i]);
+    }
+
+    if (current->mem) {
+        unsigned int i;
+        current->mem=malloc((1+TABINC+current->memtop)*sizeof(struct fenris_mem));
+        memcpy(current->mem,p->mem,(1+TABINC+current->memtop)*sizeof(struct fenris_mem));
+        for (i=0;i<current->memtop;i++) {
+            if ((*p->mem)[i].descr) (*current->mem)[i].descr=strdup((*p->mem)[i].descr);
+            if ((*p->mem)[i].lasti) (*current->mem)[i].lasti=strdup((*p->mem)[i].lasti);
+        }
+    }
+
+    if (current->map) {
+        unsigned int i;
+        current->map=malloc((1+TABINC+current->mtop)*sizeof(struct fenris_map));
+        memcpy(current->map,p->map,(1+TABINC+current->mtop)*sizeof(struct fenris_map));
+        for (i=0;i<current->mtop;i++) {
+            if ((*p->map)[i].descr) (*current->map)[i].descr=strdup((*p->map)[i].descr);
+            if ((*p->map)[i].name) (*current->map)[i].name=strdup((*p->map)[i].name);
+            if ((*p->map)[i].lasti) (*current->map)[i].lasti=strdup((*p->map)[i].lasti);
+        }
+    }
+
+    if (current->fd) {
+        unsigned int i;
+        current->fd=malloc((1+TABINC+current->fdtop)*sizeof(struct fenris_fd));
+        memcpy(current->fd,p->fd,(TABINC+current->fdtop+1)*sizeof(struct fenris_fd));
+        for (i=0;i<current->fdtop;i++) {
+            if ((*p->fd)[i].descr) (*current->fd)[i].descr=strdup((*p->fd)[i].descr);
+            if ((*p->fd)[i].name) (*current->fd)[i].name=strdup((*p->fd)[i].name);
+        }
+    }
+
+    if (current->fnaddr) {
+        current->fnaddr=malloc((1+TABINC+current->idtop)*sizeof(int));
+        memcpy(current->fnaddr,p->fnaddr,current->idtop*sizeof(int));
+    }
+
+    current->b=0; current->syms=0;
+
+    current=p;
+
+}
+
+/****************************
+ * Get memory from child :> *
+ ****************************/
+
+inline void get_mem_from_child(const unsigned int addr,
+        char* buf,int max) {
+    int i=0;
+    char *b=buf;
+
+    while (max % 4) max--;
+
+    while (b<buf+max) {
+        AS_UINT(*b)=ptrace(PTRACE_PEEKDATA,pid,addr+i,0);
+        b+=4; i+=4;
+    }
+
+}
+
+/*******************
+ * Check for error *
+ *******************/
+
+char errbuf[64];
+
+inline char* toerror(int q) {
+    if (q<0) sprintf(errbuf,"%d (%s)",q,strerror(-q));
+    else sprintf(errbuf,"%d",q);
+    return errbuf;
+}
+
+/************************
+ * Quick fork() handler *
+ ************************/
+
+void trace_fork(void) {
+
+    int p=0,q=0,ser;
+    unsigned long int off;
+    struct user u;
+
+    //FIXME: 64bit
+    off=(unsigned long int)&u.regs.rax - (unsigned long int)&u;
+    errno=1234;
+    // This is the speed zone.
+    ptrace(PTRACE_SINGLESTEP,pid,1,0);
+    while (errno) p=ptrace(PTRACE_PEEKUSER,pid,off, errno=0);
+    if (p>0) q=ptrace(PTRACE_ATTACH,p,0,0);
+    // End of speed zone.
+
+    ser=errno;
+    indent(0);
+    debug("%sfork () = %s\n",in_libc?"[L] ":"",toerror((int)p));
+
+    if (q) fatal("PTRACE_ATTACH failed",ser);
+    debug("+++ New process %d attached +++\n",p);
+    clone_process(p);
+    //FIXME: 64bit
+    r.rax=p;
+
+}
+
+/****************************************************
+ * Handle int $0x80 calls - no matter why and where *
+ ****************************************************/
+
+inline void want_ret(void) {
+    //FIXME: 64bit
+    current->syscall=r.rax;
+    memcpy(&current->pr,&r,sizeof(r));
+}
+
+/********************
+ * "Before" handler *
+ ********************/
+
+void handle_syscall(void) {
+    char buf[MAXFNAME];
+    // unsigned int addr;
+
+    if (current->nest>=-1) current->syscalls++;
+
+    //FIXME: 64bit
+    switch (r.rax) {
+
+        case __NR_clone:
+
+            debug("***************************************************************\n"
+                    "* This application uses clone(). This is probably  a sign of  *\n"
+                    "* multi-threaded application. Multi-threading involves shared *\n"
+                    "* memory segments, file descriptors and such, and I am not    *\n"
+                    "* able to handle it properly for now. Sorry...                *\n"
+                    "***************************************************************\n");
+
+            fatal("clone() is not supported",0);
+
+            break;
+
+        case __NR_fork:
+#ifdef __NR_vfork
+        case __NR_vfork:
+#endif /* __NR_vfork */
+
+            if (T_forks) trace_fork(); else {
+                remove_traps();
+                want_ret();
+            }
+            break;
+
+        case __NR_exit:
+
+            indent(0);
+            //FIXME: 64bit
+            debug("%sSYS exit (%lld) = ???\n",in_libc?"[L] ":"",
+                    r.rbx);
+
+            while (--current->nest>= -1 ) {
+                indent(0);
+                debug("...function never returned (program exited before).\n");
+                if (current->nest<0 || current->isfnct[current->nest]) {
+                    dump_memchg(0);
+                    if (current->fntop) current->fntop--;
+                }
+                if (T_dostep) break_nestdown();
+            }
+
+            break;
+
+        case __NR_execve:
+
+            indent(0);
+
+            //FIXME: 64bit
+            get_string_from_child(r.rbx,buf,MAXFNAME);
+
+            pdescr[0]=0;
+
+            //FIXME: 64bit
+            debug("%sSYS execve (%x \"%s\", 0x%x, 0x%x) = ",in_libc?"[L] ":"",
+                    Xv(r.rbx),buf,Xv(r.rcx),Xv(r.rdx));
+
+            dump_pdescr(0);
+
+            current->syscall=__NR_execve;
+            break;
+
+#ifdef __NR_sigaction
+        case __NR_sigaction:
+#ifdef __NR_rt_sigaction
+        case __NR_rt_sigaction:
+#endif /* __NR_rt_sigaction */
+
+            // Modify address in memory structure.
+            addr=ptrace(PTRACE_PEEKDATA,pid,r.ecx,0);
+
+            if (!addr) break;
+
+            if ((addr >> 24) == CODESEG)
+                ptrace(PTRACE_POKEDATA,pid,r.ecx,addr-1);
+            else break;
+
+            goto aftersig;
+#endif /* __NR_sigaction */
+
+#ifdef __NR_signal
+        case __NR_signal:
+
+            // Simply adjust address in register.
+            addr=r.ecx;
+
+            if (!addr) break;
+            if ((addr >> 24) == CODESEG || INLIBC(addr)) r.ecx--;
+            else break;
+
+            ptrace(PTRACE_SETREGS,pid,0,&r);
+            r.ecx++;
+            // So __NR_signal handler won't have to do anything.
+
+aftersig:
+
+            // Inject int3 into code.
+            if (addr)
+                if ((addr >> 24) == CODESEG || INLIBC(addr)) {
+                    unsigned int chg,c2;
+                    chg=ptrace(PTRACE_PEEKDATA,pid,addr-1,0);
+                    if ((current->signals < r.ebx) && (r.ebx < MAXSIG))
+                        current->signals=r.ebx;
+
+                    if (((chg & 0xff) != 0x90) && ((chg & 0xff) != 0xc3) && ((chg & 0xff) != 0xcc)) {
+                        c2=ptrace(PTRACE_PEEKDATA,pid,addr-3,0);
+                        if ((c2 & 0xffffff) != 0x00768d) // Stupid gcc -O9 lea
+                            debug("* WARNING: Handler for sig %d (%x) w/o leading NOP or RET, problems!\n",(int)r.ebx,addr);
+                    }
+
+                    if ((chg & 0xff) == 0xc3) set_withret(r.ebx,1); else
+                        if ((chg & 0xff) == 0x90) set_withret(r.ebx,0);
+                    chg = ( chg & 0xffffff00 ) + 0xcc; /* cc: int3 */
+                    ptrace(PTRACE_POKEDATA,pid,addr-1,chg);
+
+                }
+#endif /* __NR_signal */
+
+        default:
+            want_ret();
+
+    }
+
+    if (T_dostep && current) {
+        fflush(0);
+        //FIXME: 64bit
+        break_syscall(r.rax);
+    }
+
+}
+
+/************************
+ * Add item to fd table *
+ ************************/
+
+void add_filedes(const int fd,const char* fname,char* who,int p) {
+
+    char tmpbuf[MAXDESCR];
+
+    if (!current->fd) {
+        current->fd=malloc(TABINC*sizeof(struct fenris_fd));
+        current->fdtop=TABINC;
+    }
+
+    while (current->fdtop<=(unsigned int)fd) {
+        current->fdtop+=TABINC;
+        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
+    }
+
+    (*current->fd)[fd].special=0;
+    (*current->fd)[fd].name=strdup(fname);
+
+    snprintf(tmpbuf,MAXDESCR,"opened in %s",who);
+
+    (*current->fd)[fd].descr=strdup(tmpbuf);
+    (*current->fd)[fd].p=p;
+
+    if (current->nest>=-1 && !T_nodesc) {
+        indent(0);
+        debug("@ created fd %d (%s)\n",fd,fname);
+    }
+
+}
+
+/*****************************
+ * Remove item from fd table *
+ *****************************/
+
+void remove_filedes(const int fd) {
+
+    if ((fd>=0) && ((unsigned int)fd<current->fdtop) && (*current->fd)[fd].name) {
+
+        if (current->nest>=-1 && !T_nodesc) {
+            indent(0);
+            debug("@ removed fd %d (%s)\n",fd,(*current->fd)[fd].name);
+        }
+
+        free((*current->fd)[fd].name);
+        free((*current->fd)[fd].descr);
+        (*current->fd)[fd].name=0;
+        (*current->fd)[fd].descr=0;
+
+    }
+
+}
+
+/**********************
+ * Duplicate filedes. *
+ **********************/
+
+void dup_filedes(const int old,const int fd,char* who) {
+    char tmpbuf[MAXDESCR];
+
+    if (current->fdtop<=(unsigned int)old) fatal("dup_filedes with excessive fd",0);
+    if (old<0 || fd<0) fatal("dup_filedes with excessive fd",0);
+
+    while (current->fdtop<=(unsigned int)fd) {
+        current->fdtop+=TABINC;
+        current->fd=realloc(current->fd,current->fdtop*sizeof(struct fenris_fd));
+    }
+
+    if ((*current->fd)[fd].name) {
+        pdescr[0]=0; Xf(fd); dump_pdescr(0);
+        remove_filedes(fd);
+    }
+
+    if (!(*current->fd)[old].name) (*current->fd)[fd].name=strdup("<unknown>");
+    else (*current->fd)[fd].name=strdup((*current->fd)[old].name);
+
+    snprintf(tmpbuf,MAXDESCR,"cloned in %s",who);
+    (*current->fd)[fd].descr=strdup(tmpbuf);
+    (*current->fd)[fd].p=(*current->fd)[old].p;
+
+    if (current->nest>=-1 && !T_nodesc) {
+        indent(0);
+        debug("@ new duplicate fd %d from %d (%s)\n",fd,old,(*current->fd)[fd].name);
+    }
+
+}
+
+/***********************
+ * Change filedes info *
+ ***********************/
+
+void modify_filedes(const int fd,const char* newt, int newp) {
+
+    if ((fd>=0) && ((unsigned int)fd<current->fdtop) && (*current->fd)[fd].name) {
+
+        if (newt) {
+            free((*current->fd)[fd].name);
+            (*current->fd)[fd].name=strdup(newt);
+        }
+
+        if (newp) (*current->fd)[fd].p=newp;
+
+    }
+
+}
+
+/***************************
+ * Get .p parameter (port) *
+ ***************************/
+
+int get_filep(const int fd) {
+
+    if ((fd>=0) && ((unsigned int)fd<current->fdtop) && (*current->fd)[fd].name)
+        return (*current->fd)[fd].p;
+
+    return 0;
+
+}
+
 /********************
  * Delete map entry *
  ********************/
 
 void delete_map(const unsigned int addr) {
-    int i;
+    unsigned int i;
     for (i=0;i<current->mtop+1;i++)
         if ((*current->map)[i].addr==addr) {
             if (current->nest>=-1) {
@@ -2613,13 +2853,21 @@ void ret_syscall(void) {
 
     b3[0]=0; buf[0]=0;
 
+    //FIXME: hardcoded?!?  more than 300+ for i386
     if (current->idtop) sprintf(b2,"S %s:%s",lookup_fnct((*current->fnaddr)[current->idtop-1],0,1),scnames[current->syscall & 0xff]);
+    //FIXME: hardcoded?!?  more than 300+ for i386
     else sprintf(b2,"S main:%s",scnames[current->syscall & 0xff]);
 
     switch (current->syscall) {
 
         case __NR_execve:
-            if (r.eax<0) debug("%d\n",(int)r.eax); else {
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            /*
+             * if (r.rax<0) {
+             *     debug("%lld\n",r.eax);
+             * } else {
+             */
                 debug("???\n");
                 while (--current->nest>=-1 ) {
                     indent(0);
@@ -2634,30 +2882,49 @@ void ret_syscall(void) {
                 remove_process();
                 if (T_execs) add_process(pid);
                 else ptrace(PTRACE_DETACH,pid,0,0);
-            }
+            //FIXME: rax = unsigned long int, never <0
+            /*
+             * }
+             */
             break;
 
         case __NR_read:
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS read (%d, %x",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                get_string_from_child(current->pr.ecx,buf,MAXUNKNOWN);
-                if (r.eax<0) buf[0]=0;
-                else buf[r.eax>MAXUNKNOWN?MAXUNKNOWN:r.eax]=0;
+                //FIXME: 64bit
+                get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                /*
+                 * if (r.rax<0) buf[0]=0;
+                 */
+                //FIXME: 64bit
+                /*
+                 * else
+                 */
+                    buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
 
                 debug(" \"%s\"",buf);
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                debug(", %d) = %s\n",(int)current->pr.edx,toerror(r.eax));
-                DD();
-                if (r.eax != -EFAULT) {
-                    add_mem(current->pr.ecx,current->pr.edx,0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,current->pr.ebx,0,0);
+                //FIXME: 64bit
+                debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
+                dump_pdescr(0);
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.rax != -EFAULT) {
+                if (r.rax != EFAULT) {
+                    //FIXME: 64bit
+                    add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
+                    //FIXME: 64bit
+                    modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                 }
             }
             break;
@@ -2667,29 +2934,40 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
-                debug("%sSYS syslog (%d, %x",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,Xv(current->pr.ecx));
+                //FIXME: 64bit
+                debug("%sSYS syslog (%lld, %x",in_libc?"[L] ":"",
+                        current->pr.rbx,Xv(current->pr.rcx));
 
                 buf[0]=0;
 
-                if (r.eax>0) {
-                    get_string_from_child(current->pr.ecx,buf,MAXUNKNOWN);
-                    buf[r.eax>MAXUNKNOWN?MAXUNKNOWN:r.eax]=0;
+                //FIXME: 64bit
+                if (r.rax>0) {
+                    //FIXME: 64bit
+                    get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
+                    //FIXME: 64bit
+                    buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
                 }
 
                 debug(" \"%s\"",buf);
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                debug(", %d) = %s\n",(int)current->pr.edx,toerror(r.eax));
+                //FIXME: 64bit
+                debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
 
-                DD();
+                dump_pdescr(0);
 
-                if (r.eax != -EFAULT) {
-                    if (r.eax>0) {
-                        add_mem(current->pr.ecx,current->pr.edx,0,b2,0);
-                        modify_lasti(current->pr.ecx,b2,current->pr.ebx,0,0);
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.rax != -EFAULT) {
+                if (r.rax != EFAULT) {
+                    //FIXME: 64bit
+                    if (r.rax>0) {
+                        //FIXME: 64bit
+                        add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
+                        //FIXME: 64bit
+                        modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                     }
                 }
 
@@ -2697,11 +2975,12 @@ void ret_syscall(void) {
 
             break;
 
+#ifdef __NR_readdir
         case __NR_readdir:
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS readdir (%d, %x",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),Xv(current->pr.ecx));
@@ -2713,7 +2992,7 @@ void ret_syscall(void) {
 
                 debug(", %d) = %s\n",(int)current->pr.edx,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
                 if (r.eax != -EFAULT) {
                     add_mem(current->pr.ecx,sizeof(struct dirent),0,b2,0);
@@ -2722,26 +3001,33 @@ void ret_syscall(void) {
 
             }
             break;
+#endif
 
         case __NR_sethostname:
 
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
+                //FIXME: 64bit
                 debug("%sSYS sethostname (%x",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx));
+                        Xv(current->pr.rbx));
 
-                if (!r.eax) {
-                    get_string_from_child(current->pr.ebx,buf,current->pr.ecx+3);
-                    buf[current->pr.ecx]=0;
+                //FIXME: 64bit
+                if (!r.rax) {
+                    //FIXME: 64bit
+                    get_string_from_child(current->pr.rbx,buf,current->pr.rcx+3);
+                    //FIXME: 64bit
+                    buf[current->pr.rcx]=0;
                     debug(" \"%s\"",buf);
                 }
 
-                debug(") = %s\n",toerror(r.eax));
-                DD();
+                //FIXME: 64bit
+                debug(") = %s\n",toerror(r.rax));
+                dump_pdescr(0);
 
-                if (!r.eax) add_mem(current->pr.ebx,current->pr.ecx,0,b2,0);
+                //FIXME: 64bit
+                if (!r.rax) add_mem(current->pr.rbx,current->pr.rcx,0,b2,0);
 
             }
 
@@ -2754,7 +3040,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS gethostname (%x",in_libc?"[L] ":"",
                         Xv(current->pr.ebx));
 
@@ -2765,7 +3051,7 @@ void ret_syscall(void) {
                 }
 
                 debug(") = %s\n",toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
                 if (!r.eax) {
                     add_mem(current->pr.ebx,current->pr.ecx,0,b2,0);
@@ -2782,24 +3068,35 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS write (%d, %x",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                get_string_from_child(current->pr.ecx,buf,MAXUNKNOWN);
+                //FIXME: 64bit
+                get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
 
-                if (r.eax<0) buf[0]=0;
-                else if (r.eax<=MAXUNKNOWN) buf[r.eax]=0;
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.rax<0) buf[0]=0;
+                // else
+                //FIXME: 64bit
+                    if (r.rax<=MAXUNKNOWN) buf[r.rax]=0;
 
                 debug(" \"%s\"",buf);
 
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                debug(", %d) = %s\n",(int)current->pr.edx,toerror(r.eax));
-                DD();
-                if (r.eax != -EFAULT)
-                    add_mem(current->pr.ecx,current->pr.edx,0,b2,0);
+                //FIXME: 64bit
+                debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
+                dump_pdescr(0);
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.eax != -EFAULT)
+                if (r.rax != EFAULT)
+                    //FIXME: 64bit
+                    add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
             }
             break;
 
@@ -2808,7 +3105,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 unsigned int q;
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS waitpid (%d, %x",in_libc?"[L] ":"",
                         (int)current->pr.ebx,Xv(current->pr.ecx));
                 if (r.eax>=0) {
@@ -2819,7 +3116,7 @@ void ret_syscall(void) {
                     else debug("[0x%x]",q);
                 } else debug(" [?]");
                 debug(", %x) = %s\n",(int)current->pr.edx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
                 if (r.eax != -EFAULT) {
                     add_mem(current->pr.ecx,4,0,b2,0);
                     modify_lasti(current->pr.ecx,b2,0,0,0);
@@ -2863,7 +3160,7 @@ void ret_syscall(void) {
                 if (current->pr.ecx)
                     sprintf(&b3[strlen(b3)]," | 0x%x",(int)current->pr.ecx);
 
-                RD();
+                pdescr[0]=0;
 
                 if (current->pr.ecx & O_CREAT)
 
@@ -2876,7 +3173,7 @@ void ret_syscall(void) {
                     debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),buf,b3,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -2905,12 +3202,12 @@ void ret_syscall(void) {
 
                 if (b3[strlen(b3)-1]=='|') b3[strlen(b3)-2]=0;
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,b3,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -2934,13 +3231,13 @@ void ret_syscall(void) {
                 else if (S_ISREG(current->pr.ecx)) strcpy(b3,"S_IFREG");
                 else sprintf(b3,"0x%x",(int)current->pr.ecx);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS mknod (%x \"%s\", %s, 0%o) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,b3,(int)current->pr.edx,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -2961,13 +3258,13 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int) os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS oldstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -2987,13 +3284,13 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS statfs (%x \"%s\", %x [...]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3018,13 +3315,13 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int) os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS oldlstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3049,11 +3346,11 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS stat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3078,11 +3375,11 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS lstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3106,12 +3403,12 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS fstat (%d, %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),Xv(current->pr.ecx),b3,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3128,12 +3425,12 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS fstatfs (%d, %x [...]) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),Xv(current->pr.ecx),
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3221,13 +3518,13 @@ void ret_syscall(void) {
                                     b3[2]*256+b3[3]);
                     }
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0)
                         debug("%sSYS bind (%d, %x%s, %d) = %s\n",in_libc?"[L] ":"",
                                 Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.eax));
 
-                    DD();
+                    dump_pdescr(0);
 
                     if (r.eax != -EINVAL) add_mem(a[1],a[2],0,b2,0);
 
@@ -3255,13 +3552,13 @@ void ret_syscall(void) {
                                     b3[2]*256+b3[3]);
                     }
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0)
                         debug("%sSYS connect (%d, %x%s, %d) = %s\n",in_libc?"[L] ":"",
                                 Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.eax));
 
-                    DD();
+                    dump_pdescr(0);
 
                     if ((r.eax != -EINVAL) && (a[2]>0)) add_mem(a[1],a[2],0,b2,0);
 
@@ -3280,13 +3577,13 @@ void ret_syscall(void) {
 
                 case SYS_LISTEN:
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0)
                         debug("%sSYS listen (%d, %d) = %s\n",in_libc?"[L] ":"",
                                 Xf(a[0]),(int)a[1],toerror(r.eax));
 
-                    DD();
+                    dump_pdescr(0);
 
                     break;
 
@@ -3305,7 +3602,7 @@ void ret_syscall(void) {
                         }
                     }
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0) {
                         if (!a[1]) {
@@ -3320,7 +3617,7 @@ void ret_syscall(void) {
                         }
                     }
 
-                    DD();
+                    dump_pdescr(0);
 
                     if (r.eax >= 0) {
 
@@ -3367,7 +3664,7 @@ void ret_syscall(void) {
                                     b3[2]*256+b3[3]);
                     }
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0) {
                         if (!a[1]) {
@@ -3382,7 +3679,7 @@ void ret_syscall(void) {
                         }
                     }
 
-                    DD();
+                    dump_pdescr(0);
 
                     if (r.eax >= 0) {
 
@@ -3408,7 +3705,7 @@ void ret_syscall(void) {
                                     b3[2]*256+b3[3]);
                     }
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (current->nest>=0) {
                         if (!a[1]) {
@@ -3423,7 +3720,7 @@ void ret_syscall(void) {
                         }
                     }
 
-                    DD();
+                    dump_pdescr(0);
 
                     if (r.eax >= 0) {
 
@@ -3440,7 +3737,7 @@ void ret_syscall(void) {
 
                     if (SDCOND) {
                         indent(0);
-                        RD();
+                        pdescr[0]=0;
 
                         debug("%sSYS send (%d, %x",in_libc?"[L] ":"",
                                 Xf(a[0]),Xv(a[1]));
@@ -3453,7 +3750,7 @@ void ret_syscall(void) {
                         if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
                         debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.eax));
-                        DD();
+                        dump_pdescr(0);
                         if (r.eax != -EFAULT) {
                             add_mem(a[1],a[2],0,b2,0);
                         }
@@ -3464,7 +3761,7 @@ void ret_syscall(void) {
 
                     if (SDCOND) {
                         indent(0);
-                        RD();
+                        pdescr[0]=0;
 
                         debug("%sSYS recv (%d, %x",in_libc?"[L] ":"",
                                 Xf(a[0]),Xv(a[1]));
@@ -3477,7 +3774,7 @@ void ret_syscall(void) {
                         if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
                         debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.eax));
-                        DD();
+                        dump_pdescr(0);
                         if (r.eax != -EFAULT) {
                             add_mem(a[1],a[2],0,b2,0);
                             modify_lasti(a[1],b2,a[0],0,0);
@@ -3520,7 +3817,7 @@ void ret_syscall(void) {
                             default:         sprintf(b3,"0x%x",(int)a[0]);
                         }
 
-                        RD();
+                        pdescr[0]=0;
 
                         if (r.eax>=0) {
                             char b4[128];
@@ -3547,7 +3844,7 @@ void ret_syscall(void) {
 
                         }
 
-                        DD();
+                        dump_pdescr(0);
 
                         if (r.eax != -EFAULT) {
                             add_mem(a[3],8,0,b2,0);
@@ -3560,11 +3857,11 @@ void ret_syscall(void) {
 
                 case SYS_SHUTDOWN: // modify to: <unplugged sock>
 
-                    RD();
+                    pdescr[0]=0;
                     if (current->nest>=0)
                         debug("%sSYS shutdown (%d, %d) = %s\n",
                                 in_libc?"[L] ":"",Xf(a[0]),(int)a[1],toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
 
                     if (r.eax>=0)
                         modify_filedes(a[0],"<unplugged>",0);
@@ -3583,7 +3880,7 @@ void ret_syscall(void) {
                     if (current->nest>=0) {
                         debug("%sSYS socketcall_%d ??? (",in_libc?"[L] ":"",
                                 (int)current->pr.ebx);
-                        RD();
+                        pdescr[0]=0;
                         display_value(a[0],b2); debug(", ");
                         display_value(a[1],b2); debug(", ");
                         display_value(a[2],b2); debug(", ");
@@ -3591,7 +3888,7 @@ void ret_syscall(void) {
                         display_value(a[4],b2); debug(", ");
                         display_value(a[5],b2); debug(") = ");
                         display_value(r.eax,b2); debug("\n");
-                        DD();
+                        dump_pdescr(0);
                     }
 
             }
@@ -3610,12 +3907,12 @@ void ret_syscall(void) {
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int)os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS oldfstat (%d, %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),Xv(current->pr.ecx),b3,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3634,11 +3931,11 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS chmod (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.edx,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3654,10 +3951,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS creat (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3675,10 +3972,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS link (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3698,10 +3995,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS symlink (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3721,10 +4018,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS rename (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3745,11 +4042,11 @@ void ret_syscall(void) {
                 indent(0);
 
                 // absolutely no purpose in parsing params.
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS mount (%x \"%s\", %x \"%s\", [...]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3768,10 +4065,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS unlink (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3787,10 +4084,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS umount (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3807,10 +4104,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS umount2 (%x \"%s\", %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3827,10 +4124,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS chdir (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3846,10 +4143,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS uselib (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3865,7 +4162,7 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 if (r.eax>=0) {
                     int m=r.eax;
@@ -3886,7 +4183,7 @@ void ret_syscall(void) {
 
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3902,10 +4199,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS swapon (%x \"%s\", 0x%x) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3921,10 +4218,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS swapoff (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3940,10 +4237,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS chroot (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3959,10 +4256,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS mkdir (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3978,10 +4275,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS rmdir (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -3997,10 +4294,10 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS acct (%x \"%s\") = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4014,12 +4311,12 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS fchdir (%d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4036,12 +4333,12 @@ void ret_syscall(void) {
                         if (current->pr.edx == SEEK_END) strcpy(buf,"SEEK_END"); else
                             sprintf(buf,"%d",(int)current->pr.edx);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS lseek (%d, %d, %s) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),(int)current->pr.ecx,buf,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -4055,11 +4352,11 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS lchown (%x \"%s\", %d, %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,
                         (int)current->pr.edx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
@@ -4073,13 +4370,13 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS fchown (%d, %d, %d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),(int)current->pr.ecx,
                         (int)current->pr.edx,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4091,13 +4388,13 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS fchmod (%d, 0%o) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),(int)current->pr.ecx,
                         toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4111,11 +4408,11 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS chown (%x \"%s\", %d, %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,
                         (int)current->pr.edx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4131,11 +4428,11 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS truncate (%x \"%s\", %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),buf,(int)current->pr.ecx,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4151,11 +4448,11 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS ftruncate (%d, %d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),(int)current->pr.ecx,
                         toerror(r.eax));
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4172,10 +4469,10 @@ void ret_syscall(void) {
                     strcpy(buf,ctime(&r.eax));
                     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS time (0x%x) = %s [%s]\n",in_libc?"[L] ":"",
                             current->pr.ebx?Xv(current->pr.ebx):0,toerror(r.eax),buf);
-                    DD();
+                    dump_pdescr(0);
 
                 } else {
                     debug("%sSYS time (0x%x) = %s\n",in_libc?"[L] ":"",
@@ -4209,18 +4506,18 @@ void ret_syscall(void) {
                         if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
                     } else strcpy(buf,"[A: now] [M: now");
 
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS utime (%x \"%s\", 0x%x %s]) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),b3,
                             current->pr.ecx?Xv(current->pr.ecx):0,buf,toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
 
                 } else {
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS utime (%x \"%s\", 0x%x) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),b3,
                             (int)current->pr.ecx,toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
                 }
 
             }
@@ -4245,10 +4542,10 @@ void ret_syscall(void) {
                     q=(int)ptrace(PTRACE_PEEKDATA,pid,(int)current->pr.ebx,0);
                     strcpy(buf,ctime(&q));
                     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS stime (0x%x) = %s [%s]\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),toerror(r.eax),buf);
-                    DD();
+                    dump_pdescr(0);
                 } else {
                     debug("%sSYS stime (0x%x) = %s\n",in_libc?"[L] ":"",
                             (int)current->pr.ebx,toerror(r.eax));
@@ -4264,10 +4561,10 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS close (%d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             if (r.eax>=0) remove_filedes(current->pr.ebx);
@@ -4278,10 +4575,10 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS fsync (%d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -4290,10 +4587,10 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS fdatasync (%d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -4323,12 +4620,12 @@ void ret_syscall(void) {
                         break;
                     }
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS ioctl (%d, %s, 0x%x) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),buf,(int)current->pr.edx,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4337,7 +4634,7 @@ void ret_syscall(void) {
         case __NR_fcntl:
 
             if (SDCOND) {
-                RD(); Xf(current->pr.ebx);
+                pdescr[0]=0; Xf(current->pr.ebx);
             }
 
             switch (current->pr.ecx) {
@@ -4345,10 +4642,10 @@ void ret_syscall(void) {
                 case F_DUPFD:
 
                     if (SDCOND) {
-                        RD();
+                        pdescr[0]=0;
                         debug("%sSYS fcntl (%d, F_DUPFD, %d) = %s\n",in_libc?"[L] ":"",
                                 (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
-                        DD();
+                        dump_pdescr(0);
                     }
                     if (r.eax>=0) dup_filedes(current->pr.ebx,r.eax,b2);
                     break;
@@ -4441,7 +4738,7 @@ void ret_syscall(void) {
 
             }
 
-            if (SDCOND) DD();
+            if (SDCOND) dump_pdescr(0);
 
             break;
 
@@ -4449,11 +4746,11 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS dup2 (%d, %d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4478,10 +4775,10 @@ void ret_syscall(void) {
 
                 if (SDCOND) {
                     indent(0);
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS pipe (%x [r%d w%d]) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),re,wr,toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
                 }
 
                 add_filedes(re,"<pipe:read>",b2,0);
@@ -4525,10 +4822,10 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS dup (%d) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             if (r.eax>=0) dup_filedes(current->pr.ebx,r.eax,b2);
@@ -4591,7 +4888,7 @@ void ret_syscall(void) {
                     default: sprintf(buf,"%d",(int)current->pr.ebx);
                 }
 
-                RD();
+                pdescr[0]=0;
 
                 if (r.eax) {
                     debug("%sSYS getrlimit (%s, %x) = %s\n",in_libc?"[L] ":"",
@@ -4606,7 +4903,7 @@ void ret_syscall(void) {
                     modify_lasti(current->pr.ecx,b2,0,0,0);
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4617,7 +4914,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 if (r.eax) {
                     debug("%sSYS gettimeofday (%x, %x) = %s\n",in_libc?"[L] ":"",
@@ -4636,7 +4933,7 @@ void ret_syscall(void) {
                     modify_lasti(current->pr.ecx,b2,0,0,0);
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4647,7 +4944,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
 
                 if (r.eax) {
                     debug("%sSYS settimeofday (%x, %x) = %s\n",in_libc?"[L] ":"",
@@ -4664,7 +4961,7 @@ void ret_syscall(void) {
                     add_mem(current->pr.ecx,8,0,b2,0);
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4681,7 +4978,7 @@ void ret_syscall(void) {
                     default: sprintf(buf,"%d",(int)current->pr.ebx);
                 }
 
-                RD();
+                pdescr[0]=0;
 
                 debug("%sSYS getrusage (%s, %x) = %s\n",in_libc?"[L] ":"",
                         buf,Xv(current->pr.ecx),toerror(r.eax));
@@ -4691,7 +4988,7 @@ void ret_syscall(void) {
                     modify_lasti(current->pr.ecx,b2,0,0,0);
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4716,7 +5013,7 @@ void ret_syscall(void) {
                     default: sprintf(buf,"%d",(int)current->pr.ebx);
                 }
 
-                RD();
+                pdescr[0]=0;
 
                 if (r.eax) {
                     debug("%sSYS setrlimit (%s, %x) = %s\n",in_libc?"[L] ":"",
@@ -4730,7 +5027,7 @@ void ret_syscall(void) {
                     add_mem(current->pr.ecx,8,0,b2,0);
                 }
 
-                DD();
+                dump_pdescr(0);
 
             }
 
@@ -4861,11 +5158,11 @@ void ret_syscall(void) {
                     if (current->pr.edx) oldh=ptrace(PTRACE_PEEKDATA,pid,current->pr.edx,0);
                     if (current->pr.ecx) newh=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
 
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS sigaction (%d, %x [h:%x], %x [h:%x]) = %s\n",in_libc?"[L] ":"",
                             (int)current->pr.ebx,Xv(current->pr.ecx),newh,
                             Xv(current->pr.edx),oldh,toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
 
                     if (!T_nodesc) {
 
@@ -4919,10 +5216,10 @@ void ret_syscall(void) {
                     AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
                     AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
 
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS sigsuspend (%x [%08x%08x]) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
                     add_mem(current->pr.ebx,sizeof(sigset_t),0,b2,0);
                 } else {
                     debug("%sSYS sigsuspend (%x) = %s\n",in_libc?"[L] ":"",
@@ -4943,10 +5240,10 @@ void ret_syscall(void) {
                     AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
                     AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
 
-                    RD();
+                    pdescr[0]=0;
                     debug("%sSYS sigpending (%x [%08x%08x]) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.ebx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.eax));
-                    DD();
+                    dump_pdescr(0);
                     add_mem(current->pr.ebx,sizeof(sigset_t),0,b2,0);
                     modify_lasti(current->pr.ebx,b2,0,0,0);
                 } else {
@@ -5105,10 +5402,10 @@ void ret_syscall(void) {
                     sprintf(&buf[strlen(buf)],"0x%x",(int)current->pr.ebx);
                 }
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS flock (%d, %s) = %s\n",in_libc?"[L] ":"",
                         Xf(current->pr.ebx),buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -5122,10 +5419,10 @@ void ret_syscall(void) {
                 else if (current->pr.edx == MS_INVALIDATE) strcpy(buf,"MS_INVALIDATE");
                 else sprintf(buf,"0x%x",(int)current->pr.edx);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS msync (%x, %d, %s) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),(int)current->pr.ecx,buf,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -5135,10 +5432,10 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS mlock (%x, %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -5170,10 +5467,10 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                RD();
+                pdescr[0]=0;
                 debug("%sSYS munlock (%x, %d) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
-                DD();
+                dump_pdescr(0);
             }
 
             break;
@@ -5368,7 +5665,7 @@ void ret_syscall(void) {
                     if (flags) { if (strlen(buf)) strcat(buf," | "); sprintf(&buf[strlen(buf)],"0x%x",flags); }
                     if (!strlen(buf)) strcpy(buf,"0");
 
-                    RD();
+                    pdescr[0]=0;
 
                     if (r.eax<0) {
                         debug("%sSYS mmap (0x%x, %d, %s, %s, %d, %d) = %s\n",
@@ -5380,7 +5677,7 @@ void ret_syscall(void) {
                                 (unsigned int)r.eax);
                     }
 
-                    DD();
+                    dump_pdescr(0);
 
                 }
 
@@ -5409,46 +5706,19 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS%d %s ??? (",in_libc?"[L] ":"",current->syscall,
+                        //FIXME: hardcoded?!?  more than 300+ for i386
                         scnames[current->syscall & 0xff]);
-                RD();
+                pdescr[0]=0;
                 display_value(current->pr.ebx,b2); debug(", ");
                 display_value(current->pr.ecx,b2); debug(", ");
                 display_value(current->pr.edx,b2); debug(") = ");
                 display_value(r.eax,b2); debug("\n");
-                DD();
+                dump_pdescr(0);
             }
 
     }
 
-    RD();
-
-}
-
-/*************************************
- * Find or assign unique function id *
- *************************************/
-
-inline int find_id(unsigned int c,unsigned int addnew) {
-    int i=0;
-
-    if (!current->fnaddr) {
-        if (!addnew) return 0;
-        current->fnaddr=malloc(TABINC*4+4);
-    }
-
-    for (i=0;i<current->idtop;i++)
-        if ((*current->fnaddr)[i]==c) return i+1;
-
-    if (!addnew) return 0;
-
-    current->idtop++;
-
-    if (!((current->idtop) % TABINC))
-        current->fnaddr=realloc(current->fnaddr,(current->idtop+1+TABINC)*4);
-
-    (*current->fnaddr)[current->idtop-1]=c;
-
-    return current->idtop;
+    pdescr[0]=0;
 
 }
 
@@ -5579,161 +5849,6 @@ inline void handle_fncall(const char how) {
 
 }
 
-/***************************
- * Try to find symbol name *
- ***************************/
-
-Dl_info di;
-char fn_buf[64];
-
-inline char* find_name(const unsigned int addr) {
-
-    int i;
-
-    for (i=0;i<current->mtop+1;i++) {
-
-        if (!(*current->map)[i].name) continue;
-        if ((*current->map)[i].addr <= addr) {
-            if (((*current->map)[i].addr + (*current->map)[i].len) > addr) {
-
-                void* x;
-                unsigned int off;
-                unsigned int b;
-                int f;
-
-                off=addr-(*current->map)[i].addr;
-
-                // Offset 0x10 should be equal to 0x03. Otherwise, we do not
-                // want to dlopen() this "thing".
-
-                f=open((*current->map)[i].name,O_RDONLY);
-                if (f<0) {
-                    sprintf(fn_buf,"P:lib_%x",addr);
-                    return fn_buf;
-                }
-
-                lseek(f,0x10,SEEK_SET);
-                read(f,fn_buf,1);
-                close(f);
-                if (fn_buf[0]!=0x03) {
-                    sprintf(fn_buf,"S:lib_%x",addr);
-                    return fn_buf;
-                }
-
-                if (T_nosym) x=0; else
-                    x=dlopen((*current->map)[i].name,RTLD_LAZY|RTLD_GLOBAL|RTLD_NODELETE);
-
-                if (!x) {
-                    sprintf(fn_buf,"L:lib_%x",addr);
-                    return fn_buf;
-                }
-
-                b=*((int*)x)+off;
-
-                if (!dladdr((void*)b,&di)) {
-                    dlclose(x);
-                    sprintf(fn_buf,"A:lib_%x",current->lentry);
-                    return fn_buf;
-                }
-
-                if (!di.dli_sname) {
-#ifndef DO_NOT_DLCLOSE
-                    dlclose(x);
-#endif
-                    sprintf(fn_buf,"<unnamed:%x>%+d",(int)di.dli_saddr,b-(int)di.dli_saddr);
-                    return fn_buf;
-                }
-
-                if (di.dli_saddr!=(void*)b) {
-#ifndef DO_NOT_DLCLOSE
-                    dlclose(x);
-#endif
-                    snprintf(fn_buf,sizeof(fn_buf),"%s%+d",
-                            di.dli_sname,b-(int)di.dli_saddr);
-                    return fn_buf;
-                }
-
-#ifndef DO_NOT_DLCLOSE
-                dlclose(x);
-#endif
-                return (char*)di.dli_sname;
-
-            }
-
-        }
-
-    }
-
-    sprintf(fn_buf,"F:lib_%x",addr);
-    return fn_buf;
-
-}
-
-inline unsigned int appr_addr(const unsigned int addr) {
-
-    char fn_buf[64];
-    int i;
-
-    for (i=0;i<current->mtop+1;i++) {
-
-        if (!(*current->map)[i].name) continue;
-        if ((*current->map)[i].addr <= addr) {
-            if (((*current->map)[i].addr + (*current->map)[i].len) > addr) {
-
-                void* x;
-                unsigned int off;
-                unsigned int b;
-                int f;
-
-                off=addr-(*current->map)[i].addr;
-
-                f=open((*current->map)[i].name,O_RDONLY);
-                if (f<0) return addr;
-
-                lseek(f,0x10,SEEK_SET);
-                read(f,fn_buf,1);
-                close(f);
-                if (fn_buf[0]!=0x03) return addr;
-
-                if (T_nosym) x=0; else
-                    x=dlopen((*current->map)[i].name,RTLD_LAZY|RTLD_GLOBAL|RTLD_NODELETE);
-
-                if (!x) return addr;
-
-                b=*((int*)x)+off;
-
-                if (!dladdr((void*)b,&di)) {
-                    dlclose(x);
-                    return addr;
-                }
-
-                dlclose(x);
-                return (unsigned int)di.dli_saddr;
-
-            }
-
-        }
-
-    }
-
-    return addr;
-
-}
-
-inline char* find_name_ex(unsigned int c,char prec,char non) {
-    char* ret=find_name(c);
-    if (non) if (strchr(ret,':')) return 0;
-    if (prec==1) {
-        if (strchr(ret,'+')) return 0;
-        if (strchr(ret,'-')) return 0;
-    } else if (prec==2) {
-        char* q;
-        if ((q=strchr(ret,'+'))) *q=0;
-        if ((q=strchr(ret,'-'))) *q=0;
-    }
-    return ret;
-}
-
 /********************
  * Handle libc call *
  ********************/
@@ -5784,7 +5899,7 @@ inline void display_libcall(unsigned int c) {
 
     if (current->nest<-1) return;
 
-    RD();
+    pdescr[0]=0;
 
     if (current->jmplibc) {
         indent(-1);
@@ -5847,7 +5962,7 @@ inline void handle_ret(void) {
         return;
     }
 
-    RD();
+    pdescr[0]=0;
 
     if ((--current->nest)==-1) {
 
@@ -5867,7 +5982,7 @@ inline void handle_ret(void) {
             display_value(r.eax,"<ret from main>");
             debug("\n");
         } else debug("<void>\n");
-        DD();
+        dump_pdescr(0);
         dump_memchg(0);
         if (current->nest==PRETTYSMALL) {
             break_newline();
@@ -5899,7 +6014,7 @@ inline void handle_ret(void) {
             debug("\n");
         }
 
-        DD();
+        dump_pdescr(0);
 
     } else {
         debug("...return from function = ");
@@ -5909,7 +6024,7 @@ inline void handle_ret(void) {
             debug("\n");
         } else debug("<void>\n");
 
-        DD();
+        dump_pdescr(0);
         fn_ret();
         if (T_dostep) break_nestdown();
         if (T_dostep) break_ret();
@@ -6774,12 +6889,12 @@ void minline(const char* what) {
     if ((current->nest>=0) && ((r.eip >> 24) == CODESEG)) {
         char buf[MAXDESCR];
         indent(0);
-        RD();
+        pdescr[0]=0;
         get_string_from_child(r.edi,buf,sizeof(buf));
         debug("// Found possibly inlined '%s' at 0x%08x:\n",what,(int)r.eip);
         indent(0);
         debug("L %s (%x \"%s\") = ??? <inlined>\n",what,Xv(r.edi),buf);
-        DD();
+        dump_pdescr(0);
     }
 }
 
@@ -6960,8 +7075,10 @@ justptrace:
                 debug("exited with code %d ",WEXITSTATUS(status));
             else debug("disappeared??? ");
 
-            if (current->syscall)
+            if (current->syscall) {
+                //FIXME: hardcoded?!?  more than 300+ for i386
                 debug("in syscall %s (%d) ",scnames[current->syscall & 0xff],current->syscall);
+            }
 
             debug("+++\n");
 
@@ -7194,8 +7311,9 @@ int main(const int argc, const char** argv) {
                 "sequence configured for your 'screen' utility. " NOR "\n\n");
     }
 
-    debug("fenris " VERSION" (" BUILD ", %d) - program execution path analysis tool\n"
-            "Brought to you by Michal Zalewski <lcamtuf@coredump.cx>\n",sizeof(struct fenris_process));
+    debug("fenris %s ( %s %ld) - program execution path analysis tool\n"
+            "Brought to you by Michal Zalewski <lcamtuf@coredump.cx>\n",
+            VERSION, BUILD, sizeof(struct fenris_process));
 
     while ((opt=getopt(argc,(void*)argv, "+sCR:SidAGo:fmFpyqt:xX:eW:E:u:L:P:"))!=EOF)
         switch(opt) {
@@ -7207,7 +7325,7 @@ int main(const int argc, const char** argv) {
                               if (sscanf(optarg,"%i:%i",&ad,&va)!=2)
                                   fatal("malformed -P option",-1);
                           }
-                          if (va < 0 || va > 255) fatal("-P with excessive last param",-1);
+                          if (va > 255) fatal("-P with excessive last param",-1);
                           reptable[reptop].ip=ip;
                           reptable[reptop].ad=ad;
                           reptable[reptop].va=va;
@@ -7234,7 +7352,7 @@ int main(const int argc, const char** argv) {
 
             case 'X':
                       sscanf(optarg,"%i",&CODESEG);
-                      if (CODESEG < 0 || CODESEG > 0xff) fatal("codeseg has to be a single byte value",-1);
+                      if (CODESEG > 0xff) fatal("codeseg has to be a single byte value",-1);
                       break;
 
             case 's':

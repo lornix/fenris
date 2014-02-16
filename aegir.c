@@ -55,14 +55,14 @@
 
 #include "config.h"
 #include "fdebug.h"
-#include "aegir-decl.h"
 #include "libdisasm/opcodes2/opdis.h"
 
 #include "common.h"
 
+//FIXME: hardcoded?!?  more than 300+ for i386
 const char* scnames[256]= {
     0,
-#include "scnames.h"
+#include "syscallnames.h"
     0
 };
 
@@ -782,6 +782,7 @@ void do_sbreak(char* param) {
     } else {
         if (sscanf(param,"%lld",&l1)!=1) {
 
+            //FIXME: hardcoded?!? there are 300+ for i386!
             for (st=0;st<256;st++)
                 if (scnames[st])
                     if (!strcasecmp(scnames[st],param)) break;

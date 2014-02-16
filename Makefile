@@ -89,7 +89,7 @@ CFLAGS+=-DLIBCSEG="0x2A"
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o
+fenris: fenris.c fenris.h libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o build_syscallnames
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 ragnarok: ragnarok.c
@@ -101,10 +101,10 @@ fprints: fprints.c
 dress: dress.c libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-aegir: aegir.c libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
+aegir: aegir.c libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o build_syscallnames
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-nc-aegir: nc-aegir.c libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
+nc-aegir: nc-aegir.c libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o build_syscallnames
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 # ===================== Libraries =========================
@@ -167,7 +167,9 @@ install: all
 	install --mode 644 $(MANFILES) $(PREFIX)/share/man/man1/
 	install --mode 755 $(PROGNAMES) $(TOOLNAMES) $(PREFIX)/bin/
 
-gather_syscalls:
+build_syscallnames:
+	# dummy up the syscallnames.h file
+	@echo "#include <asm-generic/unistd.h>" > syscallnames.h
 	# arm (tinker)
 	#     /usr/include/asm-generic/unistd.h
 	# i386
