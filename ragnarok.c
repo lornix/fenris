@@ -1687,12 +1687,3 @@ int main(const int argc, const char** argv) {
     return 0;
 
 }
-
-const char spell2[] = "\n\n\n"
-"It cannot be seen, cannot be felt,\n"
-"Cannot be heard, cannot be smelt.\n"
-"It lies behind stars and under hills,\n"
-"And empty holes it fills.\n"
-"It comes first and follows after,\n"
-"Ends life, kills laughter.\n"
-"\n\n\n";

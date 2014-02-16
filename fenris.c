@@ -1187,7 +1187,6 @@ void delete_mem(unsigned int start,char auth) {
  ********************/
 
 void segfault(int x __attribute__((unused))) {
-    write(2,spell,strlen(spell));
 
     debug("Fatal exception occurred. Fenris will terminate now. If you feel\n"
             "this should not happen, please use fenris-bug application to\n"

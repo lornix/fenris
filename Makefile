@@ -92,8 +92,8 @@ CFLAGS+=-DLIBCSEG="0x2A"
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h build_syscallnames libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o
+fenris: fenris.c fenris.h build_syscallnames hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 
 ragnarok: ragnarok.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<

@@ -51,13 +51,4 @@
 #define MAXCMD          512     // Max. Aegir command length
 #define MAXBREAK         64     // Max. breakpoints
 
-// This piece of code must remain intact and be included in all cases.
-
-const char spell[]=
-"\n\n"
-"A null pointer points to regions filled with dragons, demons, core\n"
-"dumps, and numberless other foul creatures, all of which delight in\n"
-"frolicking in thy program if thou disturb their sleep.\n"
-"\n\n";
-
 #endif /* not _HAVE_CONFIG_H */
