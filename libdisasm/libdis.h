@@ -50,6 +50,6 @@ struct changed  {
 
 };
 
-struct changed* disassemble_address(const char*,const char);
+struct changed* disassemble_address(const unsigned char*,const char);
 
 #endif

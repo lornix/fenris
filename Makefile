@@ -33,18 +33,17 @@ BUILD=`echo 3`
 PREFIX=/usr/local
 
 # basic info passed to programs
-CFLAGS+=-DBUILD=$(BUILD) -DVERSION=$(VERSION)
+CFLAGS+=-DBUILD='"$(BUILD)"' -DVERSION='"$(VERSION)"'
 #
 # always want these
 CFLAGS+=-Wall -Wextra -Wunused
+CFLAGS+=-Werror
 #
 # some optimizations?
 # CFLAGS+=-fomit-frame-pointer -funroll-loops -fexpensive-optimizations -ffast-math
 #
 CFLAGS+=-O0
 # CFLAGS+=-O3
-#
-# CFLAGS+=-Werror
 #
 # Debugging?
 CFLAGS+=-g3
@@ -63,8 +62,8 @@ CFLAGS+=-g3
 # LDFLAGS+=-rdynamic
 #
 # for openSSL
-# CFLAGS+=-DUSE_OPENSSL=1
-# LDFLAGS+=-lcrypto
+CFLAGS+=-DUSE_OPENSSL=1
+LDFLAGS+=-lcrypto
 #
 # for readline
 # CFLAGS+=-DHAVE_READLINE -D__USE_TERMCAP
@@ -79,7 +78,10 @@ CFLAGS+=-g3
 # LDFLAGS+=-flto
 #
 # extra stuff
-CFLAGS+=-DLIBCSEG=0x00 
+CFLAGS+=-DLIBCSEG="0x2A"
+#
+# useful for figuring out what a macro ends up like
+#CFLAGS+=--save-temps
 
 #dependencies:
 # readline-dev, libc-dev (un.h), openSSL-dev, binutils-dev (bfd.h),
@@ -185,5 +187,7 @@ uninstall:
 	rm -f $(addsuffix .1, $(addprefix $(PREFIX)/share/man/man1/, $(PROGNAMES) $(TOOLNAMES)))
 
 clean:
-	rm -f $(PROGNAMES) $(TOOLNAMES)
+	rm -f $(PROGNAMES)
 	rm -f *.o *~
+	rm -f rstree.o allocs.o libfnprints.o hooks.o
+	rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o

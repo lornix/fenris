@@ -104,18 +104,18 @@ unsigned int ctop;
  * #define CODESEG (((unsigned int)calls) >> 24)
  */
 
-static inline void found_fnprint_file(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
+inline void found_fnprint_file(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
 {
     add_signature(addr, cur->name);
 }
 
-static inline void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
+inline void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
 {
     if (!count) printf("0x%08x: %s",addr,cur->name);
     else printf(", %s",cur->name);
 }
 
-static inline void finish_fnprint(int count, unsigned int fprint, int unused)
+inline void finish_fnprint(int count, unsigned int fprint, int unused)
 {
     if (count) {
         found++;
@@ -123,7 +123,7 @@ static inline void finish_fnprint(int count, unsigned int fprint, int unused)
     }
 }
 
-static inline void finish_fnprint_file(int count, unsigned int fprint, int unused)
+inline void finish_fnprint_file(int count, unsigned int fprint, int unused)
 {
     if (count) found++;
 }
@@ -137,7 +137,7 @@ int main(int argc,char* argv[]) {
 
     bfd_init();
 
-    STDERRMSG("dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>\n");
+    STDERRMSG("dress - stripped binary recovery tool by <lcamtuf@coredump.cx>\n");
 
     while ((opt=getopt(argc,(void*)argv, "+S:F:"))!=EOF)
         switch(opt) {
@@ -175,7 +175,7 @@ int main(int argc,char* argv[]) {
     if (!bfd_check_format_matches(b,bfd_object,0)) FATALEXIT("ELF format mismatch");
 
     if ((bfd_get_file_flags(b) & HAS_SYMS) != 0) {
-        FATALEXIT("not a static stripped binary.");
+        FATALEXIT("not a stripped binary.");
         exit(1);
     }
 

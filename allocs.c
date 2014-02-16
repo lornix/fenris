@@ -39,38 +39,38 @@
 #ifdef DEBUG
 #include "rstree.h"
 
-static RSTree allocs_tree;
-static int memop = 0;
+RSTree allocs_tree;
+int memop = 0;
 #endif /* DEBUG */
 
-static allocs_error_handler_ftype global_error_handler;
+allocs_error_handler_ftype global_error_handler;
 
 void allocs_set_error_handler(allocs_error_handler_ftype handler)
 {
     global_error_handler=handler;
 }
 
-static inline void* original_malloc(const int size)
+inline void* original_malloc(const int size)
 {
     return malloc(size);
 }
 
-static inline void* original_realloc(void *r, const int size)
+inline void* original_realloc(void *r, const int size)
 {
     return realloc(r, size);
 }
 
-static inline void* original_strdup(const void *r)
+inline void* original_strdup(const void *r)
 {
     return strdup(r);
 }
 
-static inline void original_free(void *r)
+inline void original_free(void *r)
 {
     return free(r);
 }
 
-static inline void fatal(const char *msg)
+inline void fatal(const char *msg)
 {
     if (global_error_handler)
         global_error_handler(msg, 0);
@@ -84,7 +84,7 @@ char test_leaks;
 
 #ifdef DEBUG
 
-static void allocs_atexit(void)
+void allocs_atexit(void)
 {
     RSNode nd;
     void *r;
@@ -111,9 +111,9 @@ static void allocs_atexit(void)
     RSTree_destroy(allocs_tree);
 }
 
-static inline void register_atexit(void)
+inline void register_atexit(void)
 {
-    static int registered=0;
+    int registered=0;
 
     if (!registered) {
         registered=1;

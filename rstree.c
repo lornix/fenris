@@ -95,7 +95,7 @@ typedef struct _RSTree
 }
 _RSTree;
 
-static inline int compare_keys(int key1, int key2)
+inline int compare_keys(int key1, int key2)
 {
     if (key1 > key2)
         return 1;
@@ -105,7 +105,7 @@ static inline int compare_keys(int key1, int key2)
         return 0;
 }
 
-static RSNode node_create(int key)
+RSNode node_create(int key)
 {
     RSNode nd = (RSNode) malloc(sizeof(_RSNode));
 
@@ -119,7 +119,7 @@ static RSNode node_create(int key)
     return nd;
 }
 
-static void node_rotate_left(RSTree tr, RSNode nd)
+void node_rotate_left(RSTree tr, RSNode nd)
 {
     RSNode right, parent;
 
@@ -143,7 +143,7 @@ static void node_rotate_left(RSTree tr, RSNode nd)
     nd->parent = right;
 }
 
-static void node_rotate_right(RSTree tr, RSNode nd)
+void node_rotate_right(RSTree tr, RSNode nd)
 {
     RSNode left, parent;
 

@@ -80,7 +80,7 @@
 #include <utime.h>
 #include <sys/resource.h>
 #include <linux/types.h>
-#include <linux/dirent.h>
+#include <dirent.h>
 #include <sys/vfs.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -94,7 +94,6 @@
 #include "fenris.h"
 #include "ioctls.h"
 #include "libdisasm/libdis.h"
-#include "fenris-decl.h"
 #include "fdebug.h"
 #include "hooks.h"
 
@@ -133,7 +132,7 @@ unsigned int             caddr;    // Current process: CALL dest addr
 
 unsigned int start_eip, stop_eip;
 
-static char              fnm_buf[MAXDESCR]; // Local function name
+char              fnm_buf[MAXDESCR]; // Local function name
 
 struct fenris_process    ps[MAXCHILDREN];  // Traced process table
 struct fenris_process*   current;          // Currently traced process
@@ -168,7 +167,7 @@ int STACKSEG,CODESEG;
 
 const char* scnames[256]= {
     0,
-#include "scnames.h"
+#include "syscallnames.h"
     0
 };
 
@@ -177,7 +176,7 @@ const char* scnames[256]= {
 #define RD() reset_pdescr()
 #define DD() dump_pdescr(0)
 
-static char pdescr[MAXPDESC+1];
+char pdescr[MAXPDESC+1];
 
 #define reset_pdescr() pdescr[0]=0
 
@@ -190,7 +189,7 @@ struct hacking_table {
 struct hacking_table reptable[MAXREP];
 int reptop=0;
 
-static void nappend(char* dst,const char* src,int max) {
+void nappend(char* dst,const char* src,int max) {
     int i;
     i=max-strlen(dst)+2;
     if (i<=0) return;
@@ -281,9 +280,9 @@ void fatal(const char* x, const int err) {
  * Produce nice graphical indentation and such *
  ***********************************************/
 
-static inline void indent(const int corr) {
-    static char intbuf[MAXINDENT+2];
-    static int tib;
+inline void indent(const int corr) {
+    char intbuf[MAXINDENT+2];
+    int tib;
 
     if (T_noindent) return;
 
@@ -313,7 +312,7 @@ static inline void indent(const int corr) {
 
 extern int sd; // Debugger socket.
 
-static int start_child(const char** argv) {
+int start_child(const char** argv) {
     int ret,n=1;
 
     ret=fork();
@@ -350,7 +349,7 @@ static int start_child(const char** argv) {
  * Temporarily remove int3 traps from code *
  *******************************************/
 
-static void remove_traps(void) {
+void remove_traps(void) {
     int i;
     for (i=0;i<MAXSIG;i++) {
         unsigned int addr=get_handler(i);
@@ -372,7 +371,7 @@ static void remove_traps(void) {
  * Reinstall int3 traps *
  ************************/
 
-static void install_traps(void) {
+void install_traps(void) {
     int i;
 
     for (i=0;i<MAXSIG;i++) {
@@ -396,12 +395,12 @@ static void install_traps(void) {
  * Add signal handler *
  **********************/
 
-static inline void add_handler(int i,unsigned int a) {
+inline void add_handler(int i,unsigned int a) {
     if (i<0 || i>=MAXSIG) return;
     current->sh[i]=a;
 }
 
-static inline void set_withret(int i,char val) {
+inline void set_withret(int i,char val) {
     if (i<0 || i>=MAXSIG) return;
     current->shret[i]=val;
 }
@@ -419,7 +418,7 @@ inline unsigned int get_handler(int i) {
  * Add or update memory region information *
  *******************************************/
 
-static inline void add_mem(unsigned int start, int len, unsigned int newaddr,const char* who,char auth) {
+inline void add_mem(unsigned int start, int len, unsigned int newaddr,const char* who,char auth) {
 
     int i;
     char* doingmerge=0;
@@ -735,7 +734,7 @@ nojoin:
  * Add something to writelog *
  *****************************/
 
-static inline void append_wlog(const char* what) {
+inline void append_wlog(const char* what) {
     int curlen=0;
 
     if (T_wnow) {
@@ -973,7 +972,7 @@ no_libc:
  * Remove memory block *
  ***********************/
 
-static void delete_mem(unsigned int start,char auth) {
+void delete_mem(unsigned int start,char auth) {
     struct fenris_mem* f;
 
     f=lookup_mem(start);
@@ -1002,7 +1001,7 @@ static void delete_mem(unsigned int start,char auth) {
  * Die mysteriously *
  ********************/
 
-static void segfault(int x) {
+void segfault(int x) {
     write(2,spell,strlen(spell));
 
     debug("Fatal exception occurred. Fenris will terminate now. If you feel\n"
@@ -1019,7 +1018,7 @@ static void segfault(int x) {
     abort();
 }
 
-static void pipefault(int x) {
+void pipefault(int x) {
     fatal("connection dropped? terminal disappeared?",-1);
 }
 
@@ -1027,7 +1026,7 @@ static void pipefault(int x) {
  * Lookup memory address *
  *************************/
 
-static inline struct fenris_mem* lookup_mem(const unsigned int addr) {
+inline struct fenris_mem* lookup_mem(const unsigned int addr) {
     int i;
 
     for (i=0;i<current->memtop;i++) {
@@ -1046,7 +1045,7 @@ static inline struct fenris_mem* lookup_mem(const unsigned int addr) {
  * Lookup any buffer inside given range *
  ****************************************/
 
-static inline struct fenris_mem* lookup_inrange(const unsigned int addr,const unsigned int len) {
+inline struct fenris_mem* lookup_inrange(const unsigned int addr,const unsigned int len) {
     unsigned int end=addr+len;
     int i;
 
@@ -1070,7 +1069,7 @@ static inline struct fenris_mem* lookup_inrange(const unsigned int addr,const un
  * Lookup map *
  **************/
 
-static inline struct fenris_map* lookup_map(const unsigned int addr) {
+inline struct fenris_map* lookup_map(const unsigned int addr) {
     int i;
 
     for (i=0;i<current->mtop+1;i++) {
@@ -1090,7 +1089,7 @@ static inline struct fenris_map* lookup_map(const unsigned int addr) {
  * Mark local regions invalid *
  ******************************/
 
-static inline void invalidate_mem(void) {
+inline void invalidate_mem(void) {
     int i;
     unsigned int s;
 
@@ -1109,7 +1108,7 @@ static inline void invalidate_mem(void) {
  * Push local function entry to stack *
  **************************************/
 
-static inline void push_fnid(const unsigned int id) {
+inline void push_fnid(const unsigned int id) {
 
     if (current->fntop>=MAXNEST) {
         if (T_noskip) {
@@ -1133,7 +1132,7 @@ static inline void push_fnid(const unsigned int id) {
  * Return from local function *
  ******************************/
 
-static inline void fn_ret(void) {
+inline void fn_ret(void) {
 
     if (current->fntop>0) {
         dump_memchg(0);
@@ -1148,7 +1147,7 @@ static inline void fn_ret(void) {
  * Add new pupils to ps table *
  ******************************/
 
-static void add_process(const int mpid) {
+void add_process(const int mpid) {
     int i;
 
     for (i=0;i<MAXCHILDREN;i++)
@@ -1171,7 +1170,7 @@ static void add_process(const int mpid) {
  * Describe function parameters *
  ********************************/
 
-static inline void display_value(const unsigned int q,const char* where) {
+inline void display_value(const unsigned int q,const char* where) {
 
     if ((q >> 24) == CODESEG)       debug("g/%x",q); // global
     else if ((q >> 24) == STACKSEG) debug("l/%x",q); // local
@@ -1187,7 +1186,7 @@ static inline void display_value(const unsigned int q,const char* where) {
  * Modify last input parameter for SOMETHING *
  *********************************************/
 
-static inline void modify_lasti(unsigned int sth,char* where,int fd,unsigned int map,char* what) {
+inline void modify_lasti(unsigned int sth,char* where,int fd,unsigned int map,char* what) {
     char buf[MAXDESCR*2];
     struct fenris_map* ma=0;
     struct fenris_mem* me=0;
@@ -1231,17 +1230,17 @@ static inline void modify_lasti(unsigned int sth,char* where,int fd,unsigned int
  * Some fast-action debug() functions *
  **************************************/
 
-static inline unsigned int Xv(const unsigned int q) {
+inline unsigned int Xv(const unsigned int q) {
     if (q) add_pdescr(q);
     return q;
 }
 
-static inline int Xf(int q) {
+inline int Xf(int q) {
     if (q>=0) add_fd_pdescr(q);
     return q;
 }
 
-static inline unsigned int Wv(const unsigned int q) {
+inline unsigned int Wv(const unsigned int q) {
     if (q) add_wdescr(q,1);
     return q;
 }
@@ -1250,7 +1249,7 @@ static inline unsigned int Wv(const unsigned int q) {
  * Add something to pdescr log *
  *******************************/
 
-static inline void add_pdescr(const unsigned int q) {
+inline void add_pdescr(const unsigned int q) {
     int miau=0;
     char tmp[MAXDESCR];
     struct fenris_map* ma=0;
@@ -1360,7 +1359,7 @@ static inline void add_pdescr(const unsigned int q) {
 inline char* get_addrdescr(const unsigned int q) {
     int miau=1;
     char tmp[MAXDESCR];
-    static char ret[MAXDESCR];
+    char ret[MAXDESCR];
     struct fenris_map* ma=0;
     struct fenris_mem* me=0;
 
@@ -1421,7 +1420,7 @@ inline char* get_addrdescr(const unsigned int q) {
  * Add description of given addr to the log *
  ********************************************/
 
-static inline void add_wdescr(unsigned int q,char wri) {
+inline void add_wdescr(unsigned int q,char wri) {
     int miau=0;
     char tmp[MAXDESCR];
     struct fenris_map* ma=0;
@@ -1532,7 +1531,7 @@ static inline void add_wdescr(unsigned int q,char wri) {
  * Describe fd *
  ***************/
 
-static inline void add_fd_pdescr(const int fd) {
+inline void add_fd_pdescr(const int fd) {
     char tmp[MAXDESCR];
 
     if (T_nodesc) return;
@@ -1578,7 +1577,7 @@ static inline void add_fd_pdescr(const int fd) {
 
 inline char* get_fddescr(const int fd) {
     char tmp[MAXDESCR];
-    static char ret[MAXDESCR];
+    char ret[MAXDESCR];
 
     ret[0]=0;
 
@@ -1608,7 +1607,7 @@ inline char* get_fddescr(const int fd) {
  * Get filename *
  ****************/
 
-static inline char* get_fname(const int fd) {
+inline char* get_fname(const int fd) {
 
     if ((fd<0) || (fd>=current->fdtop)) return "<unknown>";
 
@@ -1622,7 +1621,7 @@ static inline char* get_fname(const int fd) {
  * Write pdescr *
  ****************/
 
-static inline void dump_pdescr(const int ind) {
+inline void dump_pdescr(const int ind) {
     char *x=pdescr, *old;
 
     if (!pdescr[0]) return;
@@ -1643,7 +1642,7 @@ static inline void dump_pdescr(const int ind) {
  * Write wlog *
  **************/
 
-static inline void dump_memchg(const int ind) {
+inline void dump_memchg(const int ind) {
     char *x=current->wlog[current->fntop], *old,*y;
 
     if (!x) return;
@@ -1675,7 +1674,7 @@ static inline void dump_memchg(const int ind) {
  * Read stack and display params *
  *********************************/
 
-static inline void display_fparams(unsigned int esP,int pcnt,const char* where) {
+inline void display_fparams(unsigned int esP,int pcnt,const char* where) {
     int i;
     unsigned int q;
     RD();
@@ -1686,7 +1685,7 @@ static inline void display_fparams(unsigned int esP,int pcnt,const char* where) 
     }
 }
 
-static inline void warn_opt(int d, int p) {
+inline void warn_opt(int d, int p) {
     if (d!=p) {
         current->bopt++;
         if (!current->Owarn) {
@@ -1709,7 +1708,7 @@ static inline void warn_opt(int d, int p) {
  * Try to find a match for this function *
  *****************************************/
 
-static inline void display_specific(void) {
+inline void display_specific(void) {
 
     char n[MAXDESCR];
     char* f=current->lcname;
@@ -1920,7 +1919,7 @@ static inline void display_specific(void) {
  * Check if we handle this one separately, save all the stuff... *
  *****************************************************************/
 
-static inline char check_specific(char* n,unsigned int esP,int pcnt) {
+inline char check_specific(char* n,unsigned int esP,int pcnt) {
     int i;
 
     if (strcmp(n,"strlen"))
@@ -1960,7 +1959,7 @@ static inline char check_specific(char* n,unsigned int esP,int pcnt) {
  * Clean up old mess *
  *********************/
 
-static void remove_process(void) {
+void remove_process(void) {
     int i;
 
     if (!current)
@@ -2018,7 +2017,7 @@ static void remove_process(void) {
  * partially shared process info (clone()). *
  ********************************************/
 
-static void clone_process(const int newpid) {
+void clone_process(const int newpid) {
     int i;
     struct fenris_process *p;
 
@@ -2081,7 +2080,7 @@ static void clone_process(const int newpid) {
  * Get string from ptraced child *
  *********************************/
 
-static inline void get_string_from_child(const unsigned int addr, char* buf,int max) {
+inline void get_string_from_child(const unsigned int addr, char* buf,int max) {
     int i=0;
     char *b=buf;
 
@@ -2105,13 +2104,13 @@ static inline void get_string_from_child(const unsigned int addr, char* buf,int 
 
 }
 
-static inline int issuit(const char c) {
+inline int issuit(const char c) {
     if (isprint(c)) return 1;
     if (/*c=='\n' || */ c=='\t') return 1;
     return 0;
 }
 
-static inline void print_string(const unsigned int addr,const char* where) {
+inline void print_string(const unsigned int addr,const char* where) {
     char b[5] = {0,0,0,0,0};
     int miau=0;
     AS_UINT(b) = ptrace(PTRACE_PEEKDATA,pid,addr,0);
@@ -2137,7 +2136,7 @@ static inline void print_string(const unsigned int addr,const char* where) {
  * Get memory from child :> *
  ****************************/
 
-static inline void get_mem_from_child(const unsigned int addr,
+inline void get_mem_from_child(const unsigned int addr,
         char* buf,int max) {
     int i=0;
     char *b=buf;
@@ -2157,7 +2156,7 @@ static inline void get_mem_from_child(const unsigned int addr,
 
 char errbuf[64];
 
-static inline char* toerror(int q) {
+inline char* toerror(int q) {
     if (q<0) sprintf(errbuf,"%d (%s)",q,strerror(-q));
     else sprintf(errbuf,"%d",q);
     return errbuf;
@@ -2167,7 +2166,7 @@ static inline char* toerror(int q) {
  * Quick fork() handler *
  ************************/
 
-static void trace_fork(void) {
+void trace_fork(void) {
 
     int p=0,q=0,off,ser;
     struct user u;
@@ -2195,7 +2194,7 @@ static void trace_fork(void) {
  * Handle int $0x80 calls - no matter why and where *
  ****************************************************/
 
-static inline void want_ret(void) {
+inline void want_ret(void) {
     current->syscall=r.eax;
     memcpy(&current->pr,&r,sizeof(r));
 }
@@ -2204,7 +2203,7 @@ static inline void want_ret(void) {
  * "Before" handler *
  ********************/
 
-static void handle_syscall(void) {
+void handle_syscall(void) {
     char buf[MAXFNAME];
     unsigned int addr;
 
@@ -2338,7 +2337,7 @@ aftersig:
  * Add item to fd table *
  ************************/
 
-static void add_filedes(const int fd,const char* fname,char* who,int p) {
+void add_filedes(const int fd,const char* fname,char* who,int p) {
 
     char tmpbuf[MAXDESCR];
 
@@ -2371,7 +2370,7 @@ static void add_filedes(const int fd,const char* fname,char* who,int p) {
  * Add unknown filedes *
  ***********************/
 
-static void unknown_filedes(const int fd,const char* fname) {
+void unknown_filedes(const int fd,const char* fname) {
 
     char tmpbuf[MAXDESCR];
 
@@ -2399,7 +2398,7 @@ static void unknown_filedes(const int fd,const char* fname) {
  * Duplicate filedes. *
  **********************/
 
-static void dup_filedes(const int old,const int fd,char* who) {
+void dup_filedes(const int old,const int fd,char* who) {
     char tmpbuf[MAXDESCR];
 
     if (current->fdtop<=old) fatal("dup_filedes with excessive fd",0);
@@ -2433,7 +2432,7 @@ static void dup_filedes(const int old,const int fd,char* who) {
  * Remove item from fd table *
  *****************************/
 
-static void remove_filedes(const int fd) {
+void remove_filedes(const int fd) {
 
     if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name) {
 
@@ -2455,7 +2454,7 @@ static void remove_filedes(const int fd) {
  * Change filedes info *
  ***********************/
 
-static void modify_filedes(const int fd,const char* newt, int newp) {
+void modify_filedes(const int fd,const char* newt, int newp) {
 
     if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name) {
 
@@ -2474,7 +2473,7 @@ static void modify_filedes(const int fd,const char* newt, int newp) {
  * Get .p parameter (port) *
  ***************************/
 
-static int get_filep(const int fd) {
+int get_filep(const int fd) {
 
     if ((fd>=0) && (fd<current->fdtop) && (*current->fd)[fd].name)
         return (*current->fd)[fd].p;
@@ -2487,7 +2486,7 @@ static int get_filep(const int fd) {
  * Add map entry *
  *****************/
 
-static void add_map(const int fd,const unsigned int addr,
+void add_map(const int fd,const unsigned int addr,
         const unsigned int len,char* who) {
 
     int i;
@@ -2546,7 +2545,7 @@ static void add_map(const int fd,const unsigned int addr,
  * Add default linker map *
  **************************/
 
-static void add_ldmap(void) {
+void add_ldmap(void) {
     unsigned int st,en;
     char buf[MAXDESCR+1];
     FILE* x=fopen("/proc/self/maps","r");
@@ -2567,7 +2566,7 @@ static void add_ldmap(void) {
  * Delete map entry *
  ********************/
 
-static void delete_map(const unsigned int addr) {
+void delete_map(const unsigned int addr) {
     int i;
     for (i=0;i<current->mtop+1;i++)
         if ((*current->map)[i].addr==addr) {
@@ -2602,7 +2601,7 @@ static void delete_map(const unsigned int addr) {
  * Handle return from syscall *
  ******************************/
 
-static void ret_syscall(void) {
+void ret_syscall(void) {
     char buf[MAXFNAME];
     char b2[64];
     unsigned char b3[MAXFNAME];
@@ -5429,7 +5428,7 @@ static void ret_syscall(void) {
  * Find or assign unique function id *
  *************************************/
 
-static inline int find_id(unsigned int c,unsigned int addnew) {
+inline int find_id(unsigned int c,unsigned int addnew) {
     int i=0;
 
     if (!current->fnaddr) {
@@ -5479,13 +5478,13 @@ inline char* find_id_off(unsigned int c) {
 
 }
 
-static inline void found_fnprint(int count, struct fenris_fndb *cur, int fprint, int unused)
+inline void found_fnprint(int count, struct fenris_fndb *cur, int fprint, int unused)
 {
     if (!count) debug("# Matches for signature %08X: ", fprint);
     debug("%s ", cur->name);
 }
 
-static inline void finish_fnprint(int count, int fprint, int unused)
+inline void finish_fnprint(int count, int fprint, int unused)
 {
     if (count) debug("\n");
     else debug("# No matches for signature %08X.\n", fprint);
@@ -5495,7 +5494,7 @@ static inline void finish_fnprint(int count, int fprint, int unused)
  * Handle local function call *
  ******************************/
 
-static inline void handle_fncall(const char how) {
+inline void handle_fncall(const char how) {
     char* f="fnct_bogus";
     int prev;
 
@@ -5561,7 +5560,7 @@ static inline void handle_fncall(const char how) {
 
     dump_pdescr(-1);
 
-    if (!current->is_static || T_nosig) { if (T_dostep) break_call(caddr); return; }
+    if (!current->is_|| T_nosig) { if (T_dostep) break_call(caddr); return; }
     if (strncmp(f,"fnct_",5)) { if (T_dostep) break_call(caddr); return; }
 
     {
@@ -5584,10 +5583,10 @@ static inline void handle_fncall(const char how) {
  * Try to find symbol name *
  ***************************/
 
-static Dl_info di;
-static char fn_buf[64];
+Dl_info di;
+char fn_buf[64];
 
-static inline char* find_name(const unsigned int addr) {
+inline char* find_name(const unsigned int addr) {
 
     int i;
 
@@ -5670,7 +5669,7 @@ static inline char* find_name(const unsigned int addr) {
 
 }
 
-static inline unsigned int appr_addr(const unsigned int addr) {
+inline unsigned int appr_addr(const unsigned int addr) {
 
     char fn_buf[64];
     int i;
@@ -5739,7 +5738,7 @@ inline char* find_name_ex(unsigned int c,char prec,char non) {
  * Handle libc call *
  ********************/
 
-static inline void handle_libcall(void) {
+inline void handle_libcall(void) {
 
     if (current->nest<-1) return;
 
@@ -5776,7 +5775,7 @@ static inline void handle_libcall(void) {
  * Delayed display of libcall parameters *
  *****************************************/
 
-static inline void display_libcall(unsigned int c) {
+inline void display_libcall(unsigned int c) {
     char* name=find_name(c);
 
     if (!strncmp(name,"_IO_",4)) name+=4; else
@@ -5820,7 +5819,7 @@ static inline void display_libcall(unsigned int c) {
  * Handle return from function *
  *******************************/
 
-static inline void handle_ret(void) {
+inline void handle_ret(void) {
     unsigned int retto;
 
     if (current->nest==0 && !current->anything) {
@@ -5923,7 +5922,7 @@ static inline void handle_ret(void) {
  * Handle subfunction params *
  *****************************/
 
-static inline void handle_subesp(int x,unsigned char next) {
+inline void handle_subesp(int x,unsigned char next) {
     unsigned char buf[4];
 
     if (current->nest<0) return;
@@ -5948,7 +5947,7 @@ static inline void handle_subesp(int x,unsigned char next) {
 
 }
 
-static inline void handle_subesp_long(int x,unsigned char next) {
+inline void handle_subesp_long(int x,unsigned char next) {
     unsigned char buf[8];
 
     if (current->nest<0) return;
@@ -5978,7 +5977,7 @@ static inline void handle_subesp_long(int x,unsigned char next) {
  * Dispose relative CALL *
  *************************/
 
-static inline void handle_call(void) {
+inline void handle_call(void) {
     unsigned int there;
 
     caddr=AS_UINT(op[1])+5+r.eip;
@@ -6008,7 +6007,7 @@ static inline void handle_call(void) {
  * Dispose absolute call *
  *************************/
 
-static inline void handle_abscall(void) {
+inline void handle_abscall(void) {
     unsigned int there;
 
     caddr = ptrace(PTRACE_PEEKDATA,pid,AS_UINT(op[2]),0);
@@ -6037,7 +6036,7 @@ static inline void handle_abscall(void) {
  * Handle dumb regoffcall *
  **************************/
 
-static inline void handle_regoffcall(unsigned int addr) {
+inline void handle_regoffcall(unsigned int addr) {
     unsigned int there;
 
     caddr = ptrace(PTRACE_PEEKDATA,pid,addr,0);
@@ -6066,7 +6065,7 @@ static inline void handle_regoffcall(unsigned int addr) {
  * Moronic *
  ***********/
 
-static inline void handle_jmp(void) {
+inline void handle_jmp(void) {
     unsigned int there;
 
     caddr=AS_UINT(op[1])+5+r.eip;
@@ -6093,7 +6092,7 @@ static inline void handle_jmp(void) {
  * Dispose register-call *
  *************************/
 
-static inline void handle_regcall(unsigned int reg) {
+inline void handle_regcall(unsigned int reg) {
     unsigned int there;
 
     caddr=reg;
@@ -6128,7 +6127,7 @@ static inline void handle_regcall(unsigned int reg) {
  * Handle some conditionals *
  ****************************/
 
-static inline void handle_je(int off) {
+inline void handle_je(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
     debug("<%x> ",(int)r.eip);
@@ -6139,7 +6138,7 @@ static inline void handle_je(int off) {
     }
 }
 
-static inline void handle_jne(int off) {
+inline void handle_jne(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
     debug("<%x> ",(int)r.eip);
@@ -6150,7 +6149,7 @@ static inline void handle_jne(int off) {
     }
 }
 
-static inline void handle_jle(int off) {
+inline void handle_jle(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
@@ -6164,7 +6163,7 @@ static inline void handle_jle(int off) {
     }
 }
 
-static inline void handle_jbe(int off) {
+inline void handle_jbe(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
@@ -6178,7 +6177,7 @@ static inline void handle_jbe(int off) {
     }
 }
 
-static inline void handle_jg(int off) {
+inline void handle_jg(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
@@ -6192,7 +6191,7 @@ static inline void handle_jg(int off) {
     }
 }
 
-static inline void handle_ja(int off) {
+inline void handle_ja(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
     debug("<%x> ",(int)r.eip);
@@ -6208,7 +6207,7 @@ static inline void handle_ja(int off) {
  * Dynamic linker entry marker *
  *******************************/
 
-static inline void enter_dynamic(void) {
+inline void enter_dynamic(void) {
     //  debug("ENTERDYNAMIC --> already=%d eip=%x op=%x %x %x %x %x %x %x %x\n",
     //         already_main,r.eip,op[0],op[1],op[2],op[3],op[4],op[5],op[6],op[7]);
     already_main=1;
@@ -6227,7 +6226,7 @@ static inline void enter_dynamic(void) {
 
 int first_getregs=1;
 
-static inline void handle_process(void) {
+inline void handle_process(void) {
     unsigned int maddr,i;
 
 rethink:
@@ -6239,9 +6238,9 @@ rethink:
 
         if (first_getregs) {
             first_getregs=0;
-            if (is_static && (CODESEG != ( r.eip >> 24) ))
+            if (is_&& (CODESEG != ( r.eip >> 24) ))
                 debug("********************************************************************\n"
-                        "* WARNING: This is a static binary, but initial eip is not in what *\n"
+                        "* WARNING: This is a binary, but initial eip is not in what *\n"
                         "* I am told to consider a code segment. If you have difficulties   *\n"
                         "* tracing this code, please consider using -X 0x%02x option.         *\n"
                         "********************************************************************\n",(int)r.eip>>24);
@@ -6798,7 +6797,7 @@ int rcount;
 void donothing(int x) {
 }
 
-static inline void singlestep(void) {
+inline void singlestep(void) {
     int status=0,ptr,sig=0,i;
 
     if (T_dostep) {
@@ -6808,9 +6807,9 @@ static inline void singlestep(void) {
                 if (!ptrace(PTRACE_GETREGS,pid,0,&r)) break;
             if (first_getregs) {
                 first_getregs=0;
-                if (is_static && (CODESEG != ( r.eip >> 24) ))
+                if (is_&& (CODESEG != ( r.eip >> 24) ))
                     debug("********************************************************************\n"
-                            "* WARNING: This is a static binary, but initial eip is not in what *\n"
+                            "* WARNING: This is a binary, but initial eip is not in what *\n"
                             "* I am told to consider a code segment. If you have difficulties   *\n"
                             "* tracing this code, please consider using -X 0x%02x option.         *\n"
                             "********************************************************************\n",(int)r.eip >> 24);
@@ -6985,10 +6984,10 @@ justptrace:
 
 /*****************************************************
  * We probably want to determine if given executable *
- * is static or dynamic. Hey, that'll do!            *
+ * is or dynamic. Hey, that'll do!            *
  *****************************************************/
 
-static int am_i_static(const int fd) {
+int am_i_static(const int fd) {
     int i;
     lseek(fd,0x51,SEEK_SET);
     read(fd,&i,4);
@@ -7000,7 +6999,7 @@ static int am_i_static(const int fd) {
  * Check for binary location, emulate execvp *
  *********************************************/
 
-static void check_binary(const char* path,unsigned char script) {
+void check_binary(const char* path,unsigned char script) {
     char* p;
     char* res;
     char tmpbuf[MPS+2];
@@ -7074,7 +7073,7 @@ static void check_binary(const char* path,unsigned char script) {
  * Check if libc mapping is OK *
  *******************************/
 
-static void addr_check(void) {
+void addr_check(void) {
     void *x;
     unsigned int y;
     x=dlopen("/lib/libc.so.6",RTLD_LAZY|RTLD_GLOBAL);
@@ -7115,7 +7114,7 @@ static void addr_check(void) {
  * Burn in flames *
  ******************/
 
-static void dienow(int x) {
+void dienow(int x) {
     fatal("interrupted",-2);
 }
 
@@ -7123,7 +7122,7 @@ static void dienow(int x) {
  * Usage information *
  *********************/
 
-static void usage(void) {
+void usage(void) {
     debug("\n"
             "Usage: fenris [ -o file ] [ -E PAR=VAL ] [ -u user ] [ -L dbase ] [ -R a:b ]\n"
             "              [ -t num ] [ -P i:a:v ] [ -W path ] [ -sdiGCSfFmxpAyqe ] [ -X pr ]\n"
@@ -7143,7 +7142,7 @@ static void usage(void) {
             "       -S             - inhibit resolving library symbols\n"
             "       -f             - trace child processes after fork() or vfork()\n"
             "       -d             - do not describe function parameters\n"
-            "       -F             - do not fingerprint functions (static binaries)\n"
+            "       -F             - do not fingerprint functions (binaries)\n"
             "       -m             - do not trace memory writes\n"
             "       -i             - do not indent\n"
             "       -x             - do not try to skip libc outro (no exit from main)\n"

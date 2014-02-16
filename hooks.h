@@ -48,11 +48,11 @@ void break_messenger(void);
 // Specific handlers:
 int  break_single(void);
 void break_libcall(unsigned int addr);
-void break_syscall(int num);
+void break_syscall(unsigned int num);
 void break_call(unsigned int addr);
 void break_ret(void);
 void break_nestdown(void);
-void break_signal(int signo);
+void break_signal(unsigned int signo);
 void break_memread(unsigned int addr);
 void break_memwrite(unsigned int addr);
 void break_enterdyn(void);

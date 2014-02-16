@@ -17,9 +17,9 @@
 
 #include "../common.h"
 
-static unsigned int sd;
+unsigned int sd;
 
-static void flisten(char* where) {
+void flisten(char* where) {
     struct sockaddr_un sun;
 
     STDERRMSG("[+] Setting up a socket...\n");

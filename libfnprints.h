@@ -89,7 +89,7 @@ int fnprints_count();
  * codeseg is the code segment used to detect relocations
  * sig has to be at last SIGNATSIZE+4 bytes long */
 
-static inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
+inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
     unsigned int result[4];
     MD5_CTX kuku;
     int i,tagme=0;
@@ -112,9 +112,9 @@ static inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
     for (i=0;i<SIGNATSIZE;i++)
         if (sig[i]==0xe8) bzero(&sig[i+1],4);
 
-    MD5Init(&kuku);
-    MD5Update(&kuku,sig,SIGNATSIZE);
-    MD5Final((char*)result,&kuku);
+    MD5_Init(&kuku);
+    MD5_Update(&kuku,sig,SIGNATSIZE);
+    MD5_Final((unsigned char*)result,&kuku);
 
     result[0] ^= result[2];
     result[1] ^= result[3];

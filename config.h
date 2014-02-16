@@ -53,7 +53,7 @@
 
 // This piece of code must remain intact and be included in all cases.
 
-const static char spell[]=
+const char spell[]=
 "\n\n"
 "A null pointer points to regions filled with dragons, demons, core\n"
 "dumps, and numberless other foul creatures, all of which delight in\n"

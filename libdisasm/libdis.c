@@ -35,25 +35,25 @@
 #include "libdis.h"
 #include "i386.h"
 
-static struct addr_exp exp[3];
-static struct EXT__ARCH ext_arch;
-static int    inited;
+struct addr_exp exps[3];
+struct EXT__ARCH ext_arch;
+int    inited;
 
-static struct changed CH;
-static unsigned int wantthis;
+struct changed CH;
+unsigned int wantthis;
 
-static inline void disassemble_init(void){
+inline void disassemble_init(void){
     ext_arch.options = 0;
     inited=1;
     ext_arch_init( &ext_arch );
 }
 
-static inline  char * get_reg_name(int index) {
+inline  char * get_reg_name(int index) {
     if (index >= ext_arch.sz_regtable) return 0;
     return ext_arch.reg_table[index].mnemonic;
 }
 
-static inline  void parse_addrexp(struct addr_exp *e){
+inline  void parse_addrexp(struct addr_exp *e){
 
     CH.sc=e->scale;
 
@@ -69,7 +69,7 @@ static inline  void parse_addrexp(struct addr_exp *e){
 
 }
 
-static inline  void handle_op(int op, int type){
+inline  void handle_op(int op, int type){
 
     if (!(type & wantthis)) return;
 
@@ -78,7 +78,7 @@ static inline  void handle_op(int op, int type){
         case OP_PTR:
         case OP_ADDR:
         case OP_OFF:  CH.addr=op; break;
-        case OP_EXPR: parse_addrexp(&exp[op]); break;
+        case OP_EXPR: parse_addrexp(&exps[op]); break;
         case OP_REG:  break;
         default:      if (wantthis == OP_W)
                           fprintf(stderr,"Ooops - handle_op(): type 0x%x,"
@@ -88,18 +88,18 @@ static inline  void handle_op(int op, int type){
 
 }
 
-struct changed* disassemble_address(const char *buf,const char wri) {
+struct changed* disassemble_address(const unsigned char *buf,const char wri) {
     int size;
-    struct code c={};
+    struct code c;
 
     if (wri) wantthis=OP_W; else wantthis=OP_R;
 
     if (!inited) disassemble_init();
 
-    bzero(exp,sizeof(exp));
+    bzero(exps,sizeof(exps));
     bzero(&CH,sizeof(CH));
 
-    size=disasm_addr((char*)buf,&c,0);
+    size=disasm_addr(buf,&c,0);
     if (size>0) CH.size=size; else CH.size=1;
 
     if (wri) handle_op(c.dest, c.destType); else handle_op(c.src, c.srcType);
@@ -126,16 +126,16 @@ int AddRegTableEntry( int index, char *name, int size){
 int DefineAddrExp(int scale,int index,int base,int disp,int flags){
     int id;
 
-    if (!exp[0].used) id = 0;
-    else if (!exp[1].used) id = 1;
+    if (!exps[0].used) id = 0;
+    else if (!exps[1].used) id = 1;
     else id = 2;
 
-    exp[id].used  = 1;
-    exp[id].scale = scale;
-    exp[id].index = index;
-    exp[id].base  = base;
-    exp[id].disp  = disp;
-    exp[id].flags = flags;
+    exps[id].used  = 1;
+    exps[id].scale = scale;
+    exps[id].index = index;
+    exps[id].base  = base;
+    exps[id].disp  = disp;
+    exps[id].flags = flags;
 
     return id;
 

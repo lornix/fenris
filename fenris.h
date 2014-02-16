@@ -140,7 +140,6 @@ struct fenris_process {
 
 // This most likely shouldn't be hardcoded, but well. Should be
 // good for now.
-#define INLIBC(f) ((((f) >> 24) >= LIBCSEG) && \
-        (((f) >> 24) <= (LIBCSEG+5)))
+#define INLIBC(f) ((((f) >> 24) >= LIBCSEG) && (((f) >> 24) <= (LIBCSEG+5)))
 
 #endif /* not _HAVE_FENRIS_H */

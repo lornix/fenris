@@ -60,11 +60,11 @@ typedef struct INSTR {
 #define PREFIX_GS         0x60000000
 #define PREFIX_REG_MASK   0xF0000000
 
-static int prefix_table[][2] = {
-    { 0xF0, PREFIX_LOCK },
-    { 0xF2, PREFIX_REPNZ },
-    { 0xF3, PREFIX_REP },
-    { 0x2E, PREFIX_CS },
+int prefix_table[][2] = {
+    { 0xF0, PREFIX_LOCK},
+    { 0xF2, PREFIX_REPNZ},
+    { 0xF3, PREFIX_REP},
+    { 0x2E, PREFIX_CS},
     { 0x36, PREFIX_SS},
     { 0x3E, PREFIX_DS},
     { 0x26, PREFIX_ES},
@@ -72,20 +72,20 @@ static int prefix_table[][2] = {
     { 0x65, PREFIX_GS},
     { 0x66, PREFIX_OP_SIZE},
     { 0x67, PREFIX_ADDR_SIZE},
-    //   { 0x0F, PREFIX_SIMD },
+//  { 0x0F, PREFIX_SIMD},
     { 0,    0}
 };
 
-static char *reg_dword[]   = {"eax",   "ecx",   "edx",   "ebx",   "esp",   "ebp",   "esi",   "edi"   };
-static char *reg_word[]    = {"ax",    "cx",    "dx",    "bx",    "sp",    "bp",    "si",    "di"    };
-static char *reg_byte[]    = {"al",    "cl",    "dl",    "bl",    "ah",    "ch",    "dh",    "bh"    };
-static char *reg_mmx[]     = {"mm0",   "mm1",   "mm2",   "mm3",   "mm4",   "mm5",   "mm6",   "mm7"   };
-static char *reg_simd[]    = {"xmm0",  "xmm1",  "xmm2",  "xmm3",  "xmm4",  "xmm5",  "xmm6",  "xmm7"  };
-static char *reg_debug[]   = {"dr0",   "dr1",   "dr2",   "dr3",   "dr4",   "dr5",   "dr6",   "dr7"   };
-static char *reg_control[] = {"cr0",   "cr1",   "cr2",   "cr3",   "cr4",   "cr5",   "cr6",   "cr7"   };
-static char *reg_test[]    = {"tr0",   "tr1",   "tr2",   "tr3",   "tr4",   "tr5",   "tr6",   "tr7"   };
-static char *reg_seg[]     = {"es",    "cs",    "ss",    "ds",    "fs",    "gs",    "",      ""      };
-static char *reg_fpu[]     = {"st(0)", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)" };
+char *reg_dword[]   = {"eax",   "ecx",   "edx",   "ebx",   "esp",   "ebp",   "esi",   "edi"   };
+char *reg_word[]    = {"ax",    "cx",    "dx",    "bx",    "sp",    "bp",    "si",    "di"    };
+char *reg_byte[]    = {"al",    "cl",    "dl",    "bl",    "ah",    "ch",    "dh",    "bh"    };
+char *reg_mmx[]     = {"mm0",   "mm1",   "mm2",   "mm3",   "mm4",   "mm5",   "mm6",   "mm7"   };
+char *reg_simd[]    = {"xmm0",  "xmm1",  "xmm2",  "xmm3",  "xmm4",  "xmm5",  "xmm6",  "xmm7"  };
+char *reg_debug[]   = {"dr0",   "dr1",   "dr2",   "dr3",   "dr4",   "dr5",   "dr6",   "dr7"   };
+char *reg_control[] = {"cr0",   "cr1",   "cr2",   "cr3",   "cr4",   "cr5",   "cr6",   "cr7"   };
+char *reg_test[]    = {"tr0",   "tr1",   "tr2",   "tr3",   "tr4",   "tr5",   "tr6",   "tr7"   };
+char *reg_seg[]     = {"es",    "cs",    "ss",    "ds",    "fs",    "gs",    "",      ""      };
+char *reg_fpu[]     = {"st(0)", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)" };
 
 #define ARG_NONE         0
 #define cpu_8086         0x00001000
@@ -162,9 +162,9 @@ struct modRM_byte {
     unsigned int rm  : 3;
 };
 
-static int modrm_rm[]  = {0, 1, 2, 3, MODRM_RM_SIB, MODRM_MOD_DISP32, 6, 7 };
-static int modrm_reg[] = {0, 1, 2, 3, 4, 5, 6, 7 };
-static int modrm_mod[] = {0, MODRM_MOD_DISP8, MODRM_MOD_DISP32, MODRM_MOD_NOEA };
+int modrm_rm[]  = {0, 1, 2, 3, MODRM_RM_SIB, MODRM_MOD_DISP32, 6, 7 };
+int modrm_reg[] = {0, 1, 2, 3, 4, 5, 6, 7 };
+int modrm_mod[] = {0, MODRM_MOD_DISP8, MODRM_MOD_DISP32, MODRM_MOD_NOEA };
 
 struct SIB_byte {
     unsigned int scale : 2;
@@ -172,9 +172,9 @@ struct SIB_byte {
     unsigned int base  : 3;
 };
 
-static int sib_scl[] = {0, 2, 4, 8};
-static int sib_idx[] = {0, 1, 2, 3, SIB_INDEX_NONE, 5, 6, 7 };
-static int sib_bas[] = {0, 1, 2, 3, 4, SIB_SCALE_NOBASE, 6, 7 };
+int sib_scl[] = {0, 2, 4, 8};
+int sib_idx[] = {0, 1, 2, 3, SIB_INDEX_NONE, 5, 6, 7 };
+int sib_bas[] = {0, 1, 2, 3, 4, SIB_SCALE_NOBASE, 6, 7 };
 
 typedef unsigned char   BYTE;
 typedef unsigned short  WORD;
@@ -219,16 +219,16 @@ typedef unsigned int    DWORD;
 #define REG_IP_SIZE       2
 
 void ext_arch_init( void *param);
-static inline void InitRegTable( void );
-static inline int get_prologue(struct code **table);
-static inline int get_epilogue(struct code **table);
-static inline int GetSizedOperand( int *op, BYTE *buf, int size);
-static inline int DecodeByte(BYTE b, struct modRM_byte *modrm);
-static inline int DecodeSIB(BYTE *b);
-static inline int DecodeModRM(BYTE *b, int *op, int *op_flags, int reg_type,
+inline void InitRegTable( void );
+inline int get_prologue(struct code **table);
+inline int get_epilogue(struct code **table);
+inline int GetSizedOperand( int *op, const BYTE *buf, int size);
+inline int DecodeByte(BYTE b, struct modRM_byte *modrm);
+inline int DecodeSIB(const BYTE *b);
+inline int DecodeModRM(const BYTE *b, int *op, int *op_flags, int reg_type,
         int size, int flags);
-static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva);
-int disasm_addr( BYTE *buf, struct code *c, long rva);
+inline int InstDecode( instr *t, const BYTE *buf, struct code *c, DWORD rva);
+int disasm_addr(const BYTE *buf, struct code *c, long rva);
 
 #include "i386-opcodes.h"
 
@@ -241,7 +241,7 @@ typedef struct x86_table {  //Assembly instruction tables
     char divisor;            // modrm byte position plus
 } asmtable;
 
-static asmtable tables86[]={
+asmtable tables86[]={
     {tbl_Main,0x00,0x00,0,0xff,0,0xff,1},             /* 0 */
     {tbl_0F,0x0f,0x00,1,0xff,0,0xff,1},
     {tbl_80,0x80,0x00,1,0x07,0,0xff,8},

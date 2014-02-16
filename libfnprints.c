@@ -31,7 +31,7 @@
 
 struct fenris_fndb* fndb[256*256]; // Speed search table
 
-static int fnprint_count = 0;
+int fnprint_count = 0;
 
 /******************************
  * Load fingerprints database *

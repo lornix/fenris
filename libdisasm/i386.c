@@ -35,8 +35,8 @@
 #define AS_UINT(x)   (*((unsigned int*)&(x)))
 #define AS_USHORT(x) (*((unsigned short int*)&(x)))
 
-static struct addr_exp  expr;
-static struct EXT__ARCH *settings;
+struct addr_exp  expr;
+struct EXT__ARCH *settings;
 
 /* Init routine : used to set internal disassembler values */
 inline void ext_arch_init( void *param) {
@@ -72,7 +72,7 @@ inline void ext_arch_init( void *param) {
 }
 
 /* Register Table Setup */
-static inline void InitRegTable( void ) {
+inline void InitRegTable( void ) {
     int x;
 
     settings->sz_regtable = 86;
@@ -104,7 +104,7 @@ static inline void InitRegTable( void ) {
     return;
 }
 
-static inline void ext_arch_cleanup( void ) {
+inline void ext_arch_cleanup( void ) {
     if (settings->reg_table) free(settings->reg_table);
     if (settings->sz_regtable) settings->sz_regtable = 0;
     if (settings->reg_storage) free(settings->reg_storage);
@@ -115,7 +115,7 @@ static inline void ext_arch_cleanup( void ) {
 /* These are used to pass information about the platform to the higher-level
  * disassembler  -- there will probably be more added when additional CPUs
  * are supported */
-static inline int get_prologue(struct code **table){
+inline int get_prologue(struct code **table){
     /* This function and the following are kind of tricky. They fill 'table'
      * with an array of CODE structs; within the array, each 'prologue' is
      * represented by a series of CODE structs followed by a NULL code struct.
@@ -123,7 +123,7 @@ static inline int get_prologue(struct code **table){
      * recognition pass for details on how to use these routines */
     struct code *t;
     int num = 2;
-    int i, j;
+    // int i, j;
 
     t = (struct code *) calloc( sizeof( struct code ), 6);
     /* ------------------------------ customize this part only !! */
@@ -145,10 +145,10 @@ static inline int get_prologue(struct code **table){
     return(num);
 }
 
-static inline int get_epilogue(struct code **table){
+inline int get_epilogue(struct code **table){
     struct code *t;
     int num = 3;
-    int i, j;
+    // int i, j;
 
     t = (struct code *) calloc( sizeof( struct code ), 6);
     /* ------------------------------ customize this part only !! */
@@ -164,7 +164,7 @@ static inline int get_epilogue(struct code **table){
     return(num);
 }
 /* get the effects on registers of a specified instruction */
-static inline int gen_reg_effect( char *mnemonic, struct code_effect *e){
+inline int gen_reg_effect( char *mnemonic, struct code_effect *e){
     /* the mnemonic is used to determine the effects of instructions
      * which are predetermined, e.g. a call or a push affecting the
      * stack pointer. All effects dependent on operands are managed
@@ -186,13 +186,13 @@ static inline int gen_reg_effect( char *mnemonic, struct code_effect *e){
 }
 
 /* generate intermediate code for a function */
-static inline int gen_int( int func_id ) {
+inline int gen_int( int func_id __attribute__((unused))) {
     return(1);
 }
 
 /* ------------ Disassembly Routines ----------------------------------- */
 
-static inline int GetSizedOperand( int *op, BYTE *buf, int size) {
+inline int GetSizedOperand( int *op, const BYTE *buf, int size) {
     /* Copy 'size' bytes from *buf to *op
      * return number of bytes copied */
     /* TODO: call bastard functions for endian-independence */
@@ -215,7 +215,7 @@ static inline int GetSizedOperand( int *op, BYTE *buf, int size) {
     return(size);
 }
 
-static inline int DecodeByte(BYTE b, struct modRM_byte *modrm){
+inline int DecodeByte(BYTE b, struct modRM_byte *modrm){
     /* generic bitfield-packing routine */
 
     modrm->mod = b >> 6;             /* top 2 bits */
@@ -225,7 +225,7 @@ static inline int DecodeByte(BYTE b, struct modRM_byte *modrm){
     return(0);
 }
 
-static inline int DecodeSIB(BYTE *b) {
+inline int DecodeSIB(const BYTE *b) {
     /* set Address Expression fields (scale, index, base, disp)
      * according to the contents of the SIB byte.
      *  b points to the SIB byte in the instruction-stream buffer; the
@@ -273,7 +273,7 @@ static inline int DecodeSIB(BYTE *b) {
    Don't forget to flag string (*SB, *SW) instructions
  */
 /* returns number of bytes it decoded */
-static inline int DecodeModRM(BYTE *b, int *op, int *op_flags, int reg_type,
+inline int DecodeModRM(const BYTE *b, int *op, int *op_flags, int reg_type,
         int size, int flags){
     /* create address expression and/or fill operand based on value of
      * ModR/M byte. Calls DecodeSIB as appropriate.
@@ -285,7 +285,7 @@ static inline int DecodeModRM(BYTE *b, int *op, int *op_flags, int reg_type,
      *    flags specifies whether the Reg or the mod+R/M fields are being decoded
      *  returns the number of bytes in the instruction, including modR/M */
     int count=1;    /* # of bytes decoded -- start with 1 for the modR/M byte */
-    int disp = 0;
+    // int disp = 0;
     struct modRM_byte modrm;
 
     DecodeByte(*b, &modrm);       /* get bitfields */
@@ -376,7 +376,7 @@ static inline int DecodeModRM(BYTE *b, int *op, int *op_flags, int reg_type,
     return(count);       /* number of bytes found in instruction */
 }
 
-static inline void apply_seg(unsigned int prefix, int *dest_flg){
+inline void apply_seg(unsigned int prefix, int *dest_flg){
     unsigned int seg = prefix & 0xF0000000;
 
     if ( seg == PREFIX_CS) *dest_flg |= OP_CODESEG;
@@ -389,7 +389,7 @@ static inline void apply_seg(unsigned int prefix, int *dest_flg){
     return;
 }
 
-static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva){
+inline int InstDecode( instr *t, const BYTE *buf, struct code *c, DWORD rva __attribute__((unused))){
 
     /* Decode the operands of an instruction; calls DecodeModRM as
         * necessary, gets displacemnets and immeidate values, and sets the
@@ -407,7 +407,7 @@ static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva){
         * note bytes defaults to 0, since disasm_addr takes care of the
         * opcode size ... everything else is dependent on operand
         * types.
-        *
+        */
     /* bytes: size of curr instr; size: operand size */
     int x, bytes=0, size=0, op_size_flag = 0;
     int addr_size, op_size, op_notes; /* for override prefixes */
@@ -451,7 +451,7 @@ static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva){
     if ( prefix & PREFIX_REPNZ)  c->mnemType |= INS_REPNZ;
     if ( prefix & PREFIX_REP || prefix & PREFIX_REPZ) c->mnemType |= INS_REPZ;
     /* this is ignored :P */
-    if ( prefix & PREFIX_SIMD);
+    // if ( prefix & PREFIX_SIMD) {}
 
     /*  ++++   3. Fill operands and operand-flags in CODE struct */
     for (x=0; x < 3; x++ ) {
@@ -566,20 +566,17 @@ static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva){
                 *   instead these modR/Ms are decoded according to opcode table.*/
 
             case ADDRMETH_E :   /* ModR/M present, Gen reg or memory  */
-                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], genRegs,
-                        size, MODRM_EA);
+                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], genRegs, size, MODRM_EA);
                 *dest_flg[x] |= op_size_flag;
                 apply_seg(prefix, dest_flg[x]);
                 break;
             case ADDRMETH_M :   /* ModR/M only refers to memory */
-                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], genRegs,
-                        size, MODRM_EA);
+                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], genRegs, size, MODRM_EA);
                 *dest_flg[x] |= op_size_flag;
                 apply_seg(prefix, dest_flg[x]);
                 break;
             case ADDRMETH_Q :   /* ModR/M present, MMX or Memory */
-                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], REG_MMX_OFFSET,
-                        size, MODRM_EA);
+                bytes += DecodeModRM(buf,dest_buf[x], dest_flg[x], REG_MMX_OFFSET, size, MODRM_EA);
                 *dest_flg[x] |= op_size_flag;
                 apply_seg(prefix, dest_flg[x]);
                 break;
@@ -694,11 +691,12 @@ static inline int InstDecode( instr *t, BYTE *buf, struct code *c, DWORD rva){
 }
 
 // i changed it -- lcamtuf
-int disasm_addr( BYTE *buf, struct code *c, long rva){
+int disasm_addr(const BYTE *buf, struct code *c, long rva){
     instr *t;         /* table in i386.opcode.map */
     int max;
     int off=0;
-    int op,i,x;
+    int op,x;
+    // int i;
 
     max=sizeof(tables86)/sizeof(asmtable)-1;
 

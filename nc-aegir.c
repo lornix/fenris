@@ -101,13 +101,13 @@ unsigned int Wcode_addr;
 
 /******************************************************************************/
 
-const static char* scnames[256]= {
+const char* scnames[256]= {
     0,
 #include "scnames.h"
     0
 };
 
-const static char* my_siglist[] = { "none", "sighup", "sigint", "sigquit",
+const char* my_siglist[] = { "none", "sighup", "sigint", "sigquit",
     "sigill", "sigtrap", "sigabrt", "sigbus", "sigfpe", "sigkill", "sigusr1",
     "sigsegv", "sigusr2", "sigpipe", "sigalrm", "sigterm", "sigchld", "sigcont",
     "sigstop", "sigtstp", "sigttin", "sigttou", "sigurg", "sigxcpu", "sigxfsz",
@@ -153,9 +153,9 @@ unsigned long long int l1, l2;
 
 void* send_message(int mtype,void* data,void* store);
 
-static unsigned int sd;
+unsigned int sd;
 
-static void connect_to_fenris(char* where) {
+void connect_to_fenris(char* where) {
     struct sockaddr_un sun;
 
     MSG("[+] Connecting to Fenris at %s...\n",where);
@@ -180,9 +180,9 @@ static void connect_to_fenris(char* where) {
 
 /******************************************************************************/
 
-static char str_buf[MAXFENT];
+char str_buf[MAXFENT];
 
-static char* get_string_sock(int sock) {
+char* get_string_sock(int sock) {
     int len=0;
     while (1) {
         if (read(sock,str_buf+len,1)!=1) FATALMSG("short read in get_string_sock from Fenris");
@@ -195,14 +195,14 @@ static char* get_string_sock(int sock) {
     FATALMSG("Another broken Turing machine. Rhubarb.");
 }
 
-static int get_dword_sock(int sock) {
+int get_dword_sock(int sock) {
     int ret=0;
     if (read(sock,&ret,4)!=4)
         FATALMSG("short read in get_dword_sock in Fenris");
     return ret;
 }
 
-static char msg_data[MAXFENT];
+char msg_data[MAXFENT];
 void* send_message(int mtype,void* data,void* store) {
     struct dmsg_header x;
     int dlen=0;
@@ -251,7 +251,7 @@ void* send_message(int mtype,void* data,void* store) {
 
     while(1){
         int a,b;
-        static int prevstopped=0;
+        int prevstopped=0;
         errno=0;
         bzero(&x,sizeof(x));
 
@@ -360,7 +360,7 @@ void* send_message(int mtype,void* data,void* store) {
 /******************************************************************************/
 
 // "load" handler
-static void load_module(char* what) {
+void load_module(char* what) {
     void* x;
     void (*modinit)(void);
 
@@ -390,7 +390,7 @@ static void load_module(char* what) {
 }
 
 // "help" handler
-static void display_help(char* param) {
+void display_help(char* param) {
     int q=0;
     while (cmd[q].cmd) {
         char command[512];
@@ -415,7 +415,7 @@ static void display_help(char* param) {
 }
 
 // "quit" handler
-static void handle_quit(char* param) {
+void handle_quit(char* param) {
     if (!param) {
         MSG("Use 'quit yes' or 'q y' if you really mean it.\n");
         return;
@@ -424,7 +424,7 @@ static void handle_quit(char* param) {
 }
 
 // "exec" handler
-static void exec_cmd(char* param) {
+void exec_cmd(char* param) {
     if (!param) {
         MSG("You have to provide a command to be executed.\n");
         return;
@@ -436,7 +436,7 @@ static void exec_cmd(char* param) {
 }
 
 // custom fprintf routine, called indirectly from opdis.c
-static int nc_fprintf(FILE *stream, char *format, ...)
+int nc_fprintf(FILE *stream, char *format, ...)
 {
     va_list args;
 
@@ -447,7 +447,7 @@ static int nc_fprintf(FILE *stream, char *format, ...)
 }
 
 // "disass" handler
-static void do_disass(char* param) {
+void do_disass(char* param) {
     unsigned long long int st,len;
     char* mem;
     unsigned int par[2];
@@ -512,7 +512,7 @@ char* describe_address(unsigned int addr) {
     return send_message(DMSG_GETNAME,(char*)&addr,descbuf);
 }
 
-static char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
+char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
 {
     char* mem;
     int retlen;
@@ -560,7 +560,7 @@ static char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
 }
 
 // "x" handler
-static void do_memdump(char* param) {
+void do_memdump(char* param) {
     unsigned long long int st,len;
 
     if (!param) {
@@ -611,7 +611,7 @@ static void do_memdump(char* param) {
 
 }
 
-static void do_rwatch(char* param) {
+void do_rwatch(char* param) {
     char* mem;
     unsigned int par[2];
 
@@ -638,7 +638,7 @@ static void do_rwatch(char* param) {
 
 FILE* extralog;
 
-static void do_log(char* param) {
+void do_log(char* param) {
     FILE* tmp;
 
     if (!param && extralog) {
@@ -667,12 +667,12 @@ static void do_log(char* param) {
 
 }
 
-static void do_logappend(char* data) {
+void do_logappend(char* data) {
     if (!extralog) return;
     fwrite(data,strlen(data),1,extralog);
 }
 
-static void do_wwatch(char* param) {
+void do_wwatch(char* param) {
     char* mem;
     unsigned int par[2];
 
@@ -698,7 +698,7 @@ static void do_wwatch(char* param) {
 }
 
 // "x" handler
-static void do_setmem(char* param) {
+void do_setmem(char* param) {
     char* res;
     unsigned int par[2];
 
@@ -721,7 +721,7 @@ static void do_setmem(char* param) {
 }
 
 // "y" handler
-static void do_strdump(char* param) {
+void do_strdump(char* param) {
     unsigned int st;
     char* mem;
     unsigned int par[2];
@@ -767,7 +767,7 @@ static void do_strdump(char* param) {
 
 }
 
-static void do_regs(char* param) {
+void do_regs(char* param) {
     struct user_regs_struct* x;
     x=(void*)send_message(DMSG_GETREGS,0,0);
 
@@ -790,7 +790,7 @@ static void do_regs(char* param) {
 
 }
 
-static void do_setreg(char* param) {
+void do_setreg(char* param) {
     char* ww;
     struct user_regs_struct x;
     char regname[128];
@@ -899,13 +899,13 @@ static void do_setreg(char* param) {
 
 }
 
-static void do_back(char* param) {
+void do_back(char* param) {
     char* x;
     x=(void*)send_message(DMSG_GETBACK,0,0);
     MSG("%s",x);
 }
 
-static void do_addr(char* param) {
+void do_addr(char* param) {
     int* x;
     int fifi;
     int st;
@@ -932,7 +932,7 @@ static void do_addr(char* param) {
     }
 }
 
-static void do_fd(char* param) {
+void do_fd(char* param) {
     char* x;
     int st;
     if (!param) {
@@ -951,7 +951,7 @@ static void do_fd(char* param) {
     MSG("%s",x);
 }
 
-static void do_break(char* param) {
+void do_break(char* param) {
     char* x;
     int st;
     if (!param) {
@@ -970,7 +970,7 @@ static void do_break(char* param) {
     MSG("%s",x);
 }
 
-static void do_fprint(char* param) {
+void do_fprint(char* param) {
     char* x;
     int st;
     if (!param) {
@@ -989,7 +989,7 @@ static void do_fprint(char* param) {
     MSG("%s",x);
 }
 
-static void do_sbreak(char* param) {
+void do_sbreak(char* param) {
     char* x;
     int st;
 
@@ -1017,7 +1017,7 @@ static void do_sbreak(char* param) {
     MSG("%s",x);
 }
 
-static void do_ibreak(char* param) {
+void do_ibreak(char* param) {
     char* x;
     int st;
     if (!param) {
@@ -1042,7 +1042,7 @@ static void do_ibreak(char* param) {
     MSG("%s",x);
 }
 
-static void do_ret(char* param) {
+void do_ret(char* param) {
     char* x;
     int st;
 
@@ -1062,7 +1062,7 @@ static void do_ret(char* param) {
     MSG("%s",x);
 }
 
-static void do_step(char* param) {
+void do_step(char* param) {
     char* x;
     int st;
 
@@ -1087,13 +1087,13 @@ static void do_step(char* param) {
     MSG("%s",x);
 }
 
-static void do_dynamic(char* param) {
+void do_dynamic(char* param) {
     char* x;
     x=(void*)send_message(DMSG_DYNAMIC,0,0);
     MSG("%s",x);
 }
 
-static void do_del(char* param) {
+void do_del(char* param) {
     char* x;
     int st;
 
@@ -1113,79 +1113,79 @@ static void do_del(char* param) {
     MSG("%s",x);
 }
 
-static void do_libc(char* param) {
+void do_libc(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLIBCALL,0,0);
     MSG("%s",x);
 }
 
-static void do_sys(char* param) {
+void do_sys(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOSYSCALL,0,0);
     MSG("%s",x);
 }
 
-static void do_signals(char* param) {
+void do_signals(char* param) {
     char* x;
     x=(void*)send_message(DMSG_SIGNALS,0,0);
     MSG("%s",x);
 }
 
-static void do_call(char* param) {
+void do_call(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLOCALCALL,0,0);
     MSG("%s",x);
 }
 
-static void do_down(char* param) {
+void do_down(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLOWERNEST,0,0);
     MSG("%s",x);
 }
 
-static void do_list(char* param) {
+void do_list(char* param) {
     char* x;
     x=(void*)send_message(DMSG_LISTBREAK,0,0);
     MSG("%s",x);
 }
 
-static void do_fdmap(char* param) {
+void do_fdmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_FDMAP,0,0);
     MSG("%s",x);
 }
 
-static void do_memmap(char* param) {
+void do_memmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_GETMAP,0,0);
     MSG("%s",x);
 }
 
-static void do_fnmap(char* param) {
+void do_fnmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_FNLIST,0,0);
     MSG("%s",x);
 }
 
-static void do_run(char* param) {
+void do_run(char* param) {
     char* x;
     x=(void*)send_message(DMSG_RUN,0,0);
     MSG("%s",x);
 }
 
-static void do_stop(char* param) {
+void do_stop(char* param) {
     char* x;
     x=(void*)send_message(DMSG_STOP,0,0);
     MSG("%s",x);
 }
 
-static void do_halt(char* param) {
+void do_halt(char* param) {
     char* x;
     x=(void*)send_message(DMSG_HALT,0,0);
     MSG("%s",x);
 }
 
-static void do_next(char* param) {
+void do_next(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TONEXT,0,0);
     MSG("%s",x);
@@ -1549,13 +1549,13 @@ struct{
 #define CONTROL(key)    (1+key-'A')
 #define ALT(key)        (key<<24)
 
-static char * nc_getline(int ch)                // readline replacement
+char * nc_getline(int ch)                // readline replacement
 {
     char * tmp;
-    static int cursor=0;
-    static int new_buf, cur_buf;
-    static struct buff_struct buffers[N_BUFFERS];
-    static char * last_buf;
+    int cursor=0;
+    int new_buf, cur_buf;
+    struct buff_struct buffers[N_BUFFERS];
+    char * last_buf;
 
 #define C_BUF           (buffers[cur_buf])
     switch(ch){
@@ -2176,7 +2176,7 @@ void memwrite(char * buf, unsigned int addr, int len)
 
 int scroll_data(int by, int ed)
 {
-    static int lock=0;  // negative - disable scrolling up
+    int lock=0;  // negative - disable scrolling up
     // positive - disable scrolling down
     char * mem;
 
@@ -2206,8 +2206,8 @@ int scroll_data(int by, int ed)
 
 int edit_data(int ch)
 {
-    static int cx, cy;
-    static int mode;    // 0 - hex, 1 - ascii
+    int cx, cy;
+    int mode;    // 0 - hex, 1 - ascii
     char * mem;
 
     switch (ch) {
@@ -2348,10 +2348,10 @@ int edit_data(int ch)
 
 int edit_regs(int ch)
 {
-    static struct user_regs_struct x;
+    struct user_regs_struct x;
     long * regs[] = { &x.eax, &x.ebx, &x.ecx, &x.edx, &x.esi,
         &x.edi, &x.ebp, &x.esp, &x.eip, 0 };
-    static int r,p;
+    int r,p;
 
     switch (ch) {
         case 0:
@@ -2429,7 +2429,7 @@ int edit_regs(int ch)
 
 /******************************************************************************/
 
-static void usage(char *name) {
+void usage(char *name) {
     STDERRMSG("Usage: %s [ -i ] program_name [ parameters ]\n\n",name);
     STDERRMSG("  -i            - use Intel notation for disassembly.\n\n");
     exit(1);
