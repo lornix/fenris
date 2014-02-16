@@ -97,6 +97,8 @@
 #include "fdebug.h"
 #include "hooks.h"
 
+#include "common.h"
+
 #ifdef PROFILE
 #define static
 #define inline
@@ -2544,7 +2546,7 @@ inline void want_ret(void) {
 
 void handle_syscall(void) {
     char buf[MAXFNAME];
-    // unsigned int addr;
+    unsigned int addr;
 
     if (current->nest>=-1) current->syscalls++;
 
@@ -2565,9 +2567,7 @@ void handle_syscall(void) {
             break;
 
         case __NR_fork:
-#ifdef __NR_vfork
         case __NR_vfork:
-#endif /* __NR_vfork */
 
             if (T_forks) trace_fork(); else {
                 remove_traps();
@@ -2612,36 +2612,41 @@ void handle_syscall(void) {
             current->syscall=__NR_execve;
             break;
 
-#ifdef __NR_sigaction
         case __NR_sigaction:
-#ifdef __NR_rt_sigaction
         case __NR_rt_sigaction:
-#endif /* __NR_rt_sigaction */
 
             // Modify address in memory structure.
-            addr=ptrace(PTRACE_PEEKDATA,pid,r.ecx,0);
+            //FIXME: 64bit
+            addr=ptrace(PTRACE_PEEKDATA,pid,r.rcx,0);
 
             if (!addr) break;
 
-            if ((addr >> 24) == CODESEG)
-                ptrace(PTRACE_POKEDATA,pid,r.ecx,addr-1);
-            else break;
+            if ((addr >> 24) == CODESEG) {
+                //FIXME: 64bit
+                ptrace(PTRACE_POKEDATA,pid,r.rcx,addr-1);
+            } else {
+                break;
+            }
 
             goto aftersig;
-#endif /* __NR_sigaction */
 
-#ifdef __NR_signal
         case __NR_signal:
 
             // Simply adjust address in register.
-            addr=r.ecx;
+            //FIXME: 64bit
+            addr=r.rcx;
 
             if (!addr) break;
-            if ((addr >> 24) == CODESEG || INLIBC(addr)) r.ecx--;
-            else break;
+            //FIXME: 64bit
+            if ((addr >> 24) == CODESEG || INLIBC(addr)) {
+                r.rcx--;
+            } else {
+                break;
+            }
 
             ptrace(PTRACE_SETREGS,pid,0,&r);
-            r.ecx++;
+            //FIXME: 64bit
+            r.rcx++;
             // So __NR_signal handler won't have to do anything.
 
 aftersig:
@@ -2651,22 +2656,30 @@ aftersig:
                 if ((addr >> 24) == CODESEG || INLIBC(addr)) {
                     unsigned int chg,c2;
                     chg=ptrace(PTRACE_PEEKDATA,pid,addr-1,0);
-                    if ((current->signals < r.ebx) && (r.ebx < MAXSIG))
-                        current->signals=r.ebx;
+                    //FIXME: 64bit
+                    if ((current->signals < r.rbx) && (r.rbx < MAXSIG))
+                        current->signals=r.rbx;
 
                     if (((chg & 0xff) != 0x90) && ((chg & 0xff) != 0xc3) && ((chg & 0xff) != 0xcc)) {
                         c2=ptrace(PTRACE_PEEKDATA,pid,addr-3,0);
                         if ((c2 & 0xffffff) != 0x00768d) // Stupid gcc -O9 lea
-                            debug("* WARNING: Handler for sig %d (%x) w/o leading NOP or RET, problems!\n",(int)r.ebx,addr);
+                            //FIXME: 64bit
+                            debug("* WARNING: Handler for sig %lld (%x) w/o leading NOP or RET, problems!\n",r.rbx,addr);
                     }
 
-                    if ((chg & 0xff) == 0xc3) set_withret(r.ebx,1); else
-                        if ((chg & 0xff) == 0x90) set_withret(r.ebx,0);
+                    if ((chg & 0xff) == 0xc3) {
+                        //FIXME: 64bit
+                        set_withret(r.rbx,1);
+                    } else {
+                        if ((chg & 0xff) == 0x90) {
+                            //FIXME: 64bit
+                            set_withret(r.rbx,0);
+                        }
+                    }
                     chg = ( chg & 0xffffff00 ) + 0xcc; /* cc: int3 */
                     ptrace(PTRACE_POKEDATA,pid,addr-1,chg);
 
                 }
-#endif /* __NR_signal */
 
         default:
             want_ret();
@@ -2975,33 +2988,37 @@ void ret_syscall(void) {
 
             break;
 
-#ifdef __NR_readdir
         case __NR_readdir:
 
             if (SDCOND) {
                 indent(0);
                 pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS readdir (%d, %x",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                if (r.eax>0) {
-                    get_string_from_child(current->pr.ecx+10,buf,sizeof(buf));
+                //FIXME: 64bit
+                if (r.rax>0) {
+                    get_string_from_child(current->pr.rcx+10,buf,sizeof(buf));
                     debug(" [\"%s\"]",buf);
                 }
 
-                debug(", %d) = %s\n",(int)current->pr.edx,toerror(r.eax));
+                //FIXME: 64bit
+                debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
 
                 dump_pdescr(0);
 
-                if (r.eax != -EFAULT) {
-                    add_mem(current->pr.ecx,sizeof(struct dirent),0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,current->pr.ebx,0,0);
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.rax != -EFAULT) {
+                if (r.rax != EFAULT) {
+                    add_mem(current->pr.rcx,sizeof(struct dirent),0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                 }
 
             }
             break;
-#endif
 
         case __NR_sethostname:
 
@@ -3106,27 +3123,37 @@ void ret_syscall(void) {
                 unsigned int q;
                 indent(0);
                 pdescr[0]=0;
-                debug("%sSYS waitpid (%d, %x",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,Xv(current->pr.ecx));
-                if (r.eax>=0) {
-                    q=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
+                //FIXME: 64bit
+                debug("%sSYS waitpid (%lld, %x",in_libc?"[L] ":"",
+                        current->pr.rbx,Xv(current->pr.rcx));
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                //if (r.rax>=0) {
+                if (r.rax>0) {
+                    q=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
                     if (WIFEXITED(q)) debug("[exit:%d]",WEXITSTATUS(q));
                     else if (WIFSIGNALED(q)) debug("[signal:%d]",WTERMSIG(q));
                     else if (WIFSTOPPED(q)) debug("[stop:%d]",WSTOPSIG(q));
                     else debug("[0x%x]",q);
                 } else debug(" [?]");
-                debug(", %x) = %s\n",(int)current->pr.edx,toerror(r.eax));
+                //FIXME: 64bit
+                debug(", %llx) = %s\n",current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
-                if (r.eax != -EFAULT) {
-                    add_mem(current->pr.ecx,4,0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,0);
+
+                //FIXME: 64bit
+                //FIXME: rax = unsigned long int, never <0
+                // if (r.rax != -EFAULT) {
+                if (r.rax != EFAULT) {
+                    add_mem(current->pr.rcx,4,0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,0);
                 }
             }
             break;
 
         case __NR_open:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            //FIXME: 64bit
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -3134,58 +3161,91 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                if (current->pr.ecx & O_RDWR) { current->pr.ecx-=O_RDWR; strcat(b3,"O_RDWR"); } else
-                    if (current->pr.ecx & O_WRONLY) { current->pr.ecx-=O_WRONLY; strcat(b3,"O_WRONLY"); } else
-                        strcat(b3,"O_RDONLY");
+                //FIXME: 64bit
+                if (current->pr.rcx & O_RDWR) {
+                    current->pr.rcx-=O_RDWR;
+                    strcat((char*)b3,"O_RDWR");
+                } else {
+                    //FIXME: 64bit
+                    if (current->pr.rcx & O_WRONLY) {
+                        current->pr.rcx-=O_WRONLY;
+                        strcat((char*)b3,"O_WRONLY");
+                    } else {
+                        strcat((char*)b3,"O_RDONLY");
+                    }
+                }
 
-                if (current->pr.ecx & O_CREAT) { current->pr.ecx-=O_CREAT; strcat(b3," | O_CREAT"); }
-                if (current->pr.ecx & O_EXCL) { current->pr.ecx-=O_EXCL; strcat(b3," | O_EXCL"); }
-                if (current->pr.ecx & O_APPEND) { current->pr.ecx-=O_APPEND; strcat(b3," | O_APPEND"); }
-                if (current->pr.ecx & O_TRUNC) { current->pr.ecx-=O_TRUNC; strcat(b3," | O_TRUNC"); }
-                if (current->pr.ecx & O_SYNC) { current->pr.ecx-=O_SYNC; strcat(b3," | O_SYNC"); }
-                if (current->pr.ecx & O_NOCTTY) { current->pr.ecx-=O_NOCTTY; strcat(b3," | O_NOCTTY"); }
-                if (current->pr.ecx & O_NONBLOCK) { current->pr.ecx-=O_NONBLOCK; strcat(b3," | O_NONBLOCK"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_CREAT) { current->pr.rcx-=O_CREAT; strcat((char*)b3," | O_CREAT"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_EXCL) { current->pr.rcx-=O_EXCL; strcat((char*)b3," | O_EXCL"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_APPEND) { current->pr.rcx-=O_APPEND; strcat((char*)b3," | O_APPEND"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_TRUNC) { current->pr.rcx-=O_TRUNC; strcat((char*)b3," | O_TRUNC"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_SYNC) { current->pr.rcx-=O_SYNC; strcat((char*)b3," | O_SYNC"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_NOCTTY) { current->pr.rcx-=O_NOCTTY; strcat((char*)b3," | O_NOCTTY"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_NONBLOCK) { current->pr.rcx-=O_NONBLOCK; strcat((char*)b3," | O_NONBLOCK"); }
 #ifdef O_NOFOLLOW
-                if (current->pr.ecx & O_NOFOLLOW) { current->pr.ecx-=O_NOFOLLOW; strcat(b3," | O_NOFOLLOW");  }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_NOFOLLOW) { current->pr.rcx-=O_NOFOLLOW; strcat((char*)b3," | O_NOFOLLOW");  }
 #endif /* O_NOFOLLOW */
 
 #ifdef O_DIRECTORY
-                if (current->pr.ecx & O_DIRECTORY) { current->pr.ecx-=O_DIRECTORY; strcat(b3," | O_DIRECTORY"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_DIRECTORY) { current->pr.rcx-=O_DIRECTORY; strcat((char*)b3," | O_DIRECTORY"); }
 #endif /* O_DIRECTORY */
 
 #ifdef O_LARGEFILE
-                if (current->pr.ecx & O_LARGEFILE) { current->pr.ecx-=O_LARGEFILE; strcat(b3," | O_LARGEFILE"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & O_LARGEFILE) { current->pr.rcx-=O_LARGEFILE; strcat((char*)b3," | O_LARGEFILE"); }
 #endif /* O_LARGEFILE */
 
-                if (current->pr.ecx)
-                    sprintf(&b3[strlen(b3)]," | 0x%x",(int)current->pr.ecx);
+                //FIXME: 64bit
+                if (current->pr.rcx) {
+                    //FIXME: 64bit
+                    sprintf((char*)&b3[strlen((char*)b3)]," | 0x%llx",current->pr.rcx);
+                }
 
                 pdescr[0]=0;
 
-                if (current->pr.ecx & O_CREAT)
+                //FIXME: 64bit
+                if (current->pr.rcx & O_CREAT)
 
-                    debug("%sSYS open (%x \"%s\", %s, 0%o) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),buf,b3,(int)current->pr.edx,
-                            toerror(r.eax));
+                    //FIXME: 64bit
+                    debug("%sSYS open (%x \"%s\", %s, 0%llo) = %s\n",in_libc?"[L] ":"",
+                            Xv(current->pr.rbx),buf,b3,current->pr.rdx,
+                            toerror(r.rax));
 
                 else
 
+                    //FIXME: 64bit
                     debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),buf,b3,toerror(r.eax));
+                            Xv(current->pr.rbx),buf,b3,toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax>=0) add_filedes(r.eax,buf,b2,0);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax>=0) add_filedes(r.rax,buf,b2,0);
+            if (r.rax>0) add_filedes(r.rax,buf,b2,0);
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_access:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            //FIXME: 64bit
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -3193,31 +3253,38 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                if (current->pr.ecx & R_OK) { current->pr.ecx-=R_OK; strcat(b3,"R_OK |"); }
-                if (current->pr.ecx & W_OK) { current->pr.ecx-=W_OK; strcat(b3,"W_OK |"); }
-                if (current->pr.ecx & X_OK) { current->pr.ecx-=X_OK; strcat(b3,"X_OK |"); }
-                if (current->pr.ecx & F_OK) { current->pr.ecx-=F_OK; strcat(b3,"F_OK |"); }
+                //FIXME: 64bit
+                if (current->pr.rcx & R_OK) { current->pr.rcx-=R_OK; strcat((char*)b3,"R_OK |"); }
+                if (current->pr.rcx & W_OK) { current->pr.rcx-=W_OK; strcat((char*)b3,"W_OK |"); }
+                if (current->pr.rcx & X_OK) { current->pr.rcx-=X_OK; strcat((char*)b3,"X_OK |"); }
+                if (current->pr.rcx & F_OK) { current->pr.rcx-=F_OK; strcat((char*)b3,"F_OK |"); }
 
-                if (current->pr.ecx) sprintf(&b3[strlen(b3)],"0x%x",(int)current->pr.ecx);
+                //FIXME: 64bit
+                if (current->pr.rcx) sprintf((char*)&b3[strlen((char*)b3)],"0x%llx",current->pr.rcx);
 
-                if (b3[strlen(b3)-1]=='|') b3[strlen(b3)-2]=0;
+                if (b3[strlen((char*)b3)-1]=='|') b3[strlen((char*)b3)-2]=0;
 
                 pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,b3,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,b3,toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_mknod:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            //FIXME: 64bit
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -3225,60 +3292,73 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                if (S_ISCHR(current->pr.ecx)) strcpy(b3,"S_IFCHR");
-                else if (S_ISBLK(current->pr.ecx)) strcpy(b3,"S_IFBLK");
-                else if (S_ISFIFO(current->pr.ecx)) strcpy(b3,"S_IFIFO");
-                else if (S_ISREG(current->pr.ecx)) strcpy(b3,"S_IFREG");
-                else sprintf(b3,"0x%x",(int)current->pr.ecx);
+                //FIXME: 64bit
+                if (S_ISCHR(current->pr.rcx)) strcpy((char*)b3,"S_IFCHR");
+                else if (S_ISBLK(current->pr.rcx)) strcpy((char*)b3,"S_IFBLK");
+                else if (S_ISFIFO(current->pr.rcx)) strcpy((char*)b3,"S_IFIFO");
+                else if (S_ISREG(current->pr.rcx)) strcpy((char*)b3,"S_IFREG");
+                else sprintf((char*)b3,"0x%llx",current->pr.rcx);
 
                 pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS mknod (%x \"%s\", %s, 0%o) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,b3,(int)current->pr.edx,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,b3,(int)current->pr.rdx,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
-
         case __NR_oldstat:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_mem_from_child(current->pr.ecx,(char*)&os,sizeof(os));
+            //FIXME: 64bit
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_mem_from_child(current->pr.rcx,(char*)&os,sizeof(os));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
-                    sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
-                            (int) os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
+                //FIXME: 64bit
+                if (r.rax) {
+                    strcpy((char*)b3,"?");
+                } else {
+                    sprintf((char*)b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
+                            (int)os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
+                }
 
                 pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS oldstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,sizeof(os),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,0,0,b3);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            //if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,sizeof(os),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,0,0,(b3);
             }
 
             break;
-
         case __NR_statfs:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            //FIXME: 64bit
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -3286,18 +3366,22 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
+                //FIXME: 64bit
                 debug("%sSYS statfs (%x \"%s\", %x [...]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,sizeof(sf),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,0,0,b3);
+            //FIXME: 64bit
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.eax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,sizeof(sf),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,0,0,(char*)b3);
             }
 
             break;
@@ -4095,7 +4179,6 @@ void ret_syscall(void) {
 
             break;
 
-#ifdef __NR_umount2
         case __NR_umount2:
 
             get_string_from_child(current->pr.ebx,buf,sizeof(buf));
@@ -4114,7 +4197,6 @@ void ret_syscall(void) {
             if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
 
             break;
-#endif /* __NR_umount2 */
 
         case __NR_chdir:
 
@@ -4343,7 +4425,6 @@ void ret_syscall(void) {
 
             break;
 
-#ifdef __NR_lchown
         case __NR_lchown:
 
             get_string_from_child(current->pr.ebx,buf,sizeof(buf));
@@ -4362,7 +4443,6 @@ void ret_syscall(void) {
             if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
 
             break;
-#endif
 
         case __NR_fchown:
 
@@ -4595,9 +4675,7 @@ void ret_syscall(void) {
 
             break;
 
-#ifdef __NR_rt_sigreturn
         case __NR_rt_sigreturn:
-#endif
         case __NR_sigreturn:
 
             if (SDCOND) {
@@ -5129,9 +5207,7 @@ void ret_syscall(void) {
             break;
 
         case __NR_sigaction:
-#ifdef __NR_rt_sigaction
         case __NR_rt_sigaction:
-#endif
 
             { // Restore changed memory structure. Don't bother for int3.
                 unsigned int addr;
@@ -5205,9 +5281,7 @@ void ret_syscall(void) {
             break;
 
         case __NR_sigsuspend:
-#ifdef __NR_rt_sigsuspend
         case __NR_rt_sigsuspend:
-#endif
 
             if (SDCOND) {
                 char mask[8];
@@ -5229,9 +5303,7 @@ void ret_syscall(void) {
             break;
 
         case __NR_sigpending:
-#ifdef __NR_rt_sigpending
         case __NR_rt_sigpending:
-#endif
 
             if (SDCOND) {
                 char mask[8];
@@ -5494,7 +5566,6 @@ void ret_syscall(void) {
 
             break;
 
-#ifdef __NR_vm86old
         case __NR_vm86old:
 
             if (SDCOND) {
@@ -5504,7 +5575,6 @@ void ret_syscall(void) {
             }
 
             break;
-#endif /* __NR_vm86old */
 
         case __NR_vm86:
 
@@ -5537,9 +5607,7 @@ void ret_syscall(void) {
             break;
 
         case __NR_fork:
-#ifdef __NR_vfork
         case __NR_vfork:
-#endif /* __NR_vfork */
 
             if (SDCOND) {
                 indent(0);

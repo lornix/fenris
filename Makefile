@@ -28,7 +28,7 @@ DOCFILES=$(addprefix doc/, ChangeLog LICENSE README TODO anti-fenris.txt be.txt 
 
 VERSION=0.07-m2
 # FIXME: add git ID here, + push count?
-BUILD=`echo 3`
+BUILD=3
 
 PREFIX=/usr/local
 
@@ -168,28 +168,31 @@ install: all
 	install --mode 755 $(PROGNAMES) $(TOOLNAMES) $(PREFIX)/bin/
 
 build_syscallnames:
-	# dummy up the syscallnames.h file
-	@echo "#include <asm-generic/unistd.h>" > syscallnames.h
-	# arm (tinker)
-	#     /usr/include/asm-generic/unistd.h
-	# i386
-	#     /usr/include/asm-generic/unistd.h ???
-	# x86_64 (xenon)
-	#     /usr/include/x86_64-linux-gnu/asm/unistd_32.h
-	#     /usr/include/x86_64-linux-gnu/asm/unistd_64.h
-	#
-	# parsed with:
-	# awk '/#define __NR_/{print "\"" $2"\", " $3 ","}' <file> |
-	#     sed "s/__NR_//' > syscalls_list.h
+	@echo Creating syscallnames.h
+	@# dummy up the syscallnames.h file
+	@echo "#include <x86_64-linux-gnu/asm/unistd.h>" > syscallnames.h
+	@echo "#include <x86_64-linux-gnu/asm/unistd_32.h>" > syscallnames.h
+	@# arm (tinker)
+	@#     /usr/include/asm-generic/unistd.h
+	@# i386
+	@#     /usr/include/asm-generic/unistd.h ???
+	@# x86_64 (xenon)
+	@#     /usr/include/x86_64-linux-gnu/asm/unistd.h
+	@#     /usr/include/x86_64-linux-gnu/asm/unistd_32.h
+	@#     /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+	@#
+	@# parsed with:
+	@# awk '/#define __NR_/{print "\"" $2"\", " $3 ","}' <file> |
+	@#     sed "s/__NR_//' > syscalls_list.h
 
 uninstall:
-	rm -rf $(PREFIX)/share/doc/fenris
-	rm -rf $(PREFIX)/etc/fenris
-	rm -f $(addprefix $(PREFIX)/bin/, $(PROGNAMES) $(TOOLNAMES))
-	rm -f $(addsuffix .1, $(addprefix $(PREFIX)/share/man/man1/, $(PROGNAMES) $(TOOLNAMES)))
+	@rm -rf $(PREFIX)/share/doc/fenris
+	@rm -rf $(PREFIX)/etc/fenris
+	@rm -f $(addprefix $(PREFIX)/bin/, $(PROGNAMES) $(TOOLNAMES))
+	@rm -f $(addsuffix .1, $(addprefix $(PREFIX)/share/man/man1/, $(PROGNAMES) $(TOOLNAMES)))
 
 clean:
-	rm -f $(PROGNAMES)
-	rm -f *.o *~
-	rm -f rstree.o allocs.o libfnprints.o hooks.o
-	rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
+	@rm -f $(PROGNAMES)
+	@rm -f *.o *~
+	@rm -f rstree.o allocs.o libfnprints.o hooks.o
+	@rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
