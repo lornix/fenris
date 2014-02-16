@@ -21,6 +21,15 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
+PROGNAMES=fenris ragnarok fprints dress aegir nc-aegir
+TOOLNAMES=getfprints fenris-bug ragsplit splitter.pl
+MANFILES=$(addprefix doc/man/, $(addsuffix .1, $(PROGNAMES) $(TOOLNAMES)))
+DOCFILES=$(addprefix doc/, ChangeLog LICENSE README TODO anti-fenris.txt be.txt debug-api.txt depends.txt fenris.asc other.txt reverse.txt roadmap.txt)
+
+VERSION=0.07-m2
+
+PREFIX=/usr/local
+
 all: fenris
 
 fenris: fenris.c fenris.h config.h ioctls.h fprints.c
@@ -42,25 +51,34 @@ test: debug test/trivial1
 	./fenris test/trivial1
 
 install: all
-	-mkdir -p /usr/doc/fenris/
-	-cp -f doc/* /usr/doc/fenris/
-	cp -f doc/man/* /usr/man/man1
-	cp -f fnprints.dat /etc/
-	cp -f fenris /usr/bin/
-	cp -f fprints /usr/bin/
-	cp -f getfprints /usr/bin/
-	cp -f ragnarok /usr/bin/
-	cp -f fenris-bug /usr/bin/
-	cp -f ragsplit /usr/bin/
-	cp -f dress /usr/bin/
-	cp -f aegir /usr/bin/
-	cp -f nc-aegir /usr/bin/ || true
-	cp -f splitter.pl /usr/bin/
+	install --directory $(PREFIX)/etc/fenris/
+	install --directory $(PREFIX)/share/doc/fenris/
+	install --directory $(PREFIX)/share/man/man1/
+	install --directory $(PREFIX)/bin/
+	install --mode 644 fnprints.dat $(PREFIX)/etc/fenris/
+	install --mode 644 $(DOCFILES) $(PREFIX)/share/doc/fenris/
+	install --mode 644 $(MANFILES) $(PREFIX)/share/man/man1/
+	install --mode 755 $(PROGNAMES) $(TOOLNAMES) $(PREFIX)/bin/
+
+gather_syscalls:
+	# arm (tinker)
+	#     /usr/include/asm-generic/unistd.h
+	# i386
+	#     /usr/include/asm-generic/unistd.h ???
+	# x86_64 (xenon)
+	#     /usr/include/x86_64-linux-gnu/asm/unistd_32.h
+	#     /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+	#
+	# parsed with:
+	# awk '/#define __NR_/{print "\"" $2"\", " $3 ","}' <file> |
+	#     sed "s/__NR_//' > syscalls_list.h
 
 uninstall:
-	rm -rf /usr/doc/fenris
-	rm -f /etc/fnprints.dat /usr/bin/fenris /usr/bin/fprints /usr/bin/getfprints /usr/bin/ragnarok /usr/bin/fenris-bug /usr/bin/ragsplit /usr/bin/splitter.pl /usr/bin/dress /usr/bin/aegir /usr/bin/nc-aegir
+	rm -rf $(PREFIX)/share/doc/fenris
+	rm -rf $(PREFIX)/etc/fenris
+	rm -f $(addprefix $(PREFIX)/bin/, $(PROGNAMES) $(TOOLNAMES))
+	rm -f $(addsuffix .1, $(addprefix $(PREFIX)/share/man/man1/, $(PROGNAMES) $(TOOLNAMES)))
 
 clean:
-	@./build-project clean
-	@echo "Our bugs run faster."
+	rm -f $(PROGNAMES) $(TOOLNAMES)
+	rm -f *.o *~

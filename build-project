@@ -24,25 +24,12 @@
 #
 #  05/16/2002: Modified by Marcin Gozdalik to use libfnprints and such.
 
-test "$BASH" = "" && echo "Bash shell is required to execute this script."
-test "$BASH" = "" && exit 1
-
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:$PATH
-
 PROGNAME=fenris
 PROGNAME2=ragnarok
 PROGNAME3=fprints
 PROGNAME4=dress
 PROGNAME5=aegir
 PROGNAME6=nc-aegir
-
-VERSION=0.07-m2
-
-rm -f $PROGNAME6 $PROGNAME5 $PROGNAME3 $PROGNAME4 $PROGNAME $PROGNAME2 scnames.h core core.* *~ .testme.c .testme .testerr .gtmp CTORS.txt *.o a.out test/a.out doc/frep.txt aegir-decl.h fenris-decl.h gprof.out bb.out libdisasm/core test/core libdisasm/*.o libdisasm/a.out tools/fprints NEW-fnprints.dat .tmp NEW-fp.dat test/core.*
-rm -f beta/*.o beta/nc-aegir &>/dev/null
-
-test "$1" = "clean" && echo "[+] Cleanup complete."
-test "$1" = "clean" && exit 0
 
 if [ "$1" = "install" ]; then
     make install
@@ -367,7 +354,7 @@ else
     echo "[-] Error message: "
     cat .testerr
     echo
-    rm -f .testme core .testerr
+    rm -f .testme .testerr
     exit 1
 fi
 
@@ -733,56 +720,6 @@ if [ ! "$NCAEGIR" = "" ]; then
         unset NCAEGIR
     fi
 fi
-
-echo -n "[*] Generating syscall names table: "
-
-echo "// Auto-generated (`date`), do not modify." >scnames.h 2>/dev/null
-
-grep -F '#define __NR_' /usr/include/asm/unistd.h | \
-    awk '{print "\"" $2 "\","}' | sed 's/__NR_//g' >>scnames.h 2>/dev/null
-
-LIN=`grep -c . scnames.h 2>/dev/null`
-
-if [ "$LIN" -lt "100" ]; then
-    echo "failed to generate scnames.h!"
-    echo "[-] Something odd about this system. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo "$[LIN-1] entries"
-
-echo -n "[*] Generating decl list for fenris.c: "
-
-echo "// Auto-generated (`date`), do not modify." >fenris-decl.h
-grep '(.*) {' fenris.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^      ' >>fenris-decl.h
-
-LIN=`grep -c . fenris-decl.h 2>/dev/null`
-
-if [ "$LIN" -lt "10" ]; then
-    echo "failed to generate fenris-decl.h!"
-    echo "[-] Something odd about this system. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo "$[LIN-1] entries"
-
-echo -n "[*] Generating decl list for aegir.c: "
-
-echo "// Auto-generated (`date`), do not modify." >aegir-decl.h
-grep '(.*) {' aegir.c | grep -v '^ ' | grep -v '^#' | sed 's/ {/;/g' | grep -v '^       ' >>aegir-decl.h
-
-LIN=`grep -c . aegir-decl.h 2>/dev/null`
-
-if [ "$LIN" -lt "5" ]; then
-    echo "failed to generate aegir-decl.h!"
-    echo "[-] Something odd about this system. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo "$[LIN-1] entries"
 
 echo -n "[*] Compiling libi386: "
 

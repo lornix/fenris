@@ -25,10 +25,9 @@ OFILE=fenris-ui
 all: test html
 
 html:
-	../../fenris -o $(OFILE) ./test || true
+	-../../fenris -o $(OFILE) ./test
 	../../ragnarok $(OFILE) $(OFILE).html
 	mv $(OFILE).html ../samples/
-	rm -f $(OFILE) test $(OFILE).html a.out core *.o
 
 clean:
-	rm -f $(OFILE) test $(OFILE).html a.out core *.o
+	rm -f $(OFILE) test $(OFILE).html *.o

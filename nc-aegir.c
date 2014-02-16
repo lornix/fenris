@@ -2048,7 +2048,7 @@ void a_handler(int s)
 
 void do_splash(char *what) {
     char bigbuf[100000];
-    char *cmd="./a.out",
+    char *cmd="--undefined--",
          *uid=0,*fp=0,*tfro=0,*tto=0,*cseg=0,*lpro=0,*lout=0,*mac=0,*con=0,
          *sym=0,*par=0,*mwri=0,*ind=0,*rval=0,*add=0, *goaway=0;
     struct termios tios;

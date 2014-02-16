@@ -107,5 +107,5 @@ rm -f $O-$$.tmp
 echo
 echo "Done. Read $ACNT archives, $FCNT files, found $OCNT functions."
 
-rm -f *.o core
+rm -f *.o
 exit 0
