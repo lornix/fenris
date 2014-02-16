@@ -19,19 +19,17 @@
 
 #include "../fdebug.h"
 
-#define debug(x...)     fprintf(stderr,x)
-#define pfatal(y)       { if (y) perror(y); exit(1); }
-#define fatal(x)        { debug("FATAL: %s\n",x); exit(1); }
+#include "../common.h"
 
 static unsigned int sd;
 
 static void flisten(char* where) {
     struct sockaddr_un sun;
 
-    debug("[+] Setting up a socket...\n");
+    STDERRMSG("[+] Setting up a socket...\n");
 
     if ((sd = socket (AF_LOCAL, SOCK_STREAM, 0))<0) {
-        pfatal("cannot create a socket");
+        perror("cannot create a socket");
         exit(1);
     }
 
@@ -39,17 +37,17 @@ static void flisten(char* where) {
     strncpy (sun.sun_path, where, UNIX_PATH_MAX);
 
     if (bind (sd, (struct sockaddr*)&sun,sizeof (sun))) {
-        pfatal("cannot bind");
+        perror("cannot bind");
         exit(1);
     }
 
     listen(sd,10);
 
-    debug("[+] Listening...\n");
+    STDERRMSG("[+] Listening...\n");
 
     sd=accept(sd,0,0);
 
-    debug("[+] Connection accepted!\n");
+    STDERRMSG("[+] Connection accepted!\n");
 
 }
 
@@ -63,7 +61,7 @@ char* send_message(int mtype,char* data,int dlen) {
     write(sd,&x,sizeof(x));
     if (dlen) write(sd,data,dlen);
 
-    debug("[+] Sent message %d with %d bytes of payload.\n",mtype,dlen);
+    STDERRMSG("[+] Sent message %d with %d bytes of payload.\n",mtype,dlen);
 
 }
 
@@ -77,7 +75,7 @@ void check_messages(void) {
 
     if ((miaumiau=read(sd,&x,sizeof(x)))<=0) {
         fcntl(sd,F_SETFL,O_SYNC);
-        if (!miaumiau) fatal("disconnect");
+        if (!miaumiau) FATALEXIT("disconnect");
         return;
     }
 
@@ -93,7 +91,7 @@ void check_messages(void) {
         default:
                        dlen=read(sd,buf,sizeof(buf));
     }
-    debug("[+] Received message %d with %d bytes of payload.\n",x.type,dlen);
+    STDERRMSG("[+] Received message %d with %d bytes of payload.\n",x.type,dlen);
 
     if (x.type == 5) {
         struct user_regs_struct x;

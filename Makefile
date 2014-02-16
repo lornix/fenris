@@ -33,6 +33,9 @@ PREFIX=/usr/local
 
 CFLAGS+=-DBUILD=$(BUILD) -DVERSION=$(VERSION)
 
+#dependencies:
+# readline, libc-dev (un.h)
+
 all: $(PROGNAMES)
 
 fenris:

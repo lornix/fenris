@@ -46,10 +46,12 @@
 #include "config.h"
 #include "html.h"
 
-#define debug(x...)     fprintf(stderr,x)
+#include "common.h"
+
 #define outf(x...)      fprintf(outfile,x)
-#define pfatal(y)       { if (y) perror(y); exit(1); }
-#define fatal(x)        { debug("FATAL (line %d): %s\n",cline,x); exit(1); }
+//FIXME: this one is weird, references cline often when not set yet, replace
+//with FATALEXIT?
+#define fatal(x)        { STDERRMSG("FATAL (line %d): %s\n",cline,x); exit(1); }
 
 char  T_verb,T_domem;
 
@@ -105,12 +107,12 @@ void my_open(const char* name) {
     int i;
     if (my_file) fatal("myfile already open");
     i=open(name,O_RDONLY);
-    if (i<0) pfatal(name);
-    if (fstat(i,&st)) pfatal("fstat on input");
+    if (i<0) PERROREXIT(name);
+    if (fstat(i,&st)) PERROREXIT("fstat on input");
     if (!(st.st_mode & S_IFREG)) fatal("input is not a regular file");
     if (st.st_size<=0) fatal("zero size input");
     my_file=mmap(0,st.st_size,PROT_READ,MAP_SHARED,i,0);
-    if (my_file==MAP_FAILED) pfatal("mmap on input");
+    if (my_file==MAP_FAILED) PERROREXIT("mmap on input");
     my_end=my_file+st.st_size-1;
     my_ptr=my_file;
     close(i);
@@ -150,7 +152,7 @@ inline char* my_gets(void) {
 }
 
 void usage(const char* whoami) {
-    debug("Usage: %s trace_file output_file\n",whoami);
+    STDERRMSG("Usage: %s trace_file output_file\n",whoami);
     exit(1);
 }
 
@@ -164,7 +166,7 @@ void test_file(void) {
     if (strcmp(type,"STD")) fatal("this is a non-standard file");
     if (strcmp(ver,VERSION)) fatal("version incompatibility");
     cline++;
-    debug("[+] Input file checks passed.\n");
+    STDERRMSG("[+] Input file checks passed.\n");
 }
 
 inline int find_inrange(unsigned int st,unsigned int end) {
@@ -190,13 +192,13 @@ inline int find_addr(unsigned int st) {
     int i;
 
     // for (i=0;i<breally;i++)
-    //    debug("buf %d: %x:%d fl %d\n",i,b[i].addr,b[i].size,b[i].fl);
+    //    STDERRMSG("buf %d: %x:%d fl %d\n",i,b[i].addr,b[i].size,b[i].fl);
 
     for (i=0;i<breally;i++)
         if (b[i].st == ST_CUR) {
             if (b[i].addr  <= st)
                 if ((b[i].addr + b[i].size) > st) {
-                    //          debug("Find addr %x returning %d (%x to %x)\n",st,i,b[i].addr,b[i].addr+b[i].size);
+                    //          STDERRMSG("Find addr %x returning %d (%x to %x)\n",st,i,b[i].addr,b[i].addr+b[i].size);
                     return i;
                 }
         }
@@ -221,7 +223,7 @@ void get_buffers(void) {
     char pidnotice=0;
     char hadstar=0;
 
-    debug("*** PHASE 1: Preliminary analysis and buffer layout...\n");
+    STDERRMSG("*** PHASE 1: Preliminary analysis and buffer layout...\n");
 
     while ((x=my_gets())) {
         cline++;
@@ -241,11 +243,11 @@ void get_buffers(void) {
             if (!(w=strrchr(x,'\''))) fatal("malformed exec");
             *w=0;
             sscanf(w+1," (pid %d",&tracepid);
-            debug("[+] Target locked: pid %d, command '%s'\n",tracepid,x);
+            STDERRMSG("[+] Target locked: pid %d, command '%s'\n",tracepid,x);
             forcepid=tracepid;
             strncpy(progname,x,1024);
             if (strstr(w+1,"static")) {
-                debug("[!] Warning: this is a static application, I'm not too good at it!\n");
+                STDERRMSG("[!] Warning: this is a static application, I'm not too good at it!\n");
                 staticwarn=1;
             }
         } else
@@ -254,7 +256,7 @@ void get_buffers(void) {
                 int miau;
                 sscanf(x+11,"%d",&miau);
                 if (miau==forcepid) {
-                    debug("[!] Will not trace pid %d after execve, bailing out.\n",miau);
+                    STDERRMSG("[!] Will not trace pid %d after execve, bailing out.\n",miau);
                     goto bailout;
                 }
                 continue;
@@ -263,7 +265,7 @@ void get_buffers(void) {
         { int miau;
             if (sscanf(x,"%d:",&miau)==1) {
                 if (forcepid!=miau) {
-                    if (!pidnotice) debug("[!] Only first process analyzed (%d but not %d or others).\n",forcepid,miau);
+                    if (!pidnotice) STDERRMSG("[!] Only first process analyzed (%d but not %d or others).\n",forcepid,miau);
                     pidnotice=1;
                     continue;
                 }
@@ -271,12 +273,12 @@ void get_buffers(void) {
         }
 
         if (!(cline % 941))
-            debug("[+] Collecting data... %0.02f%% (%d lines) done\r", ((float)(my_ptr-my_file)) * 100.0 / ((float)(my_end-my_file)),cline);
+            STDERRMSG("[+] Collecting data... %0.02f%% (%d lines) done\r", ((float)(my_ptr-my_file)) * 100.0 / ((float)(my_end-my_file)),cline);
 
         if (x[0]=='>') {
             if (strstr(x,"more processes")) exitcond=1; else {
                 problems++;
-                debug("[!] line %d: trace error: %s\n",cline,x+2);
+                STDERRMSG("[!] line %d: trace error: %s\n",cline,x+2);
             }
         }
 
@@ -284,7 +286,7 @@ void get_buffers(void) {
             if (!T_domem) if (strstr(x,"strange")) continue;
             if (!hadstar) problems++;
             if (x[1]=='*') hadstar=!hadstar;
-            debug("[!] line %d: %s\n",cline,x);
+            STDERRMSG("[!] line %d: %s\n",cline,x);
             continue;
         } else hadstar=0;
 
@@ -303,10 +305,10 @@ void get_buffers(void) {
         x=y;
         while (*x==' ') x++;
 
-        //    debug("# btop=%d br=%d Parsing line: %s\n",btop,breally,x);
+        //    STDERRMSG("# btop=%d br=%d Parsing line: %s\n",btop,breally,x);
 
         if (!strncmp(x,"\\ UNEXPECTED",12)) {
-            debug("[!] line %d: unexpected %s\n",cline,x+13);
+            STDERRMSG("[!] line %d: unexpected %s\n",cline,x+13);
             x+=11; *x='\\'; problems++;
         }
 
@@ -320,7 +322,7 @@ void get_buffers(void) {
             if (len<0) fatal("\\ new length less than 0");
             if ((q=find_addr(addr))>=0) {
                 if (!(b[q].fl & BFL_ASSUMED)) {
-                    debug("[!] line %d: new buffer %x:%d already exists as %x:%d.\n",cline,addr,len,b[q].addr,b[q].size);
+                    STDERRMSG("[!] line %d: new buffer %x:%d already exists as %x:%d.\n",cline,addr,len,b[q].addr,b[q].size);
                     problems++;
                 }
                 continue;
@@ -329,7 +331,7 @@ void get_buffers(void) {
             b[btop].isize=b[btop].size=len;
             b[btop].st=ST_CUR;
             b[btop].t=bufno;
-            if (T_verb) debug("+ New #%d: %x:%d\n",btop,addr,len);
+            if (T_verb) STDERRMSG("+ New #%d: %x:%d\n",btop,addr,len);
             btop=-1;
             continue;
         }
@@ -343,12 +345,12 @@ void get_buffers(void) {
             if (len<0) fatal("\\ discard len less than 0");
 
             if ((q=find_inrange(addr,addr+len))<0) {
-                debug("[!] line %d: discard of non-existing %x:%d\n",cline,addr,len);
+                STDERRMSG("[!] line %d: discard of non-existing %x:%d\n",cline,addr,len);
                 problems++;
                 continue;
             }
 
-            if (T_verb) debug("- Discard #%d: %x:%d (%x:%d)\n",q,addr,len,b[q].addr,b[q].size);
+            if (T_verb) STDERRMSG("- Discard #%d: %x:%d (%x:%d)\n",q,addr,len,b[q].addr,b[q].size);
 
             b[q].addr=addr;
             b[q].size=len;
@@ -372,7 +374,7 @@ void get_buffers(void) {
 
             if ((q=find_inrange(a1,a1+a2))<0) {
                 problems++;
-                debug("[!] line %d: remap of non-existing a1 %x:%d\n",cline,a1,a2);
+                STDERRMSG("[!] line %d: remap of non-existing a1 %x:%d\n",cline,a1,a2);
                 q=btop;
                 b[q].iaddr=addr; b[q].isize=len;
                 b[q].t=bufno;
@@ -383,7 +385,7 @@ void get_buffers(void) {
             b[q].size=len;
             b[q].st=ST_CUR;
 
-            if (T_verb) debug("= Merged into #%d: %x | %x = %x:%d\n",q,a1,a2,addr,len);
+            if (T_verb) STDERRMSG("= Merged into #%d: %x | %x = %x:%d\n",q,a1,a2,addr,len);
 
             continue;
         }
@@ -395,7 +397,7 @@ void get_buffers(void) {
             x+=14;
             if (sscanf(x,"%x:%d %x:%d (%*[^)]) -> %x:%d",&a1,&l1,&a2,&l2,&addr,&len)<6) fatal("malformed \\ merge");
             while ((q=find_inrange(addr,addr+len))>=0) {
-                if (T_verb) debug("- Discard: %x [#%d] in merge with %x:%d %x:%d\n",b[q].addr,q,a1,l1,a2,l2);
+                if (T_verb) STDERRMSG("- Discard: %x [#%d] in merge with %x:%d %x:%d\n",b[q].addr,q,a1,l1,a2,l2);
                 b[q].st=ST_FREE;
                 if (b[q].addr == a1) any++; else
                     if (b[q].addr == a2) any++;
@@ -405,8 +407,8 @@ void get_buffers(void) {
             b[btop].isize=b[btop].size=len;
             b[btop].st=ST_CUR;
             b[btop].t=bufno;
-            if (!any) debug("[!] line %d: merge of non-existing buffers [%x | %x -> %x]\n",cline,a1,a2,addr);
-            if (T_verb) debug("= Merged into #%d: %x | %x = %x:%d\n",btop,a1,a2,addr,len);
+            if (!any) STDERRMSG("[!] line %d: merge of non-existing buffers [%x | %x -> %x]\n",cline,a1,a2,addr);
+            if (T_verb) STDERRMSG("= Merged into #%d: %x | %x = %x:%d\n",btop,a1,a2,addr,len);
             btop=-1;
             continue;
         }
@@ -421,15 +423,15 @@ void get_buffers(void) {
             b[btop].st=ST_CUR;
             b[btop].t=bufno;
             problems++;
-            debug("[!] line %d: remap of non-existing buffer\n",cline);
-            if (T_verb) debug("+ Strange new #%d: %x:%d \n",btop,addr,len);
+            STDERRMSG("[!] line %d: remap of non-existing buffer\n",cline);
+            if (T_verb) STDERRMSG("+ Strange new #%d: %x:%d \n",btop,addr,len);
             btop=-1;
             continue;
         }
 
         else if (!strncmp(x,"- ",2)) {
             problems++;
-            debug("[!] line %d: %s\n",cline,x+2);
+            STDERRMSG("[!] line %d: %s\n",cline,x+2);
         }
 
         else if (!strncmp(x,"+ ",2)) {
@@ -446,12 +448,12 @@ void get_buffers(void) {
             if ((q=find_inrange(addr,addr+len))>=0) {
                 while (q>=0) {
                     if ((b[q].addr == addr) && (b[q].size == len)) goto getmeout;
-                    if (T_verb) debug("= Adjust #%d into #%d: %x:%d -> %x:%d\n",q,btop,b[q].addr,b[q].size,addr,len);
+                    if (T_verb) STDERRMSG("= Adjust #%d into #%d: %x:%d -> %x:%d\n",q,btop,b[q].addr,b[q].size,addr,len);
                     b[q].st=ST_FREE;
                     q=find_inrange(addr,addr+len);
                 }
             } else {
-                if (T_verb) debug("+ Assumed new #%d: %x:%d\n",btop,addr,len);
+                if (T_verb) STDERRMSG("+ Assumed new #%d: %x:%d\n",btop,addr,len);
             }
             b[btop].fl=BFL_ASSUMED;
             b[btop].iaddr=b[btop].addr=addr;
@@ -482,10 +484,10 @@ bailout:
 
     }
 
-    if (!exitcond) debug("[!] Warning: file truncated!\n");
+    if (!exitcond) STDERRMSG("[!] Warning: file truncated!\n");
 
-    debug("[+] Found %d buffers (%d slots, %d static), %d problems.\n",over,bufno,left,problems);
-    debug("[+] Highest fd found: %d\n",topfd);
+    STDERRMSG("[+] Found %d buffers (%d slots, %d static), %d problems.\n",over,bufno,left,problems);
+    STDERRMSG("[+] Highest fd found: %d\n",topfd);
 
     {
         struct bufdesc x[MAXADDR];
@@ -493,7 +495,7 @@ bailout:
 
         for (i=0;i<bufno;i++) {
             int j;
-            if (!(i % 123)) debug("[+] Sorting buffers... %0.02f%% done\r",((float)i*100.0)/((float)bufno));
+            if (!(i % 123)) STDERRMSG("[+] Sorting buffers... %0.02f%% done\r",((float)i*100.0)/((float)bufno));
             for (j=0;j<breally;j++) {
                 if ((b[j].t==i) && b[j].st) {
                     b[j].st=ST_CUR;
@@ -508,12 +510,12 @@ bailout:
 
     }
 
-    debug("[+] Buffers successfully sorted using bogosort algorithm.\n");
+    STDERRMSG("[+] Buffers successfully sorted using bogosort algorithm.\n");
 
     if (T_verb) {
-        debug("[+] BUFFERS: ");
-        for (i=0;i<breally;i++) debug("%d [%d] %x:%d ",i,b[i].num,b[i].addr,b[i].size);
-        debug("\n");
+        STDERRMSG("[+] BUFFERS: ");
+        for (i=0;i<breally;i++) STDERRMSG("%d [%d] %x:%d ",i,b[i].num,b[i].addr,b[i].size);
+        STDERRMSG("\n");
     }
 
 }
@@ -549,7 +551,7 @@ void parse_functions(void) {
     cline=0;
     ti=time(0);
 
-    debug("*** PHASE 2: Parsing functions, logging buffer activity...\n");
+    STDERRMSG("*** PHASE 2: Parsing functions, logging buffer activity...\n");
 
     strcpy(fname[0],"main");
     if (!(fnfile[0]=fopen(getname("F",0),"w"))) fatal("cannot open fnfile");
@@ -599,7 +601,7 @@ void parse_functions(void) {
         cline++;
         ox=x;
 
-        debug("[+] Found %d function calls, %0.02f%% done...\r",fnum,((float)(my_ptr-my_file)) * 100.0 / ((float)(my_end-my_file)));
+        STDERRMSG("[+] Found %d function calls, %0.02f%% done...\r",fnum,((float)(my_ptr-my_file)) * 100.0 / ((float)(my_end-my_file)));
 
 reanalyze:
 
@@ -670,7 +672,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* READ buffer %x",&add)!=1) fatal("malformed read");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_READ;
                     { FILE* qq;
@@ -687,7 +689,7 @@ reprocess:
                 x=ox=my_gets();
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line, whatever it is.
                 x=ox=my_gets();
@@ -708,7 +710,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* READ local object %*s (%x)",&add)<1) fatal("malformed read");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_READ;
                     { FILE* qq;
@@ -725,7 +727,7 @@ reprocess:
                 x=ox=my_gets();
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line, whatever it is.
                 x=ox=my_gets();
@@ -746,7 +748,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* READ shared object %*s (%x)",&add)<1) fatal("malformed read");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: READ on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_READ;
                     { FILE* qq;
@@ -763,7 +765,7 @@ reprocess:
                 x=ox=my_gets();
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line, whatever it is.
                 x=ox=my_gets();
@@ -783,7 +785,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* WRITE buffer %x",&add)!=1) fatal("malformed write");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_WRITE;
                     { FILE* qq;
@@ -801,7 +803,7 @@ reprocess:
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
 
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line.
                 x=ox=my_gets();
@@ -821,7 +823,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* WRITE local object %*s (%x)",&add)<1) fatal("malformed write");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_WRITE;
                     { FILE* qq;
@@ -839,7 +841,7 @@ reprocess:
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
 
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line.
                 x=ox=my_gets();
@@ -859,7 +861,7 @@ reprocess:
                 int add,f;
                 if (sscanf(x,"* WRITE shared object %*s (%x)",&add)<1) fatal("malformed write");
                 f=find_addr(add);
-                if (f<0) debug("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
+                if (f<0) STDERRMSG("[!] line %d: WRITE on non-existing buffer %x.\n",cline,add);
                 else {
                     a[nest][b[f].num] |= B_WRITE;
                     { FILE* qq;
@@ -877,7 +879,7 @@ reprocess:
                 fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
                 cline++;
 
-                if (!strstr(ox," + ")) debug("[!] line %d: no '+'\n",cline);
+                if (!strstr(ox," + ")) STDERRMSG("[!] line %d: no '+'\n",cline);
 
                 // Get next line.
                 x=ox=my_gets();
@@ -964,7 +966,7 @@ reprocess:
                     fclose(qq);
                 }
             }
-            else debug("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
+            else STDERRMSG("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
             continue;
         }
 
@@ -997,7 +999,7 @@ reprocess:
                     fclose(qq);
                 }
             }
-            else debug("[!] line %d: \\ new on unknown %x.\n",cline,addr);
+            else STDERRMSG("[!] line %d: \\ new on unknown %x.\n",cline,addr);
             continue;
         }
 
@@ -1016,7 +1018,7 @@ reprocess:
                     fclose(qq);
                 }
             }
-            else debug("[!] line %d: + on unknown %x.\n",cline,addr);
+            else STDERRMSG("[!] line %d: + on unknown %x.\n",cline,addr);
             continue;
         }
 
@@ -1033,7 +1035,7 @@ reprocess:
             unsigned int addr;
             if (sscanf(x,"\\ buffer %x modified",&addr)!=1) continue;
             if ((q=find_addr(addr))>=0) a[nest][b[q].num] |= B_WRITE;
-            else debug("[!] line %d: modified on unknown %x.\n",cline,addr);
+            else STDERRMSG("[!] line %d: modified on unknown %x.\n",cline,addr);
             continue;
         }
 
@@ -1048,9 +1050,9 @@ handle_migration:
             if (sscanf(x,"\\ data migration: %x to %x",&a1,&a2)!=2)
                 fatal("malformed \\ data migration");
             if ((q1=find_addr(a1))<0)
-                debug("[!] line %d: data migration source unknown (%x).\n",cline,a1);
+                STDERRMSG("[!] line %d: data migration source unknown (%x).\n",cline,a1);
             if ((q2=find_addr(a2))<0)
-                debug("[!] line %d: data migration destination unknown (%x).\n",cline,a2);
+                STDERRMSG("[!] line %d: data migration destination unknown (%x).\n",cline,a2);
             if (q1==q2) {
                 for (a1=0;a1<q1;a1++) outf("&nbsp;");
                 outf("<a href=\"#b%d\">X</a>%s\n",q1,NRO);
@@ -1177,7 +1179,7 @@ handle_migration:
                         FILE* f;
                         if (!modtable[q]) modtable[q]=MOD_ACC;
                         f=fopen(getname("D",q),"a");
-                        if (!f) pfatal("fopen");
+                        if (!f) PERROREXIT("fopen");
                         fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  %s<br>\n",cline,cline,tmp);
                         fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i><p>\n",cline,cline,x);
                         fclose(f);
@@ -1196,7 +1198,7 @@ handle_migration:
                         }
 
                     }
-                    else debug("[!] line %d: + on unknown %x.\n",cline,addr);
+                    else STDERRMSG("[!] line %d: + on unknown %x.\n",cline,addr);
                     continue;
                 } else if (x[0]=='\\') {
                     fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
@@ -1214,7 +1216,7 @@ handle_migration:
                                 fclose(qq);
                             }
                         }
-                        else debug("[!] line %d: \\ new on unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ new on unknown %x.\n",cline,addr);
                         continue;
                     } else if (strstr(x,"\\ data migration")) {
                         sscanf(x,"\\ data migration: %x to %x",&q,&addr);
@@ -1244,13 +1246,13 @@ knowncont:
                                 fclose(qq);
                             }
                         }
-                        else debug("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
                         continue;
                     } else if (strstr(x,"\\ discard: mem")) {
                         x+=15;
                         if (sscanf(x,"%x:%d",&addr,&len)<2) continue;
                         if ((q=find_addr(addr))>=0) b[q].st=ST_PAST;
-                        else debug("[!] line %d: \\ L discard on unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ L discard on unknown %x.\n",cline,addr);
 
                         continue;
                     } else if (strstr(x,"\\ buffer")) {
@@ -1258,7 +1260,7 @@ knowncont:
                         if (!strstr(x,"modified")) continue;
                         if (sscanf(x,"%x",&addr)<1) continue;
                         if ((q=find_addr(addr))>=0) mem[b[q].num] = B_WRITE;
-                        else debug("[!] line %d: \\ modified unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ modified unknown %x.\n",cline,addr);
                         continue;
                     }
                 } else break;
@@ -1356,7 +1358,7 @@ knowncont:
                         FILE* f;
                         if (!modtable[q]) modtable[q]=MOD_ACC;
                         f=fopen(getname("D",q),"a");
-                        if (!f) pfatal("fopen");
+                        if (!f) PERROREXIT("fopen");
                         fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  %s<br>\n",cline,cline,tmp);
                         fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i><p>\n",cline,cline,x);
                         fclose(f);
@@ -1374,7 +1376,7 @@ knowncont:
                             fclose(qq);
                         }
                     }
-                    else debug("[!] line %d: + on unknown %x.\n",cline,addr);
+                    else STDERRMSG("[!] line %d: + on unknown %x.\n",cline,addr);
                     continue;
                 } else if (x[0]=='\\') {
                     fprintf(fnfile[nest],"<b><a href=\"#l%d\">%07d</a></b>  <i>%s</i>\n",cline,cline,ox);
@@ -1392,7 +1394,7 @@ knowncont:
                                 fclose(qq);
                             }
                         }
-                        else debug("[!] line %d: \\ new on unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ new on unknown %x.\n",cline,addr);
                         continue;
                     } else if (strstr(x,"\\ data migration")) {
                         sscanf(x,"\\ data migration: %x to %x",&q,&addr);
@@ -1420,14 +1422,14 @@ sysccont:
                                 fclose(qq);
                             }
                         }
-                        else debug("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ merge on unknown %x.\n",cline,addr);
                         continue;
                     } else if (strstr(x,"\\ buffer")) {
                         x+=8;
                         if (!strstr(x,"modified")) continue;
                         if (sscanf(x,"%x",&addr)<1) continue;
                         if ((q=find_addr(addr))>=0) mem[b[q].num] = B_WRITE;
-                        else debug("[!] line %d: \\ modified unknown %x.\n",cline,addr);
+                        else STDERRMSG("[!] line %d: \\ modified unknown %x.\n",cline,addr);
                         continue;
                     }
 
@@ -1441,7 +1443,7 @@ sysccont:
                             if (strstr(x,"removed")) modtable[i]=MOD_CLOSE; else
                                 fatal("unrecognized @ line");
                     f=fopen(getname("D",i),"a");
-                    if (!f) pfatal("fopen");
+                    if (!f) PERROREXIT("fopen");
                     fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  %s<br>\n",cline,cline,tmp);
                     fprintf(f,"<b><a href=\"#l%d\">%07d</a></b>  <b>%s</b><p>\n",cline,cline,x);
                     fclose(f);
@@ -1513,7 +1515,7 @@ sysccont:
 
 bailout_parse:
 
-    debug("[+] Found %d function calls, done.                     \n",fnum);
+    STDERRMSG("[+] Found %d function calls, done.                     \n",fnum);
 
     if (nest>=0) outf("&nbsp;" NFI "[truncated?] " NFI "&nbsp;");
     outf("</td></table>\n\n");
@@ -1528,9 +1530,9 @@ void glue_together(void) {
     int i;
     char buf[1000];
     char* x;
-    debug("*** PHASE 3: Generating final report.\n");
+    STDERRMSG("*** PHASE 3: Generating final report.\n");
 
-    debug("[+] Migrating function dumps to main file...\n");
+    STDERRMSG("[+] Migrating function dumps to main file...\n");
     // negative
     // Tuesday, December 18, 2001
     // <!--- calls.txt --->
@@ -1543,7 +1545,7 @@ void glue_together(void) {
         int first=1;
         FILE* f;
         f=fopen(getname("F",i),"r");
-        if (!f) pfatal("fopen");
+        if (!f) PERROREXIT("fopen");
         outf("<a name=\"f%d\">",i);
         while (fgets(buf,sizeof(buf),f)) {
             outf("%s",buf);
@@ -1570,7 +1572,7 @@ void glue_together(void) {
                     g_top++;
                     g_fn[i]=strdup(x);
                     g_fd[i]=fopen(b,"w+");
-                    if (!g_fd[i]) pfatal("fopen");
+                    if (!g_fd[i]) PERROREXIT("fopen");
                     outf("<font color=blue><b>    [ Click <a href=\"#S%s\">here</a> for calls summary ]</b></font>\n",x);
                 }
                 fprintf(g_fd[i],"%s",buf);
@@ -1583,7 +1585,7 @@ void glue_together(void) {
 
     outf("</font></pre>\n</pre>\n");
 
-    debug("[+] Generating function call summary info...\n");
+    STDERRMSG("[+] Generating function call summary info...\n");
     // negative
     // Tuesday, December 18, 2001
     // <!--- params.txt --->
@@ -1605,7 +1607,7 @@ void glue_together(void) {
 
     outf("</font></pre>\n\n");
 
-    debug("[+] Migrating buffer history...\n");
+    STDERRMSG("[+] Migrating buffer history...\n");
     // negative
     // Tuesday, December 18, 2001
     // <!--- buffers.txt --->
@@ -1616,7 +1618,7 @@ void glue_together(void) {
         if (!access(name,F_OK)) {
             FILE* f;
             f=fopen(name,"r");
-            if (!f) pfatal("fopen");
+            if (!f) PERROREXIT("fopen");
             outf("<p>\n<a name=\"b%d\"><font color=green>Buffer %d</font>:<p>\n",i,i);
             while (fgets(buf,sizeof(buf),f)) {
                 outf("%s",buf);
@@ -1625,7 +1627,7 @@ void glue_together(void) {
         }
     }
 
-    debug("[+] Generating file descriptor history...\n");
+    STDERRMSG("[+] Generating file descriptor history...\n");
     // negative
     // Tuesday, December 18, 2001
     // <!--- io.txt --->
@@ -1636,7 +1638,7 @@ void glue_together(void) {
         if (!access(name,F_OK)) {
             FILE* f;
             f=fopen(name,"r");
-            if (!f) pfatal("fopen");
+            if (!f) PERROREXIT("fopen");
             outf("<p>\n<a name=\"d%d\"><font color=green>File descriptor %d</font>:<p>\n",i,i);
             while (fgets(buf,sizeof(buf),f)) {
                 outf("%s",buf);
@@ -1645,7 +1647,7 @@ void glue_together(void) {
         }
     }
 
-    debug("[+] Appending as-is trace output...\n");
+    STDERRMSG("[+] Appending as-is trace output...\n");
     // negative
     // Tuesday, December 18, 2001
     // <!--- raw.txt --->
@@ -1664,13 +1666,13 @@ void glue_together(void) {
 
 int main(const int argc, const char** argv) {
 
-    debug("visualization for fenris -- <lcamtuf@coredump.cx>\n");
+    STDERRMSG("visualization for fenris -- <lcamtuf@coredump.cx>\n");
 
     if (argc!=3) usage(argv[0]);
 
     my_open(argv[1]);
     outfile=fopen(ofip=(char*)argv[2],"w");
-    if (!outfile) pfatal(argv[2]);
+    if (!outfile) PERROREXIT(argv[2]);
 
     test_file();
     get_buffers();
@@ -1679,7 +1681,7 @@ int main(const int argc, const char** argv) {
 
     fclose(outfile);
 
-    debug("*** Done. Have a nice day!\n");
+    STDERRMSG("*** Done. Have a nice day!\n");
 
     return 0;
 

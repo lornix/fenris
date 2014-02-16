@@ -103,9 +103,7 @@ unsigned int Wcode_addr;
 #define pfatal(y)       { if (y) debug("FATAL: %s (%s)\n",y,sys_errlist[errno]); clean_exit(1); }
 #define fatal(x)        { wattrset(Waegir,fatal_color); debug("FATAL: %s\n",x); clean_exit(1); }
 
-#define textdebug(x...)     fprintf(stderr,x)
-#define textpfatal(y)       { if (y) perror(y); sleep(5); exit(1); }
-#define textfatal(x)        { textdebug("FATAL: %s\n",x); sleep(5); exit(1); }
+#include "common.h"
 
 /******************************************************************************/
 
@@ -2031,7 +2029,7 @@ int screen_pid;
 void a_handler(int s)
 {
     if(screen_pid>=0)kill(screen_pid,15);
-    textdebug("Debugger session closed down.\n");
+    STDERRMSG("Debugger session closed down.\n");
     exit(0);
 }
 
@@ -2118,7 +2116,7 @@ void do_splash(char *what) {
         }
 
         switch (toupper(buf[0])) {
-            case '!': textfatal(NOR "user exit"); break;
+            case '!': FATALEXIT(NOR "user exit"); break;
             case 'A': if (ana[1]) cmd=strdup(&ana[1]); break;
             case 'B': if (ana[1]) uid=strdup(&ana[1]); else uid=0; break;
             case 'C': if (ana[1]) fp=strdup(&ana[1]); else fp=0; break;
@@ -2444,8 +2442,8 @@ int edit_regs(int ch)
 /******************************************************************************/
 
 static void usage(char *name) {
-    textdebug("Usage: %s [ -i ] program_name [ parameters ]\n\n",name);
-    textdebug("  -i            - use Intel notation for disassembly.\n\n");
+    STDERRMSG("Usage: %s [ -i ] program_name [ parameters ]\n\n",name);
+    STDERRMSG("  -i            - use Intel notation for disassembly.\n\n");
     exit(1);
 }
 
@@ -2508,7 +2506,7 @@ int main(int argc,char* argv[])
         setenv(ENVSOCK,fname,1);
         if (!getenv("DISPLAY")) {
             if (getenv("STY")){
-                textdebug(BRI
+                STDERRMSG(BRI
                         "\nWARNING: You are trying to run nc-aegir from inside an existing\n"
                         "'screen' session. This program requires a separate, dedicated session,\n"
                         "and such a session will be spawned. You'd have to press your meta key\n"
@@ -2522,7 +2520,8 @@ int main(int argc,char* argv[])
                 if (optind>1)
                     strcat(cmdbuf,argv[1]);
                 execvp("screen", args);
-                textpfatal("execve('screen')");
+                perror("execve('screen')");
+                exit(1);
                 exit(0);
             }
             usleep(100000);
@@ -2531,7 +2530,7 @@ int main(int argc,char* argv[])
             signal(SIGHUP, a_handler);
             signal(SIGCHLD, a_handler);
             pause();
-            textdebug("Debugger session closed down.\n");
+            STDERRMSG("Debugger session closed down.\n");
             exit(0);
         } else {
             // g³upie to trochê, ale "prowizorka rzecz najtrwalsza"
@@ -2556,12 +2555,15 @@ int main(int argc,char* argv[])
                     envsock, envpipe, envcmd);
         }
         execl("/bin/sh","sh","-c",buf,0);
-        textpfatal("execve('/bin/sh')");
+        perror("execve('/bin/sh')");
         exit(1);
     }
 
     fpfd=open(envpipe, O_RDONLY | O_NONBLOCK);
-    if (fpfd < 0) textpfatal("open on ENVPIPE");
+    if (fpfd < 0) {
+        perror("open on ENVPIPE");
+        exit(1);
+    }
     fcntl(fpfd,F_SETFL,0);
 
     { int cnt;
@@ -2569,7 +2571,7 @@ int main(int argc,char* argv[])
             if(!access(envsock, F_OK)) break;
             usleep(50000);
         }
-        if (cnt==50) textfatal("couldn't contact Fenris");
+        if (cnt==50) FATALEXIT("couldn't contact Fenris");
     }
 
     // switch back to aegir window

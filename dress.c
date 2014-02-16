@@ -63,9 +63,7 @@
 #define MD5_Update MD5Update
 #endif /* USE_OPENSSL */
 
-#define debug(x...)     fprintf(stderr,x)
-#define pfatal(y)       { if (y) perror(y); exit(1); }
-#define fatal(x)        { debug("FATAL: %s\n",x); exit(1); }
+#include "common.h"
 
 char* lookfor=".text";
 char* tofile;
@@ -94,7 +92,7 @@ void add_signature(int addr,char* name) {
         sym[symtop].addr=addr;
         sym[symtop].name=strdup(name);
         symtop++;
-        if (symtop>=MAXSYMBOLS) fatal("MAXSYMBOLS exceeded");
+        if (symtop>=MAXSYMBOLS) FATALEXIT("MAXSYMBOLS exceeded");
     }
     // printf("symbol %d: %s\n",symtop-1,sym[symtop-1].name);
 
@@ -140,13 +138,13 @@ int main(int argc,char* argv[]) {
 
     bfd_init();
 
-    debug("dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>\n");
+    STDERRMSG("dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>\n");
 
     while ((opt=getopt(argc,(void*)argv, "+S:F:"))!=EOF)
         switch(opt) {
             case 'F':
                 if (load_fnbase(optarg) == -1)
-                    debug("* WARNING: cannot load '%s' fingerprints database.\n", optarg);
+                    STDERRMSG("* WARNING: cannot load '%s' fingerprints database.\n", optarg);
                 break;
 
             case 'S':
@@ -156,26 +154,29 @@ int main(int argc,char* argv[]) {
         }
 
     if (argc-optind<1 || argc-optind>2) {
-        debug("\nUsage: %s [ -S nnn ] [ -F nnn ] input_elf [ output_elf ]\n",argv[0]);
-        debug("  -S nnn     - use 'nnn' instead of default .text for code\n");
-        debug("  -F nnn     - use fingerprints from file 'nnn'\n\n");
+        STDERRMSG("\nUsage: %s [ -S nnn ] [ -F nnn ] input_elf [ output_elf ]\n",argv[0]);
+        STDERRMSG("  -S nnn     - use 'nnn' instead of default .text for code\n");
+        STDERRMSG("  -F nnn     - use fingerprints from file 'nnn'\n\n");
         exit(1);
     }
 
     if (argc-optind==2) tofile=argv[optind+1];
 
     if (load_fnbase(FN_DBASE) == -1)
-        debug("* WARNING: cannot load '%s' fingerprints database.\n", FN_DBASE);
-    if (!fnprints_count()) fatal("couldn't load any fingerprints (try -F)");
+        STDERRMSG("* WARNING: cannot load '%s' fingerprints database.\n", FN_DBASE);
+    if (!fnprints_count()) FATALEXIT("couldn't load any fingerprints (try -F)");
 
     b = bfd_openr(argv[optind],0);
-    if (!b) pfatal(argv[optind]);
+    if (!b) {
+        perror(argv[optind]);
+        exit(1);
+    }
 
     bfd_check_format(b,bfd_archive);
-    if (!bfd_check_format_matches(b,bfd_object,0)) fatal("ELF format mismatch");
+    if (!bfd_check_format_matches(b,bfd_object,0)) FATALEXIT("ELF format mismatch");
 
     if ((bfd_get_file_flags(b) & HAS_SYMS) != 0) {
-        fatal("not a static stripped binary.");
+        FATALEXIT("not a static stripped binary.");
         exit(1);
     }
 
@@ -184,26 +185,26 @@ int main(int argc,char* argv[]) {
     while (ss) {
         if ((!ss->name) || (!strcmp(ss->name,lookfor))) break;
         ss=ss->next;
-        if (!ss) fatal("cannot find code section (try -S).");
+        if (!ss) FATALEXIT("cannot find code section (try -S).");
     }
 
-    debug("[+] Loaded %d fingerprints...\n",fnprints_count());
+    STDERRMSG("[+] Loaded %d fingerprints...\n",fnprints_count());
 
-    debug("[*] Code section at 0x%08x - 0x%08x, offset %d in the file.\n",
+    STDERRMSG("[*] Code section at 0x%08x - 0x%08x, offset %d in the file.\n",
             (int)ss->vma,
             (int)(bfd_get_start_address(b)+ss->_raw_size),
             (int)ss->filepos);
 
-    debug("[*] For your initial breakpoint, use *0x%x\n",(int)ss->vma);
+    STDERRMSG("[*] For your initial breakpoint, use *0x%x\n",(int)ss->vma);
 
     fi=open(argv[optind],O_RDONLY);
-    if (!fi) fatal("cannot open input file");
-    if (!(code=malloc(ss->_raw_size+5))) fatal("malloc failed");
+    if (!fi) FATALEXIT("cannot open input file");
+    if (!(code=malloc(ss->_raw_size+5))) FATALEXIT("malloc failed");
     lseek(fi,ss->filepos,SEEK_SET);
-    if (read(fi,code,ss->_raw_size)!=ss->_raw_size) fatal("read failed");
+    if (read(fi,code,ss->_raw_size)!=ss->_raw_size) FATALEXIT("read failed");
     close(fi);
 
-    debug("[+] Locating CALLs... ");
+    STDERRMSG("[+] Locating CALLs... ");
 
     // This will catch many false positives, but who cares?
     for (i=0;i<ss->_raw_size-5;i++) {
@@ -217,16 +218,16 @@ int main(int argc,char* argv[]) {
             if (!got) {
                 calls[ctop]=daddr;
                 ctop++;
-                if (ctop>=MAXCALLS) fatal("MAXCALLS exceeded");
+                if (ctop>=MAXCALLS) FATALEXIT("MAXCALLS exceeded");
             }
         }
     }
 
-    debug("%d found.\n",ctop);
+    STDERRMSG("%d found.\n",ctop);
 
     // For every call, calculate a signature, compare.
 
-    debug("[+] Matching fingerprints...\n");
+    STDERRMSG("[+] Matching fingerprints...\n");
 
     for (i=0;i<ctop;i++) {
         unsigned int r;
@@ -248,7 +249,7 @@ int main(int argc,char* argv[]) {
     bfd_close(b);
     if (tofile && found) copier(argv[optind],tofile,lookfor);
 
-    debug("[+] All set. Detected fingerprints for %d of %d functions.\n",found,total);
+    STDERRMSG("[+] All set. Detected fingerprints for %d of %d functions.\n",found,total);
 
     return 0;
 }
@@ -260,16 +261,16 @@ void copier(char* src,char* dst,char* secname) {
 
     bfd_init();
 
-    if (!strcmp(src,dst)) fatal("source and destination file can't be the same");
-    debug("[*] Writing new ELF file:\n");
+    if (!strcmp(src,dst)) FATALEXIT("source and destination file can't be the same");
+    STDERRMSG("[*] Writing new ELF file:\n");
 
     ibfd = bfd_openr(src,0);
-    if (!ibfd) fatal("bfd_openr() on source file");
+    if (!ibfd) FATALEXIT("bfd_openr() on source file");
     obfd = bfd_openw(dst,"i586-pc-linux-gnulibc1");
-    if (!obfd) fatal("bfd_openw() on destination file");
-    if (!bfd_check_format_matches(ibfd, bfd_object, 0)) fatal("input ELF format problem");
+    if (!obfd) FATALEXIT("bfd_openw() on destination file");
+    if (!bfd_check_format_matches(ibfd, bfd_object, 0)) FATALEXIT("input ELF format problem");
 
-    debug("[+] Cloning general ELF data...\n");
+    STDERRMSG("[+] Cloning general ELF data...\n");
     bfd_set_format (obfd, bfd_get_format(ibfd));
     bfd_set_start_address (obfd, bfd_get_start_address(ibfd));
     bfd_set_file_flags(obfd,(bfd_get_file_flags(ibfd) & bfd_applicable_file_flags(obfd)));
@@ -277,14 +278,14 @@ void copier(char* src,char* dst,char* secname) {
 
     s=ibfd->sections;
 
-    debug("[+] Setting up sections: ");
+    STDERRMSG("[+] Setting up sections: ");
 
     while (s) {
         struct sec* os;
 
         os=bfd_make_section_anyway(obfd,bfd_section_name(ibfd,s));
-        if (s->name[0]=='.') debug("%s ",bfd_section_name(ibfd,s));
-        if (!os) fatal("can't create new section");
+        if (s->name[0]=='.') STDERRMSG("%s ",bfd_section_name(ibfd,s));
+        if (!os) FATALEXIT("can't create new section");
 
         bfd_set_section_size(obfd, os, bfd_section_size(ibfd,s));
         bfd_set_section_vma(obfd, os, bfd_section_vma (ibfd, s));
@@ -300,11 +301,11 @@ void copier(char* src,char* dst,char* secname) {
 
     }
 
-    debug("\n");
+    STDERRMSG("\n");
 
     s=ibfd->sections;
 
-    debug("[+] Preparing new symbol tables...\n");
+    STDERRMSG("[+] Preparing new symbol tables...\n");
 
     {
         void* acopy;
@@ -336,22 +337,22 @@ void copier(char* src,char* dst,char* secname) {
         // It took me an hour to realize this ugly bastard does not create
         // a copy or process data immediately, but stores a pointer for
         // decades instead. Long live bfd docs!
-        if (!bfd_set_symtab(obfd, acopy, symtop)) fatal("bfd_set_symtab failed");
+        if (!bfd_set_symtab(obfd, acopy, symtop)) FATALEXIT("bfd_set_symtab failed");
 
     }
 
-    debug("[+] Copying all sections: ");
+    STDERRMSG("[+] Copying all sections: ");
 
     while (s) {
         int siz;
-        if (s->name[0]=='.') debug("%s ",s->name);
+        if (s->name[0]=='.') STDERRMSG("%s ",s->name);
         siz = bfd_get_section_size_before_reloc(s);
         if (siz>=0)
             if (bfd_get_section_flags(ibfd, s) & SEC_HAS_CONTENTS) {
                 void* memhunk = malloc(siz);
-                if (!memhunk) fatal("malloc failed");
-                if (!bfd_get_section_contents(ibfd, s, memhunk, 0, siz)) fatal("get_section contents failed");
-                if (!bfd_set_section_contents(obfd, s->output_section, memhunk, 0, siz)) fatal("set_section_contents failed");
+                if (!memhunk) FATALEXIT("malloc failed");
+                if (!bfd_get_section_contents(ibfd, s, memhunk, 0, siz)) FATALEXIT("get_section contents failed");
+                if (!bfd_set_section_contents(obfd, s->output_section, memhunk, 0, siz)) FATALEXIT("set_section_contents failed");
                 free (memhunk);
             }
 

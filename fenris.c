@@ -279,7 +279,6 @@ void fatal(const char* x, const int err) {
 #endif /* DEBUG */
 
     exit(1);
-
 }
 
 /***********************************************
