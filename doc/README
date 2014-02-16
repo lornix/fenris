@@ -861,7 +861,7 @@
     /usr/lib/libcrypt.a
     (one static binary)
 
-  This is the way it is invoked by ./build-project script, and can be used at
+  This is the way it is invoked by the Makefile  script, and can be used at
   any time to restore defaults or to update signatures (for new libc
   version, for example). If invoked with one parameter, 'getfprints' will
   go thru this .a file or set of .a files. An example would be:

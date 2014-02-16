@@ -36,10 +36,6 @@
 
  */
 
-#ifndef VERSION
-#error "Please use ./build-project script."
-#endif /* not VERSION */
-
 #define _GNU_SOURCE
 
 /* Hackish hack to import kernel stat struct without much collateral damage */
