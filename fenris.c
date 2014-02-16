@@ -126,13 +126,13 @@ char verybigbuf[200000];           // output buffer
 extern int break_stopped;          // The process is stopped.
 extern int break_continuing;
 
-struct user_regs_struct  r;        // Current process: registers
-unsigned char            op[8];    // Current process: eip[0..8]
+struct my_user_regs_struct  r;        // Current process: registers
+unsigned char            op[8];    // Current process: rip[0..8]
 int                      pid;      // Current process: pid
-int                      in_libc;  // Current process: eip in LIBCSEG?
+int                      in_libc;  // Current process: rip in LIBCSEG?
 unsigned int             caddr;    // Current process: CALL dest addr
 
-unsigned int start_eip, stop_eip;
+unsigned int start_rip, stop_rip;
 
 char              fnm_buf[MAXDESCR]; // Local function name
 
@@ -185,7 +185,7 @@ struct hacking_table {
 };
 
 struct hacking_table reptable[MAXREP];
-int reptop=0;
+unsigned int reptop=0;
 
 void nappend(char* dst,const char* src,int max) {
     int i;
@@ -233,13 +233,11 @@ void fatal(const char* x, const int err) {
 
     if (pid>0) {
         if (current && current->syscall) {
-            //FIXME: 64bit
             debug(">> This condition occurred during syscall %s (%d) in pid %d (rip %llx).\n",
                     //FIXME: hardcoded?!?  more than 300+ for i386
                     scnames[current->syscall & 0xff],current->syscall,pid,r.rip);
         } else {
-            //FIXME: 64bit
-            debug(">> This condition occurred while tracing pid %d (eip %llx).\n",pid,r.rip);
+            debug(">> This condition occurred while tracing pid %d (rip %llx).\n",pid,r.rip);
         }
     }
 
@@ -301,7 +299,6 @@ inline void indent(const int corr) {
 
     }
 
-    //FIXME: 64bit
     if (T_addip) debug("[%08llx] ",r.rip);
 
     if ((current->nest+corr)<0) debug("%d:-- %s",pid,intbuf);
@@ -1196,8 +1193,7 @@ void segfault(int x __attribute__((unused))) {
             "report this problem to the maintainer. Thank you :-)\n\n");
 
     if (current) {
-        //FIXME: 64bit
-        debug("Fault parameters: pid:%d eip:%llx esp:%llx nest:%d memtop:%d\n"
+        debug("Fault parameters: pid:%d rip:%llx rsp:%llx nest:%d memtop:%d\n"
                 "\tidtop:%d mtop:%d memtop:%d fntop:%d symcnt:%d\n\n",
                 current->pid,r.rip,r.rsp,current->nest,current->memtop,
                 current->idtop,current->mtop,current->memtop,current->fntop,current->symcnt);
@@ -1257,22 +1253,18 @@ inline void push_fnid(const unsigned int id) {
 
     if (current->fntop>=MAXNEST) {
         if (T_noskip) {
-            //FIXME: 64bit
             debug("* WARNING: fntop MAXNEST exceeded at 0x%llx, pretending that nothing happened.\n",r.rip);
             current->fntop--;
         } else fatal("fntop MAXNEST exceeded",0);
     }
 
-    //FIXME: 64bit
     current->frstart[current->fntop] = r.rsp + current->curpcnt * 4;
 
     current->fntop++;
     current->fnid[current->fntop]=id;
-    //FIXME: 64bit
-    current->fneip[current->fntop]=r.rip;
+    current->fnrip[current->fntop]=r.rip;
 
     current->frstart[current->fntop]=0;
-    //FIXME: 64bit
     current->frend[current->fntop]=r.rsp + 4;
 
 }
@@ -2093,56 +2085,45 @@ inline void display_specific(void) {
     if (!strcmp(f,"strlen")) {
         get_string_from_child(current->lcpar[0],buf,sizeof(buf));
         debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
-        //FIXME: 64bit
         debug(" = %lld\n",r.rax);
         dump_pdescr(0);
         warn_opt(1,current->lcpcnt);
-        //FIXME: 64bit
         add_mem(current->lcpar[0],r.rax+1,0,n,0);
     }
 
     else if (!strcmp(f,"malloc")) {
         debug("%d)",current->lcpar[0]);
-        //FIXME: 64bit
         debug(" = %llx\n",r.rax);
         dump_pdescr(0);
         warn_opt(1,current->lcpcnt);
-        //FIXME: 64bit
         if (r.rax) add_mem(r.rax,current->lcpar[0],0,n,1);
     }
 
     else if (!strcmp(f,"strdup")) {
         get_string_from_child(current->lcpar[0],buf,sizeof(buf));
         debug("%x \"%s\")",Xv(current->lcpar[0]),buf);
-        //FIXME: 64bit
         debug(" = %llx\n",r.rax);
         dump_pdescr(0);
         warn_opt(1,current->lcpcnt);
-        //FIXME: 64bit
         if (r.rax) add_mem(r.rax,strlen(buf),0,n,1);
     }
 
     else if (!strcmp(f,"calloc")) {
         debug("%d, %d)",current->lcpar[0],current->lcpar[1]);
-        //FIXME: 64bit
         debug(" = %llx\n",r.rax);
         dump_pdescr(0);
         warn_opt(2,current->lcpcnt);
-        //FIXME: 64bit
         if (r.rax) add_mem(r.rax,current->lcpar[0]*current->lcpar[1],0,n,1);
     }
 
     else if (!strcmp(f,"realloc")) {
         debug("%x, %d)",Xv(current->lcpar[0]),current->lcpar[1]);
-        //FIXME: 64bit
         debug(" = %llx\n",r.rax);
         dump_pdescr(0);
         warn_opt(2,current->lcpcnt);
         if (current->lcpar[0]) {
-            //FIXME: 64bit
             if (r.rax) add_mem(current->lcpar[0],current->lcpar[1],r.rax,n,1);
         } else {
-            //FIXME: 64bit
             if (r.rax) add_mem(r.rax,current->lcpar[1],0,n,1);
         }
     }
@@ -2156,21 +2137,16 @@ inline void display_specific(void) {
 
     else if (!strcmp(f,"getenv")) {
         get_string_from_child(current->lcpar[0],buf,sizeof(buf));
-        //FIXME: 64bit
         if (r.rax) get_string_from_child(r.rax,b2,sizeof(buf));
-        //FIXME: 64bit
         debug("%x \"%s\") = %llx",Xv(current->lcpar[0]),buf,r.rax);
-        //FIXME: 64bit
         if (r.rax) debug("\"%s\"\n",b2); else debug("\n");
         dump_pdescr(0);
         warn_opt(1,current->lcpcnt);
         add_mem(current->lcpar[0],strlen(buf)+1,0,n,0);
-        //FIXME: 64bit
         add_mem(r.rax,strlen(b2)+1,0,n,0);
     }
 
     else if (!strcmp(f,"atexit")) {
-        //FIXME: 64bit
         debug("%x) = %lld\n",Xv(current->lcpar[0]),r.rax);
         dump_pdescr(0);
         debug("*******************************************************\n"
@@ -2182,7 +2158,6 @@ inline void display_specific(void) {
 
     else if (!strcmp(f,"strcpy")) {
         get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        //FIXME: 64bit
         debug("%x, %x \"%s\") = %llx\n",Xv(current->lcpar[0]),
                 Xv(current->lcpar[1]),b2,r.rax);
         dump_pdescr(0);
@@ -2195,7 +2170,6 @@ inline void display_specific(void) {
     }
 
     else if (!strcmp(f,"memcpy") || !strcmp(f,"memmove")) {
-        //FIXME: 64bit
         debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
                 Xv(current->lcpar[1]),current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2208,7 +2182,6 @@ inline void display_specific(void) {
     }
 
     else if (!strcmp(f,"memset")) {
-        //FIXME: 64bit
         debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
                 current->lcpar[1],current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2219,7 +2192,6 @@ inline void display_specific(void) {
     }
 
     else if (!strcmp(f,"bzero")) {
-        //FIXME: 64bit
         debug("%x, %d) = %llx\n",Xv(current->lcpar[0]),
                 current->lcpar[1],r.rax);
         dump_pdescr(0);
@@ -2229,7 +2201,6 @@ inline void display_specific(void) {
     }
 
     else if (!strcmp(f,"bcopy")) {
-        //FIXME: 64bit
         debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
                 Xv(current->lcpar[1]),current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2242,7 +2213,6 @@ inline void display_specific(void) {
     }
 
     else if (!strcmp(f,"memcmp") || !strcmp(f,"bcmp")) {
-        //FIXME: 64bit
         debug("%x, %x, %d) = %llx\n",Xv(current->lcpar[0]),
                 Xv(current->lcpar[1]),current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2256,7 +2226,6 @@ inline void display_specific(void) {
         int fd;
         long int off=((unsigned long int)&x._fileno - (unsigned long int)&x);
         fd=ptrace(PTRACE_PEEKDATA,pid,current->lcpar[0]+off,0);
-        //FIXME: 64bit
         debug("%x [%d]) = '%c' %lld\n",Xv(current->lcpar[0]),
                 Xf(fd),isprint(r.rax)?(unsigned char)r.rax:'?',r.rax);
         dump_pdescr(0);
@@ -2267,7 +2236,6 @@ inline void display_specific(void) {
     else if (!strcmp(f,"strcmp")) {
         get_string_from_child(current->lcpar[0],buf,sizeof(buf));
         get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        //FIXME: 64bit
         debug("%x \"%s\", %x \"%s\") = %llx\n",current->lcpar[0],buf,
                 current->lcpar[1],b2,r.rax);
         dump_pdescr(0);
@@ -2279,7 +2247,6 @@ inline void display_specific(void) {
     else if (!strcmp(f,"strncmp")) {
         get_string_from_child(current->lcpar[0],buf,sizeof(buf));
         get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        //FIXME: 64bit
         debug("%x \"%s\", %x \"%s\", %d) = %llx\n",Xv(current->lcpar[0]),buf,
                 Xv(current->lcpar[1]),b2,current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2290,7 +2257,6 @@ inline void display_specific(void) {
 
     else if (!strcmp(f,"strncpy")) {
         get_string_from_child(current->lcpar[1],b2,sizeof(buf));
-        //FIXME: 64bit
         debug("%x, %x \"%s\", %d) = %llx\n",Xv(current->lcpar[0]),
                 Xv(current->lcpar[1]),b2,current->lcpar[2],r.rax);
         dump_pdescr(0);
@@ -2509,7 +2475,6 @@ void trace_fork(void) {
     unsigned long int off;
     struct user u;
 
-    //FIXME: 64bit
     off=(unsigned long int)&u.regs.rax - (unsigned long int)&u;
     errno=1234;
     // This is the speed zone.
@@ -2525,7 +2490,6 @@ void trace_fork(void) {
     if (q) fatal("PTRACE_ATTACH failed",ser);
     debug("+++ New process %d attached +++\n",p);
     clone_process(p);
-    //FIXME: 64bit
     r.rax=p;
 
 }
@@ -2535,7 +2499,6 @@ void trace_fork(void) {
  ****************************************************/
 
 inline void want_ret(void) {
-    //FIXME: 64bit
     current->syscall=r.rax;
     memcpy(&current->pr,&r,sizeof(r));
 }
@@ -2550,7 +2513,6 @@ void handle_syscall(void) {
 
     if (current->nest>=-1) current->syscalls++;
 
-    //FIXME: 64bit
     switch (r.rax) {
 
         case __NR_clone:
@@ -2578,7 +2540,6 @@ void handle_syscall(void) {
         case __NR_exit:
 
             indent(0);
-            //FIXME: 64bit
             debug("%sSYS exit (%lld) = ???\n",in_libc?"[L] ":"",
                     r.rbx);
 
@@ -2598,12 +2559,10 @@ void handle_syscall(void) {
 
             indent(0);
 
-            //FIXME: 64bit
             get_string_from_child(r.rbx,buf,MAXFNAME);
 
             pdescr[0]=0;
 
-            //FIXME: 64bit
             debug("%sSYS execve (%x \"%s\", 0x%x, 0x%x) = ",in_libc?"[L] ":"",
                     Xv(r.rbx),buf,Xv(r.rcx),Xv(r.rdx));
 
@@ -2616,13 +2575,11 @@ void handle_syscall(void) {
         case __NR_rt_sigaction:
 
             // Modify address in memory structure.
-            //FIXME: 64bit
             addr=ptrace(PTRACE_PEEKDATA,pid,r.rcx,0);
 
             if (!addr) break;
 
             if ((addr >> 24) == CODESEG) {
-                //FIXME: 64bit
                 ptrace(PTRACE_POKEDATA,pid,r.rcx,addr-1);
             } else {
                 break;
@@ -2633,11 +2590,9 @@ void handle_syscall(void) {
         case __NR_signal:
 
             // Simply adjust address in register.
-            //FIXME: 64bit
             addr=r.rcx;
 
             if (!addr) break;
-            //FIXME: 64bit
             if ((addr >> 24) == CODESEG || INLIBC(addr)) {
                 r.rcx--;
             } else {
@@ -2645,7 +2600,6 @@ void handle_syscall(void) {
             }
 
             ptrace(PTRACE_SETREGS,pid,0,&r);
-            //FIXME: 64bit
             r.rcx++;
             // So __NR_signal handler won't have to do anything.
 
@@ -2656,23 +2610,19 @@ aftersig:
                 if ((addr >> 24) == CODESEG || INLIBC(addr)) {
                     unsigned int chg,c2;
                     chg=ptrace(PTRACE_PEEKDATA,pid,addr-1,0);
-                    //FIXME: 64bit
                     if ((current->signals < r.rbx) && (r.rbx < MAXSIG))
                         current->signals=r.rbx;
 
                     if (((chg & 0xff) != 0x90) && ((chg & 0xff) != 0xc3) && ((chg & 0xff) != 0xcc)) {
                         c2=ptrace(PTRACE_PEEKDATA,pid,addr-3,0);
                         if ((c2 & 0xffffff) != 0x00768d) // Stupid gcc -O9 lea
-                            //FIXME: 64bit
                             debug("* WARNING: Handler for sig %lld (%x) w/o leading NOP or RET, problems!\n",r.rbx,addr);
                     }
 
                     if ((chg & 0xff) == 0xc3) {
-                        //FIXME: 64bit
                         set_withret(r.rbx,1);
                     } else {
                         if ((chg & 0xff) == 0x90) {
-                            //FIXME: 64bit
                             set_withret(r.rbx,0);
                         }
                     }
@@ -2688,7 +2638,6 @@ aftersig:
 
     if (T_dostep && current) {
         fflush(0);
-        //FIXME: 64bit
         break_syscall(r.rax);
     }
 
@@ -2857,7 +2806,7 @@ void delete_map(const unsigned int addr) {
 void ret_syscall(void) {
     char buf[MAXFNAME];
     char b2[64];
-    unsigned char b3[MAXFNAME];
+    char b3[MAXFNAME];
     struct __old_kernel_stat os;
     struct __kernel_stat st;
     struct statfs sf;
@@ -2874,13 +2823,9 @@ void ret_syscall(void) {
     switch (current->syscall) {
 
         case __NR_execve:
-            //FIXME: 64bit
-            //FIXME: rax = unsigned long int, never <0
-            /*
-             * if (r.rax<0) {
-             *     debug("%lld\n",r.eax);
-             * } else {
-             */
+            if (r.rax<0) {
+                debug("%lld\n",r.rax);
+            } else {
                 debug("???\n");
                 while (--current->nest>=-1 ) {
                     indent(0);
@@ -2895,10 +2840,7 @@ void ret_syscall(void) {
                 remove_process();
                 if (T_execs) add_process(pid);
                 else ptrace(PTRACE_DETACH,pid,0,0);
-            //FIXME: rax = unsigned long int, never <0
-            /*
-             * }
-             */
+             }
             break;
 
         case __NR_read:
@@ -2907,36 +2849,23 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS read (%d, %x",in_libc?"[L] ":"",
                         Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                //FIXME: 64bit
                 get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                /*
-                 * if (r.rax<0) buf[0]=0;
-                 */
-                //FIXME: 64bit
-                /*
-                 * else
-                 */
+                if (r.rax<0) {
+                    buf[0]=0;
+                } else {
                     buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
+                }
 
                 debug(" \"%s\"",buf);
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                //FIXME: 64bit
                 debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.rax != -EFAULT) {
-                if (r.rax != EFAULT) {
-                    //FIXME: 64bit
+                if (r.rax != -EFAULT) {
                     add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
-                    //FIXME: 64bit
                     modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                 }
             }
@@ -2949,37 +2878,26 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS syslog (%lld, %x",in_libc?"[L] ":"",
                         current->pr.rbx,Xv(current->pr.rcx));
 
                 buf[0]=0;
 
-                //FIXME: 64bit
                 if (r.rax>0) {
-                    //FIXME: 64bit
                     get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
-                    //FIXME: 64bit
                     buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
                 }
 
                 debug(" \"%s\"",buf);
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                //FIXME: 64bit
                 debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
 
                 dump_pdescr(0);
 
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.rax != -EFAULT) {
-                if (r.rax != EFAULT) {
-                    //FIXME: 64bit
+                if (r.rax != -EFAULT) {
                     if (r.rax>0) {
-                        //FIXME: 64bit
                         add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
-                        //FIXME: 64bit
                         modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                     }
                 }
@@ -2994,25 +2912,19 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS readdir (%d, %x",in_libc?"[L] ":"",
                         Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                //FIXME: 64bit
                 if (r.rax>0) {
                     get_string_from_child(current->pr.rcx+10,buf,sizeof(buf));
                     debug(" [\"%s\"]",buf);
                 }
 
-                //FIXME: 64bit
                 debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
 
                 dump_pdescr(0);
 
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.rax != -EFAULT) {
-                if (r.rax != EFAULT) {
+                if (r.rax != -EFAULT) {
                     add_mem(current->pr.rcx,sizeof(struct dirent),0,b2,0);
                     modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
                 }
@@ -3026,24 +2938,18 @@ void ret_syscall(void) {
                 indent(0);
 
                 pdescr[0]=0;
-                //FIXME: 64bit
                 debug("%sSYS sethostname (%x",in_libc?"[L] ":"",
                         Xv(current->pr.rbx));
 
-                //FIXME: 64bit
                 if (!r.rax) {
-                    //FIXME: 64bit
                     get_string_from_child(current->pr.rbx,buf,current->pr.rcx+3);
-                    //FIXME: 64bit
                     buf[current->pr.rcx]=0;
                     debug(" \"%s\"",buf);
                 }
 
-                //FIXME: 64bit
                 debug(") = %s\n",toerror(r.rax));
                 dump_pdescr(0);
 
-                //FIXME: 64bit
                 if (!r.rax) add_mem(current->pr.rbx,current->pr.rcx,0,b2,0);
 
             }
@@ -3059,20 +2965,20 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS gethostname (%x",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx));
+                        Xv(current->pr.rbx));
 
-                if (!r.eax) {
-                    get_string_from_child(current->pr.ebx,buf,current->pr.ecx+3);
-                    buf[current->pr.ecx]=0;
+                if (!r.rax) {
+                    get_string_from_child(current->pr.rbx,buf,current->pr.rcx+3);
+                    buf[current->pr.rcx]=0;
                     debug(" \"%s\"",buf);
                 }
 
-                debug(") = %s\n",toerror(r.eax));
+                debug(") = %s\n",toerror(r.rax));
                 dump_pdescr(0);
 
-                if (!r.eax) {
-                    add_mem(current->pr.ebx,current->pr.ecx,0,b2,0);
-                    modify_lasti(current->pr.ebx,b2,0,0,0);
+                if (!r.rax) {
+                    add_mem(current->pr.rbx,current->pr.rcx,0,b2,0);
+                    modify_lasti(current->pr.rbx,b2,0,0,0);
                 }
 
             }
@@ -3087,32 +2993,26 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS write (%d, %x",in_libc?"[L] ":"",
                         Xf(current->pr.rbx),Xv(current->pr.rcx));
 
-                //FIXME: 64bit
                 get_string_from_child(current->pr.rcx,buf,MAXUNKNOWN);
 
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.rax<0) buf[0]=0;
-                // else
-                //FIXME: 64bit
-                    if (r.rax<=MAXUNKNOWN) buf[r.rax]=0;
+                if (r.rax<0) {
+                    buf[0]=0;
+                } else {
+                    if (r.rax<=MAXUNKNOWN) {
+                        buf[r.rax]=0;
+                    }
+                }
 
                 debug(" \"%s\"",buf);
 
                 if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                //FIXME: 64bit
                 debug(", %lld) = %s\n",current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.eax != -EFAULT)
-                if (r.rax != EFAULT)
-                    //FIXME: 64bit
+                if (r.rax != -EFAULT)
                     add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
             }
             break;
@@ -3123,27 +3023,19 @@ void ret_syscall(void) {
                 unsigned int q;
                 indent(0);
                 pdescr[0]=0;
-                //FIXME: 64bit
                 debug("%sSYS waitpid (%lld, %x",in_libc?"[L] ":"",
                         current->pr.rbx,Xv(current->pr.rcx));
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                //if (r.rax>=0) {
-                if (r.rax>0) {
+                if (r.rax>=0) {
                     q=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
                     if (WIFEXITED(q)) debug("[exit:%d]",WEXITSTATUS(q));
                     else if (WIFSIGNALED(q)) debug("[signal:%d]",WTERMSIG(q));
                     else if (WIFSTOPPED(q)) debug("[stop:%d]",WSTOPSIG(q));
                     else debug("[0x%x]",q);
                 } else debug(" [?]");
-                //FIXME: 64bit
                 debug(", %llx) = %s\n",current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
 
-                //FIXME: 64bit
-                //FIXME: rax = unsigned long int, never <0
-                // if (r.rax != -EFAULT) {
-                if (r.rax != EFAULT) {
+                if (r.rax != -EFAULT) {
                     add_mem(current->pr.rcx,4,0,b2,0);
                     modify_lasti(current->pr.rcx,b2,0,0,0);
                 }
@@ -3152,7 +3044,6 @@ void ret_syscall(void) {
 
         case __NR_open:
 
-            //FIXME: 64bit
             get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
@@ -3161,68 +3052,51 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                //FIXME: 64bit
                 if (current->pr.rcx & O_RDWR) {
                     current->pr.rcx-=O_RDWR;
-                    strcat((char*)b3,"O_RDWR");
+                    strcat(b3,"O_RDWR");
                 } else {
-                    //FIXME: 64bit
                     if (current->pr.rcx & O_WRONLY) {
                         current->pr.rcx-=O_WRONLY;
-                        strcat((char*)b3,"O_WRONLY");
+                        strcat(b3,"O_WRONLY");
                     } else {
-                        strcat((char*)b3,"O_RDONLY");
+                        strcat(b3,"O_RDONLY");
                     }
                 }
 
-                //FIXME: 64bit
-                if (current->pr.rcx & O_CREAT) { current->pr.rcx-=O_CREAT; strcat((char*)b3," | O_CREAT"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_EXCL) { current->pr.rcx-=O_EXCL; strcat((char*)b3," | O_EXCL"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_APPEND) { current->pr.rcx-=O_APPEND; strcat((char*)b3," | O_APPEND"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_TRUNC) { current->pr.rcx-=O_TRUNC; strcat((char*)b3," | O_TRUNC"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_SYNC) { current->pr.rcx-=O_SYNC; strcat((char*)b3," | O_SYNC"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_NOCTTY) { current->pr.rcx-=O_NOCTTY; strcat((char*)b3," | O_NOCTTY"); }
-                //FIXME: 64bit
-                if (current->pr.rcx & O_NONBLOCK) { current->pr.rcx-=O_NONBLOCK; strcat((char*)b3," | O_NONBLOCK"); }
+                if (current->pr.rcx & O_CREAT) { current->pr.rcx-=O_CREAT; strcat(b3," | O_CREAT"); }
+                if (current->pr.rcx & O_EXCL) { current->pr.rcx-=O_EXCL; strcat(b3," | O_EXCL"); }
+                if (current->pr.rcx & O_APPEND) { current->pr.rcx-=O_APPEND; strcat(b3," | O_APPEND"); }
+                if (current->pr.rcx & O_TRUNC) { current->pr.rcx-=O_TRUNC; strcat(b3," | O_TRUNC"); }
+                if (current->pr.rcx & O_SYNC) { current->pr.rcx-=O_SYNC; strcat(b3," | O_SYNC"); }
+                if (current->pr.rcx & O_NOCTTY) { current->pr.rcx-=O_NOCTTY; strcat(b3," | O_NOCTTY"); }
+                if (current->pr.rcx & O_NONBLOCK) { current->pr.rcx-=O_NONBLOCK; strcat(b3," | O_NONBLOCK"); }
 #ifdef O_NOFOLLOW
-                //FIXME: 64bit
-                if (current->pr.rcx & O_NOFOLLOW) { current->pr.rcx-=O_NOFOLLOW; strcat((char*)b3," | O_NOFOLLOW");  }
+                if (current->pr.rcx & O_NOFOLLOW) { current->pr.rcx-=O_NOFOLLOW; strcat(b3," | O_NOFOLLOW");  }
 #endif /* O_NOFOLLOW */
 
 #ifdef O_DIRECTORY
-                //FIXME: 64bit
-                if (current->pr.rcx & O_DIRECTORY) { current->pr.rcx-=O_DIRECTORY; strcat((char*)b3," | O_DIRECTORY"); }
+                if (current->pr.rcx & O_DIRECTORY) { current->pr.rcx-=O_DIRECTORY; strcat(b3," | O_DIRECTORY"); }
 #endif /* O_DIRECTORY */
 
 #ifdef O_LARGEFILE
-                //FIXME: 64bit
-                if (current->pr.rcx & O_LARGEFILE) { current->pr.rcx-=O_LARGEFILE; strcat((char*)b3," | O_LARGEFILE"); }
+                if (current->pr.rcx & O_LARGEFILE) { current->pr.rcx-=O_LARGEFILE; strcat(b3," | O_LARGEFILE"); }
 #endif /* O_LARGEFILE */
 
-                //FIXME: 64bit
                 if (current->pr.rcx) {
-                    //FIXME: 64bit
-                    sprintf((char*)&b3[strlen((char*)b3)]," | 0x%llx",current->pr.rcx);
+                    sprintf((char*)&b3[strlen(b3)]," | 0x%llx",current->pr.rcx);
                 }
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 if (current->pr.rcx & O_CREAT)
 
-                    //FIXME: 64bit
                     debug("%sSYS open (%x \"%s\", %s, 0%llo) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.rbx),buf,b3,current->pr.rdx,
                             toerror(r.rax));
 
                 else
 
-                    //FIXME: 64bit
                     debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
                             Xv(current->pr.rbx),buf,b3,toerror(r.rax));
 
@@ -3230,21 +3104,14 @@ void ret_syscall(void) {
 
             }
 
-            //FIXME: 64bit
-            //FIXME: rax = unsigned long int, never <0
-            // if (r.rax>=0) add_filedes(r.rax,buf,b2,0);
-            if (r.rax>0) add_filedes(r.rax,buf,b2,0);
+            if (r.rax>=0) add_filedes(r.rax,buf,b2,0);
 
-            //FIXME: 64bit
-            //FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
-            if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_access:
 
-            //FIXME: 64bit
             get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
@@ -3253,20 +3120,17 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                //FIXME: 64bit
-                if (current->pr.rcx & R_OK) { current->pr.rcx-=R_OK; strcat((char*)b3,"R_OK |"); }
-                if (current->pr.rcx & W_OK) { current->pr.rcx-=W_OK; strcat((char*)b3,"W_OK |"); }
-                if (current->pr.rcx & X_OK) { current->pr.rcx-=X_OK; strcat((char*)b3,"X_OK |"); }
-                if (current->pr.rcx & F_OK) { current->pr.rcx-=F_OK; strcat((char*)b3,"F_OK |"); }
+                if (current->pr.rcx & R_OK) { current->pr.rcx-=R_OK; strcat(b3,"R_OK |"); }
+                if (current->pr.rcx & W_OK) { current->pr.rcx-=W_OK; strcat(b3,"W_OK |"); }
+                if (current->pr.rcx & X_OK) { current->pr.rcx-=X_OK; strcat(b3,"X_OK |"); }
+                if (current->pr.rcx & F_OK) { current->pr.rcx-=F_OK; strcat(b3,"F_OK |"); }
 
-                //FIXME: 64bit
-                if (current->pr.rcx) sprintf((char*)&b3[strlen((char*)b3)],"0x%llx",current->pr.rcx);
+                if (current->pr.rcx) sprintf((char*)&b3[strlen(b3)],"0x%llx",current->pr.rcx);
 
-                if (b3[strlen((char*)b3)-1]=='|') b3[strlen((char*)b3)-2]=0;
+                if (b3[strlen(b3)-1]=='|') b3[strlen(b3)-2]=0;
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS open (%x \"%s\", %s) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.rbx),buf,b3,toerror(r.rax));
 
@@ -3274,7 +3138,6 @@ void ret_syscall(void) {
 
             }
 
-            //FIXME: 64bit
             //FIXME: rax = unsigned long int, never <0
             // if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
             if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
@@ -3283,7 +3146,6 @@ void ret_syscall(void) {
 
         case __NR_mknod:
 
-            //FIXME: 64bit
             get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
@@ -3292,16 +3154,14 @@ void ret_syscall(void) {
 
                 b3[0]=0;
 
-                //FIXME: 64bit
-                if (S_ISCHR(current->pr.rcx)) strcpy((char*)b3,"S_IFCHR");
-                else if (S_ISBLK(current->pr.rcx)) strcpy((char*)b3,"S_IFBLK");
-                else if (S_ISFIFO(current->pr.rcx)) strcpy((char*)b3,"S_IFIFO");
-                else if (S_ISREG(current->pr.rcx)) strcpy((char*)b3,"S_IFREG");
-                else sprintf((char*)b3,"0x%llx",current->pr.rcx);
+                if (S_ISCHR(current->pr.rcx)) strcpy(b3,"S_IFCHR");
+                else if (S_ISBLK(current->pr.rcx)) strcpy(b3,"S_IFBLK");
+                else if (S_ISFIFO(current->pr.rcx)) strcpy(b3,"S_IFIFO");
+                else if (S_ISREG(current->pr.rcx)) strcpy(b3,"S_IFREG");
+                else sprintf(b3,"0x%llx",current->pr.rcx);
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS mknod (%x \"%s\", %s, 0%o) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.rbx),buf,b3,(int)current->pr.rdx,
                         toerror(r.rax));
@@ -3310,7 +3170,6 @@ void ret_syscall(void) {
 
             }
 
-            //FIXME: 64bit
             //FIXME: rax = unsigned long int, never <0
             // if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
             if (r.rax != EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
@@ -3318,7 +3177,6 @@ void ret_syscall(void) {
             break;
         case __NR_oldstat:
 
-            //FIXME: 64bit
             get_string_from_child(current->pr.rbx,buf,sizeof(buf));
             get_mem_from_child(current->pr.rcx,(char*)&os,sizeof(os));
 
@@ -3326,17 +3184,15 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                //FIXME: 64bit
                 if (r.rax) {
-                    strcpy((char*)b3,"?");
+                    strcpy(b3,"?");
                 } else {
-                    sprintf((char*)b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
+                    sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int)os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
                 }
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS oldstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
                         toerror(r.rax));
@@ -3345,19 +3201,17 @@ void ret_syscall(void) {
 
             }
 
-            //FIXME: 64bit
             //FIXME: rax = unsigned long int, never <0
             //if (r.rax != -EFAULT) {
             if (r.rax != EFAULT) {
                 add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
                 add_mem(current->pr.rcx,sizeof(os),0,b2,0);
-                modify_lasti(current->pr.rcx,b2,0,0,(b3);
+                modify_lasti(current->pr.rcx,b2,0,0,b3);
             }
 
             break;
         case __NR_statfs:
 
-            //FIXME: 64bit
             get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
@@ -3366,7 +3220,6 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                //FIXME: 64bit
                 debug("%sSYS statfs (%x \"%s\", %x [...]) = %s\n",in_libc?"[L] ":"",
                         Xv(current->pr.rbx),buf,Xv(current->pr.rcx),
                         toerror(r.rax));
@@ -3375,130 +3228,137 @@ void ret_syscall(void) {
 
             }
 
-            //FIXME: 64bit
             //FIXME: rax = unsigned long int, never <0
-            // if (r.eax != -EFAULT) {
+            // if (r.rax != -EFAULT) {
             if (r.rax != EFAULT) {
                 add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
                 add_mem(current->pr.rcx,sizeof(sf),0,b2,0);
-                modify_lasti(current->pr.rcx,b2,0,0,(char*)b3);
+                modify_lasti(current->pr.rcx,b2,0,0,b3);
             }
 
             break;
 
         case __NR_oldlstat:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_mem_from_child(current->pr.ecx,(char*)&os,sizeof(os));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_mem_from_child(current->pr.rcx,(char*)&os,sizeof(os));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
+                if (r.rax) strcpy(b3,"?"); else
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int) os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
 
                 pdescr[0]=0;
 
                 debug("%sSYS oldlstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,sizeof(os),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,0,0,b3);
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,sizeof(os),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,0,0,b3);
             }
 
             break;
 
         case __NR_stat:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_mem_from_child(current->pr.ecx,(char*)&st,sizeof(st));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_mem_from_child(current->pr.rcx,(char*)&st,sizeof(st));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
+                if (r.rax) strcpy(b3,"?"); else
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
                 pdescr[0]=0;
                 debug("%sSYS stat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,sizeof(st),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,0,0,b3);
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,sizeof(st),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,0,0,b3);
             }
 
             break;
 
         case __NR_lstat:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_mem_from_child(current->pr.ecx,(char*)&st,sizeof(st));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_mem_from_child(current->pr.rcx,(char*)&st,sizeof(st));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
+                if (r.rax) strcpy(b3,"?"); else
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
                 pdescr[0]=0;
                 debug("%sSYS lstat (%x \"%s\", %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,sizeof(st),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,0,0,b3);
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,sizeof(st),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,0,0,b3);
             }
 
             break;
 
         case __NR_fstat:
 
-            get_mem_from_child(current->pr.ecx,(char*)&st,sizeof(st));
+            get_mem_from_child(current->pr.rcx,(char*)&st,sizeof(st));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
+                if (r.rax) strcpy(b3,"?"); else
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)st.st_dev,(int)st.st_ino,
                             (int)st.st_nlink,(int)st.st_mode,(int)st.st_uid,(int)st.st_gid,(int)st.st_size);
 
                 pdescr[0]=0;
                 debug("%sSYS fstat (%d, %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ecx,sizeof(st),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,current->pr.ebx,0,0);
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rcx,sizeof(st),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
             }
 
             break;
@@ -3511,16 +3371,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS fstatfs (%d, %x [...]) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx),
-                        toerror(r.eax));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx),
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ecx,sizeof(sf),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,current->pr.ebx,0,0);
+            //FIXME: rax = unsigned long int, never <0
+            // if (r.rax != -EFAULT) {
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rcx,sizeof(sf),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,current->pr.rbx,0,0);
             }
 
             break;
@@ -3529,18 +3391,18 @@ void ret_syscall(void) {
 
             if (current->nest>=0) indent(0);
 
-            get_mem_from_child(current->pr.ecx,(char*)&a[0],sizeof(a));
+            get_mem_from_child(current->pr.rcx,(char*)&a[0],sizeof(a));
             if (((a[0] >> 16) == 0xffff) || ((a[6] >> 16) == 0xffff)) {
 
                 if (current->nest>=0)
                     debug("%sSYS socketcall_%d (0x%x <invalid>) = %s\n",
-                            in_libc?"[L] ":"",(int)current->pr.ebx,
-                            (int)current->pr.ecx,toerror(r.eax));
+                            in_libc?"[L] ":"",(int)current->pr.rbx,
+                            (int)current->pr.rcx,toerror(r.rax));
 
                 break;
             }
 
-            switch (current->pr.ebx) {
+            switch (current->pr.rbx) {
                 case SYS_SOCKET:
 
                     {
@@ -3578,12 +3440,14 @@ void ret_syscall(void) {
 
                         if (current->nest>=0)
                             debug("%sSYS socket (%s, %s, %d [%s]) = %s\n",in_libc?"[L] ":"",
-                                    buf,b3,(int)a[2],pro,toerror(r.eax));
+                                    buf,b3,(int)a[2],pro,toerror(r.rax));
 
-                        if (r.eax>=0) {
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax>=0) {
+                        if (r.rax>0) {
                             char b4[128];
                             sprintf(b4,"<new %s:%s:%s>",buf,b3,pro);
-                            add_filedes(r.eax,b4,b2,a[0]==PF_UNIX?-1:0);
+                            add_filedes(r.rax,b4,b2,a[0]==PF_UNIX?-1:0);
                         }
 
                     }
@@ -3597,22 +3461,31 @@ void ret_syscall(void) {
                     if (AS_USHORT(b3[0])==PF_UNIX) {
                         sprintf(buf," [local \"%s\"]",&b3[2]);
                     } else {
-                        if (r.eax == -EINVAL) strcpy(buf," [?]"); else
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
+                        if (r.rax == EINVAL) {
+                            strcpy(buf," [?]");
+                        } else {
                             sprintf(buf," [%d.%d.%d.%d:%d]",b3[4],b3[5],b3[6],b3[7],
                                     b3[2]*256+b3[3]);
+                        }
                     }
 
                     pdescr[0]=0;
 
                     if (current->nest>=0)
                         debug("%sSYS bind (%d, %x%s, %d) = %s\n",in_libc?"[L] ":"",
-                                Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.eax));
+                                Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.rax));
 
                     dump_pdescr(0);
 
-                    if (r.eax != -EINVAL) add_mem(a[1],a[2],0,b2,0);
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax != -EINVAL) add_mem(a[1],a[2],0,b2,0);
+                    if (r.rax != EINVAL) add_mem(a[1],a[2],0,b2,0);
 
-                    if (r.eax>=0) {
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax>=0) {
+                    if (r.rax>0) {
                         if (AS_USHORT(b3[0])==PF_UNIX) {
                             sprintf(buf,"<on local %s>",&b3[2]);
                             modify_filedes(a[0],buf,-1);
@@ -3631,7 +3504,9 @@ void ret_syscall(void) {
                     if (AS_USHORT(b3[0])==PF_UNIX) {
                         sprintf(buf," [local \"%s\"]",&b3[2]);
                     } else {
-                        if (r.eax == -EINVAL) strcpy(buf," [?]"); else
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
+                        if (r.rax == EINVAL) strcpy(buf," [?]"); else
                             sprintf(buf," [%d.%d.%d.%d:%d]",b3[4],b3[5],b3[6],b3[7],
                                     b3[2]*256+b3[3]);
                     }
@@ -3640,13 +3515,17 @@ void ret_syscall(void) {
 
                     if (current->nest>=0)
                         debug("%sSYS connect (%d, %x%s, %d) = %s\n",in_libc?"[L] ":"",
-                                Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.eax));
+                                Xf(a[0]),Xv(a[1]),buf,(int)a[2],toerror(r.rax));
 
                     dump_pdescr(0);
 
-                    if ((r.eax != -EINVAL) && (a[2]>0)) add_mem(a[1],a[2],0,b2,0);
+                    //FIXME: rax = unsigned long int, never <0
+                    // if ((r.rax != -EINVAL) && (a[2]>0)) add_mem(a[1],a[2],0,b2,0);
+                    if ((r.rax != EINVAL) && (a[2]>0)) add_mem(a[1],a[2],0,b2,0);
 
-                    if (r.eax>=0) {
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax>=0) {
+                    if (r.rax>0) {
                         if (AS_USHORT(b3[0])==PF_UNIX) {
                             sprintf(buf,"<to local %s>",&b3[2]);
                             modify_filedes(a[0],buf,-1);
@@ -3665,7 +3544,7 @@ void ret_syscall(void) {
 
                     if (current->nest>=0)
                         debug("%sSYS listen (%d, %d) = %s\n",in_libc?"[L] ":"",
-                                Xf(a[0]),(int)a[1],toerror(r.eax));
+                                Xf(a[0]),(int)a[1],toerror(r.rax));
 
                     dump_pdescr(0);
 
@@ -3680,7 +3559,9 @@ void ret_syscall(void) {
                         if (AS_USHORT(b3[0])==PF_UNIX) {
                             sprintf(buf," [local \"%s\"]",&b3[2]);
                         } else {
-                            if (r.eax == -EINVAL) strcpy(buf," [?]"); else
+                            //FIXME: rax = unsigned long int, never <0
+                            // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
+                            if (r.rax == EINVAL) strcpy(buf," [?]"); else
                                 sprintf(buf," [%d.%d.%d.%d:%d]",b3[4],b3[5],b3[6],b3[7],
                                         b3[2]*256+b3[3]);
                         }
@@ -3691,19 +3572,23 @@ void ret_syscall(void) {
                     if (current->nest>=0) {
                         if (!a[1]) {
                             debug("%sSYS accept (%d, %x, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.eax));
-                        } else if (r.eax>=0) {
+                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.rax));
+                        //FIXME: rax = unsigned long int, never <0
+                        // } else if (r.rax>=0) {
+                        } else if (r.rax>0) {
                             debug("%sSYS accept (%d, %x%s, %x [%d]) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.rax));
                         } else {
                             debug("%sSYS accept (%d, %x%s, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.rax));
                         }
                     }
 
                     dump_pdescr(0);
 
-                    if (r.eax >= 0) {
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax >= 0) {
+                    if (r.rax > 0) {
 
                         if (a[1]) {
                             add_mem(a[1],ah,0,b2,0);
@@ -3713,20 +3598,20 @@ void ret_syscall(void) {
 
                             if (AS_USHORT(b3[0])==PF_UNIX) {
                                 sprintf(buf,"<from local %s>",&b3[2]);
-                                add_filedes(r.eax,buf,b2,-1);
+                                add_filedes(r.rax,buf,b2,-1);
                             } else {
                                 sprintf(buf,"<from %d.%d.%d.%d:%d>",
                                         b3[4],b3[5],b3[6],b3[7],b3[2]*256+b3[3]);
-                                add_filedes(r.eax,buf,b2,0);
+                                add_filedes(r.rax,buf,b2,0);
                             }
                         } else {
 
                             if ((ah=get_filep(a[0]))<0) {
                                 sprintf(buf,"<from local>");
-                                add_filedes(r.eax,buf,b2,-1);
+                                add_filedes(r.rax,buf,b2,-1);
                             } else {
                                 sprintf(buf,"<from port %d>",ah);
-                                add_filedes(r.eax,buf,b2,0);
+                                add_filedes(r.rax,buf,b2,0);
                             }
 
                         }
@@ -3743,7 +3628,9 @@ void ret_syscall(void) {
                     if (AS_USHORT(b3[0])==PF_UNIX) {
                         sprintf(buf," [local \"%s\"]",&b3[2]);
                     } else {
-                        if (r.eax == -EINVAL) strcpy(buf," [?]"); else
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
+                        if (r.rax == EINVAL) strcpy(buf," [?]"); else
                             sprintf(buf," [%d.%d.%d.%d:%d]",b3[4],b3[5],b3[6],b3[7],
                                     b3[2]*256+b3[3]);
                     }
@@ -3753,19 +3640,23 @@ void ret_syscall(void) {
                     if (current->nest>=0) {
                         if (!a[1]) {
                             debug("%sSYS getsockname (%d, %x, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.eax));
-                        } else if (r.eax>=0) {
+                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.rax));
+                        //FIXME: rax = unsigned long int, never <0
+                        // } else if (r.rax>=0) {
+                        } else if (r.rax>0) {
                             debug("%sSYS getsockname (%d, %x%s, %x [%d]) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.rax));
                         } else {
                             debug("%sSYS getsockname (%d, %x%s, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.rax));
                         }
                     }
 
                     dump_pdescr(0);
 
-                    if (r.eax >= 0) {
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax >= 0) {
+                    if (r.rax > 0) {
 
                         add_mem(a[1],ah,0,b2,0);
                         add_mem(a[2],4,0,b2,0);
@@ -3784,7 +3675,9 @@ void ret_syscall(void) {
                     if (AS_USHORT(b3[0])==PF_UNIX) {
                         sprintf(buf," [local \"%s\"]",&b3[2]);
                     } else {
-                        if (r.eax == -EINVAL) strcpy(buf," [?]"); else
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
+                        if (r.rax == EINVAL) strcpy(buf," [?]"); else
                             sprintf(buf," [%d.%d.%d.%d:%d]",b3[4],b3[5],b3[6],b3[7],
                                     b3[2]*256+b3[3]);
                     }
@@ -3794,19 +3687,23 @@ void ret_syscall(void) {
                     if (current->nest>=0) {
                         if (!a[1]) {
                             debug("%sSYS getpeername (%d, %x, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.eax));
-                        } else if (r.eax>=0) {
+                                    Xf(a[0]),Xv(a[1]),Xv(a[2]),toerror(r.rax));
+                        //FIXME: rax = unsigned long int, never <0
+                        // } else if (r.rax>=0) {
+                        } else if (r.rax>0) {
                             debug("%sSYS getpeername (%d, %x%s, %x [%d]) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),ah,toerror(r.rax));
                         } else {
                             debug("%sSYS getpeername (%d, %x%s, %x) = %s\n",in_libc?"[L] ":"",
-                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.eax));
+                                    Xf(a[0]),Xv(a[1]),buf,Xv(a[2]),toerror(r.rax));
                         }
                     }
 
                     dump_pdescr(0);
 
-                    if (r.eax >= 0) {
+                    //FIXME: rax = unsigned long int, never <0
+                    // if (r.rax >= 0) {
+                    if (r.rax > 0) {
 
                         add_mem(a[1],ah,0,b2,0);
                         add_mem(a[2],4,0,b2,0);
@@ -3827,15 +3724,21 @@ void ret_syscall(void) {
                                 Xf(a[0]),Xv(a[1]));
 
                         get_string_from_child(a[1],buf,MAXUNKNOWN);
-                        if (r.eax<0) buf[0]=0;
-                        else buf[r.eax>MAXUNKNOWN?MAXUNKNOWN:r.eax]=0;
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax<0) {
+                        //     buf[0]=0;
+                        // } else {
+                             buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
+                        // }
 
                         debug(" \"%s\"",buf);
                         if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                        debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.eax));
+                        debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.rax));
                         dump_pdescr(0);
-                        if (r.eax != -EFAULT) {
+                        //FIXME: rax = unsigned long int, never <0
+                        // if (r.rax != -EFAULT) {
+                        if (r.rax != EFAULT) {
                             add_mem(a[1],a[2],0,b2,0);
                         }
                     }
@@ -3851,15 +3754,15 @@ void ret_syscall(void) {
                                 Xf(a[0]),Xv(a[1]));
 
                         get_string_from_child(a[1],buf,MAXUNKNOWN);
-                        if (r.eax<0) buf[0]=0;
-                        else buf[r.eax>MAXUNKNOWN?MAXUNKNOWN:r.eax]=0;
+                        if (r.rax<0) buf[0]=0;
+                        else buf[r.rax>MAXUNKNOWN?MAXUNKNOWN:r.rax]=0;
 
                         debug(" \"%s\"",buf);
                         if (strlen(buf)==MAXUNKNOWN-1) debug("...");
 
-                        debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.eax));
+                        debug(", %d, 0x%x) = %s\n",(int)a[2],(int)a[3],toerror(r.rax));
                         dump_pdescr(0);
-                        if (r.eax != -EFAULT) {
+                        if (r.rax != -EFAULT) {
                             add_mem(a[1],a[2],0,b2,0);
                             modify_lasti(a[1],b2,a[0],0,0);
                         }
@@ -3903,7 +3806,7 @@ void ret_syscall(void) {
 
                         pdescr[0]=0;
 
-                        if (r.eax>=0) {
+                        if (r.rax>=0) {
                             char b4[128];
                             int x,y;
 
@@ -3913,7 +3816,7 @@ void ret_syscall(void) {
                             if (current->nest>=0)
                                 debug("%sSYS socketpair (%s, %s, %d [%s], %x [%d %d]) = %s\n",
                                         in_libc?"[L] ":"",buf,b3,(int)a[2],pro,Xv(a[3]),x,y,
-                                        toerror(r.eax));
+                                        toerror(r.rax));
 
                             sprintf(b4,"<new %s:%s:%s>",buf,b3,pro);
                             add_filedes(x,b4,b2,a[0]==PF_UNIX?-1:0);
@@ -3924,15 +3827,15 @@ void ret_syscall(void) {
                             if (current->nest>=0)
                                 debug("%sSYS socketpair (%s, %s, %d [%s], %x) = %s\n",
                                         in_libc?"[L] ":"",buf,b3,(int)a[2],pro,Xv(a[3]),
-                                        toerror(r.eax));
+                                        toerror(r.rax));
 
                         }
 
                         dump_pdescr(0);
 
-                        if (r.eax != -EFAULT) {
+                        if (r.rax != -EFAULT) {
                             add_mem(a[3],8,0,b2,0);
-                            if (r.eax>=0) modify_lasti(a[3],b2,0,0,0);
+                            if (r.rax>=0) modify_lasti(a[3],b2,0,0,0);
                         }
 
                     }
@@ -3944,10 +3847,10 @@ void ret_syscall(void) {
                     pdescr[0]=0;
                     if (current->nest>=0)
                         debug("%sSYS shutdown (%d, %d) = %s\n",
-                                in_libc?"[L] ":"",Xf(a[0]),(int)a[1],toerror(r.eax));
+                                in_libc?"[L] ":"",Xf(a[0]),(int)a[1],toerror(r.rax));
                     dump_pdescr(0);
 
-                    if (r.eax>=0)
+                    if (r.rax>=0)
                         modify_filedes(a[0],"<unplugged>",0);
 
                     break;
@@ -3963,7 +3866,7 @@ void ret_syscall(void) {
 
                     if (current->nest>=0) {
                         debug("%sSYS socketcall_%d ??? (",in_libc?"[L] ":"",
-                                (int)current->pr.ebx);
+                                (int)current->pr.rbx);
                         pdescr[0]=0;
                         display_value(a[0],b2); debug(", ");
                         display_value(a[1],b2); debug(", ");
@@ -3971,7 +3874,7 @@ void ret_syscall(void) {
                         display_value(a[3],b2); debug(", ");
                         display_value(a[4],b2); debug(", ");
                         display_value(a[5],b2); debug(") = ");
-                        display_value(r.eax,b2); debug("\n");
+                        display_value(r.rax,b2); debug("\n");
                         dump_pdescr(0);
                     }
 
@@ -3981,35 +3884,35 @@ void ret_syscall(void) {
 
         case __NR_oldfstat:
 
-            get_mem_from_child(current->pr.ecx,(char*)&os,sizeof(os));
+            get_mem_from_child(current->pr.rcx,(char*)&os,sizeof(os));
 
             if (SDCOND) {
 
                 indent(0);
 
-                if (r.eax) strcpy(b3,"?"); else
+                if (r.rax) strcpy(b3,"?"); else
                     sprintf(b3,"%x:%x #%d 0%o %d.%d %dB",(int)os.st_dev,(int)os.st_ino,
                             (int)os.st_nlink,(int)os.st_mode,(int)os.st_uid,(int)os.st_gid,(int)os.st_size);
 
                 pdescr[0]=0;
                 debug("%sSYS oldfstat (%d, %x [%s]) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xf(current->pr.rbx),Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ecx,sizeof(st),0,b2,0);
-                modify_lasti(current->pr.ecx,b2,current->pr.ecx,0,0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rcx,sizeof(st),0,b2,0);
+                modify_lasti(current->pr.rcx,b2,current->pr.rcx,0,0);
             }
 
             break;
 
         case __NR_chmod:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4017,19 +3920,19 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS chmod (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.edx,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rdx,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_creat:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4037,20 +3940,20 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS creat (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax>=0) add_filedes(r.eax,buf,b2,0);
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax>=0) add_filedes(r.rax,buf,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_link:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_string_from_child(current->pr.ecx,b3,sizeof(b3));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rcx,b3,sizeof(b3));
 
             if (SDCOND) {
 
@@ -4058,22 +3961,22 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS link (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,strlen(b3)+1,0,b2,0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,strlen(b3)+1,0,b2,0);
             }
 
             break;
 
         case __NR_symlink:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_string_from_child(current->pr.ecx,b3,sizeof(b3));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rcx,b3,sizeof(b3));
 
             if (SDCOND) {
 
@@ -4081,22 +3984,22 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS symlink (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,strlen(b3)+1,0,b2,0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,strlen(b3)+1,0,b2,0);
             }
 
             break;
 
         case __NR_rename:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_string_from_child(current->pr.ecx,b3,sizeof(b3));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rcx,b3,sizeof(b3));
 
             if (SDCOND) {
 
@@ -4104,22 +4007,22 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS rename (%x \"%s\", %x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,strlen(b3)+1,0,b2,0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,strlen(b3)+1,0,b2,0);
             }
 
             break;
 
         case __NR_mount:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
-            get_string_from_child(current->pr.ecx,b3,sizeof(b3));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rcx,b3,sizeof(b3));
 
             if (SDCOND) {
 
@@ -4128,22 +4031,22 @@ void ret_syscall(void) {
                 // absolutely no purpose in parsing params.
                 pdescr[0]=0;
                 debug("%sSYS mount (%x \"%s\", %x \"%s\", [...]) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) {
-                add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
-                add_mem(current->pr.ecx,strlen(b3)+1,0,b2,0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+                add_mem(current->pr.rcx,strlen(b3)+1,0,b2,0);
             }
 
             break;
 
         case __NR_unlink:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4151,18 +4054,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS unlink (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_umount:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4170,18 +4073,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS umount (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_umount2:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4189,18 +4092,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS umount2 (%x \"%s\", %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_chdir:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4208,18 +4111,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS chdir (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_uselib:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4227,18 +4130,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS uselib (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_readlink:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4246,22 +4149,22 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                if (r.eax>=0) {
-                    int m=r.eax;
-                    if (m>=sizeof(b3)) m=sizeof(b3)-1;
-                    get_string_from_child(current->pr.ecx,b3,m);
+                if (r.rax>=0) {
+                    int m=r.rax;
+                    if (m>=(int)sizeof(b3)) m=sizeof(b3)-1;
+                    get_string_from_child(current->pr.rcx,b3,m);
                     debug("%sSYS readlink (%x \"%s\", %x \"%s\", %d) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),buf,Xv(current->pr.ecx),b3,
-                            (int)current->pr.edx,toerror(r.eax));
+                            Xv(current->pr.rbx),buf,Xv(current->pr.rcx),b3,
+                            (int)current->pr.rdx,toerror(r.rax));
 
-                    add_mem(current->pr.ecx,current->pr.edx,0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,buf);
+                    add_mem(current->pr.rcx,current->pr.rdx,0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,buf);
 
                 } else {
 
                     debug("%sSYS readlink (%x \"%s\", %x, %d) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),buf,Xv(current->pr.ecx),
-                            (int)current->pr.edx,toerror(r.eax));
+                            Xv(current->pr.rbx),buf,Xv(current->pr.rcx),
+                            (int)current->pr.rdx,toerror(r.rax));
 
                 }
 
@@ -4269,13 +4172,13 @@ void ret_syscall(void) {
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_swapon:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4283,18 +4186,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS swapon (%x \"%s\", 0x%x) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_swapoff:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4302,18 +4205,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS swapoff (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_chroot:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4321,18 +4224,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS chroot (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_mkdir:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4340,18 +4243,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS mkdir (%x \"%s\", 0%o) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_rmdir:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4359,18 +4262,18 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS rmdir (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_acct:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4378,12 +4281,12 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS acct (%x \"%s\") = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax >= 0) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax >= 0) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
@@ -4396,7 +4299,7 @@ void ret_syscall(void) {
                 pdescr[0]=0;
 
                 debug("%sSYS fchdir (%d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),toerror(r.eax));
+                        Xf(current->pr.rbx),toerror(r.rax));
 
                 dump_pdescr(0);
 
@@ -4410,15 +4313,15 @@ void ret_syscall(void) {
 
                 indent(0);
 
-                if (current->pr.edx == SEEK_SET) strcpy(buf,"SEEK_SET"); else
-                    if (current->pr.edx == SEEK_CUR) strcpy(buf,"SEEK_CUR"); else
-                        if (current->pr.edx == SEEK_END) strcpy(buf,"SEEK_END"); else
-                            sprintf(buf,"%d",(int)current->pr.edx);
+                if (current->pr.rdx == SEEK_SET) strcpy(buf,"SEEK_SET"); else
+                    if (current->pr.rdx == SEEK_CUR) strcpy(buf,"SEEK_CUR"); else
+                        if (current->pr.rdx == SEEK_END) strcpy(buf,"SEEK_END"); else
+                            sprintf(buf,"%d",(int)current->pr.rdx);
 
                 pdescr[0]=0;
 
                 debug("%sSYS lseek (%d, %d, %s) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),(int)current->pr.ecx,buf,toerror(r.eax));
+                        Xf(current->pr.rbx),(int)current->pr.rcx,buf,toerror(r.rax));
 
                 dump_pdescr(0);
             }
@@ -4427,7 +4330,7 @@ void ret_syscall(void) {
 
         case __NR_lchown:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4435,12 +4338,12 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS lchown (%x \"%s\", %d, %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,
-                        (int)current->pr.edx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,
+                        (int)current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
@@ -4453,8 +4356,8 @@ void ret_syscall(void) {
                 pdescr[0]=0;
 
                 debug("%sSYS fchown (%d, %d, %d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),(int)current->pr.ecx,
-                        (int)current->pr.edx,toerror(r.eax));
+                        Xf(current->pr.rbx),(int)current->pr.rcx,
+                        (int)current->pr.rdx,toerror(r.rax));
 
                 dump_pdescr(0);
 
@@ -4471,8 +4374,8 @@ void ret_syscall(void) {
                 pdescr[0]=0;
 
                 debug("%sSYS fchmod (%d, 0%o) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),(int)current->pr.ecx,
-                        toerror(r.eax));
+                        Xf(current->pr.rbx),(int)current->pr.rcx,
+                        toerror(r.rax));
 
                 dump_pdescr(0);
 
@@ -4482,7 +4385,7 @@ void ret_syscall(void) {
 
         case __NR_chown:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4490,19 +4393,19 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS chown (%x \"%s\", %d, %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,
-                        (int)current->pr.edx,toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,
+                        (int)current->pr.rdx,toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_truncate:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4510,19 +4413,19 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS truncate (%x \"%s\", %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),buf,(int)current->pr.ecx,
-                        toerror(r.eax));
+                        Xv(current->pr.rbx),buf,(int)current->pr.rcx,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
         case __NR_ftruncate:
 
-            get_string_from_child(current->pr.ebx,buf,sizeof(buf));
+            get_string_from_child(current->pr.rbx,buf,sizeof(buf));
 
             if (SDCOND) {
 
@@ -4530,13 +4433,13 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS ftruncate (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),(int)current->pr.ecx,
-                        toerror(r.eax));
+                        Xf(current->pr.rbx),(int)current->pr.rcx,
+                        toerror(r.rax));
                 dump_pdescr(0);
 
             }
 
-            if (r.eax != -EFAULT) add_mem(current->pr.ebx,strlen(buf)+1,0,b2,0);
+            if (r.rax != -EFAULT) add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
 
             break;
 
@@ -4545,41 +4448,41 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                if (r.eax>0) {
-                    strcpy(buf,ctime(&r.eax));
+                if (r.rax>0) {
+                    strcpy(buf,ctime((time_t*)&r.rax));
                     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
 
                     pdescr[0]=0;
                     debug("%sSYS time (0x%x) = %s [%s]\n",in_libc?"[L] ":"",
-                            current->pr.ebx?Xv(current->pr.ebx):0,toerror(r.eax),buf);
+                            current->pr.rbx?Xv(current->pr.rbx):0,toerror(r.rax),buf);
                     dump_pdescr(0);
 
                 } else {
                     debug("%sSYS time (0x%x) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,toerror(r.eax));
+                            (int)current->pr.rbx,toerror(r.rax));
                 }
 
             }
 
-            if ((r.eax>0) && (current->pr.ebx>0)) {
-                add_mem(current->pr.ebx,4,0,b2,0);
-                modify_lasti(current->pr.ebx,b2,0,0,0);
+            if ((r.rax>0) && (current->pr.rbx>0)) {
+                add_mem(current->pr.rbx,4,0,b2,0);
+                modify_lasti(current->pr.rbx,b2,0,0,0);
             }
 
             break;
 
         case __NR_utime:
 
-            get_string_from_child(current->pr.ebx,b3,sizeof(b3));
+            get_string_from_child(current->pr.rbx,b3,sizeof(b3));
 
             if (SDCOND) {
                 indent(0);
 
-                if (!r.eax) {
+                if (!r.rax) {
                     int a1,m1;
-                    if (current->pr.ecx) {
-                        a1=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
-                        m1=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx+4,0);
+                    if (current->pr.rcx) {
+                        a1=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
+                        m1=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx+4,0);
                         sprintf(buf,"[A: %s",ctime((void*)&a1));
                         if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
                         sprintf(&buf[strlen(buf)],"] [M: %s",ctime((void*)&m1));
@@ -4588,25 +4491,25 @@ void ret_syscall(void) {
 
                     pdescr[0]=0;
                     debug("%sSYS utime (%x \"%s\", 0x%x %s]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),b3,
-                            current->pr.ecx?Xv(current->pr.ecx):0,buf,toerror(r.eax));
+                            Xv(current->pr.rbx),b3,
+                            current->pr.rcx?Xv(current->pr.rcx):0,buf,toerror(r.rax));
                     dump_pdescr(0);
 
                 } else {
                     pdescr[0]=0;
                     debug("%sSYS utime (%x \"%s\", 0x%x) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),b3,
-                            (int)current->pr.ecx,toerror(r.eax));
+                            Xv(current->pr.rbx),b3,
+                            (int)current->pr.rcx,toerror(r.rax));
                     dump_pdescr(0);
                 }
 
             }
 
-            if (!r.eax) {
-                add_mem(current->pr.ebx,strlen(b3)+1,0,b2,0);
-                if (current->pr.ecx) {
-                    add_mem(current->pr.ecx,8,0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,b3);
+            if (!r.rax) {
+                add_mem(current->pr.rbx,strlen(b3)+1,0,b2,0);
+                if (current->pr.rcx) {
+                    add_mem(current->pr.rcx,8,0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,b3);
                 }
             }
 
@@ -4617,23 +4520,23 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                if (!r.eax) {
+                if (!r.rax) {
                     time_t q;
-                    q=(int)ptrace(PTRACE_PEEKDATA,pid,(int)current->pr.ebx,0);
+                    q=(int)ptrace(PTRACE_PEEKDATA,pid,(int)current->pr.rbx,0);
                     strcpy(buf,ctime(&q));
                     if (buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]=0;
                     pdescr[0]=0;
                     debug("%sSYS stime (0x%x) = %s [%s]\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),toerror(r.eax),buf);
+                            Xv(current->pr.rbx),toerror(r.rax),buf);
                     dump_pdescr(0);
                 } else {
                     debug("%sSYS stime (0x%x) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,toerror(r.eax));
+                            (int)current->pr.rbx,toerror(r.rax));
                 }
 
             }
 
-            if (!r.eax) add_mem(current->pr.ebx,4,0,b2,0);
+            if (!r.rax) add_mem(current->pr.rbx,4,0,b2,0);
 
             break;
 
@@ -4643,11 +4546,11 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
                 debug("%sSYS close (%d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),toerror(r.eax));
+                        Xf(current->pr.rbx),toerror(r.rax));
                 dump_pdescr(0);
             }
 
-            if (r.eax>=0) remove_filedes(current->pr.ebx);
+            if (r.rax>=0) remove_filedes(current->pr.rbx);
 
             break;
 
@@ -4657,7 +4560,7 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
                 debug("%sSYS fsync (%d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),toerror(r.eax));
+                        Xf(current->pr.rbx),toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -4669,7 +4572,7 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
                 debug("%sSYS fdatasync (%d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),toerror(r.eax));
+                        Xf(current->pr.rbx),toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -4688,12 +4591,12 @@ void ret_syscall(void) {
         case __NR_ioctl:
 
             if (SDCOND) {
-                int i;
+                unsigned int i;
                 indent(0);
 
-                sprintf(buf,"%x",(int)current->pr.ecx);
+                sprintf(buf,"%x",(int)current->pr.rcx);
                 for (i=0;i<sizeof(ioctls)/sizeof(struct ioctl_data);i++)
-                    if (current->pr.ecx == ioctls[i].n) {
+                    if (current->pr.rcx == ioctls[i].n) {
                         strcpy(buf,ioctls[i].name);
                         break;
                     }
@@ -4701,7 +4604,7 @@ void ret_syscall(void) {
                 pdescr[0]=0;
 
                 debug("%sSYS ioctl (%d, %s, 0x%x) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),buf,(int)current->pr.edx,toerror(r.eax));
+                        Xf(current->pr.rbx),buf,(int)current->pr.rdx,toerror(r.rax));
 
                 dump_pdescr(0);
 
@@ -4712,48 +4615,48 @@ void ret_syscall(void) {
         case __NR_fcntl:
 
             if (SDCOND) {
-                pdescr[0]=0; Xf(current->pr.ebx);
+                pdescr[0]=0; Xf(current->pr.rbx);
             }
 
-            switch (current->pr.ecx) {
+            switch (current->pr.rcx) {
 
                 case F_DUPFD:
 
                     if (SDCOND) {
                         pdescr[0]=0;
                         debug("%sSYS fcntl (%d, F_DUPFD, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                         dump_pdescr(0);
                     }
-                    if (r.eax>=0) dup_filedes(current->pr.ebx,r.eax,b2);
+                    if (r.rax>=0) dup_filedes(current->pr.rbx,r.rax,b2);
                     break;
 
                 case F_GETFD:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_GETFD, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETFD:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETFD, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_GETOWN:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_GETOWN, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETOWN:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETOWN, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
 #ifdef F_SETSIG
@@ -4761,14 +4664,14 @@ void ret_syscall(void) {
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_GETSIG, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETSIG:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETSIG, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 #endif /* F_SETSIG */
 
@@ -4776,43 +4679,43 @@ void ret_syscall(void) {
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_GETFL, 0x%x) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETFL:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETFL, 0x%x) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_GETLK:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_GETLK, 0x%x) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETLK:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETLK, 0x%x) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 case F_SETLKW:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, F_SETLKW, 0x%x) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
                     break;
 
                 default:
 
                     if (SDCOND)
                         debug("%sSYS fcntl (%d, %x, %d) = %s\n",in_libc?"[L] ":"",
-                                (int)current->pr.ebx,(int)current->pr.ecx,
-                                (int)current->pr.edx,toerror(r.eax));
+                                (int)current->pr.rbx,(int)current->pr.rcx,
+                                (int)current->pr.rdx,toerror(r.rax));
 
             }
 
@@ -4826,42 +4729,42 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
                 debug("%sSYS dup2 (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
+                        Xf(current->pr.rbx),(int)current->pr.rcx,toerror(r.rax));
 
                 dump_pdescr(0);
 
             }
 
-            if (r.eax>=0) dup_filedes(current->pr.ebx,current->pr.ecx,b2);
+            if (r.rax>=0) dup_filedes(current->pr.rbx,current->pr.rcx,b2);
 
             break;
 
         case __NR_pipe:
 
-            if (r.eax) {
+            if (r.rax) {
 
                 if (SDCOND) {
                     indent(0);
                     debug("%sSYS pipe (%x) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,toerror(r.eax));
+                            (int)current->pr.rbx,toerror(r.rax));
                 }
 
             } else {
                 int re,wr;
-                re=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                wr=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
+                re=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                wr=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
 
                 if (SDCOND) {
                     indent(0);
                     pdescr[0]=0;
                     debug("%sSYS pipe (%x [r%d w%d]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),re,wr,toerror(r.eax));
+                            Xv(current->pr.rbx),re,wr,toerror(r.rax));
                     dump_pdescr(0);
                 }
 
                 add_filedes(re,"<pipe:read>",b2,0);
                 add_filedes(wr,"<pipe:write>",b2,0);
-                add_mem(current->pr.ebx,8,0,b2,0);
+                add_mem(current->pr.rbx,8,0,b2,0);
 
             }
 
@@ -4869,12 +4772,12 @@ void ret_syscall(void) {
 
         case __NR_times:
 
-            if ((r.eax<0) || (!current->pr.ebx)) {
+            if ((r.rax<0) || (!current->pr.rbx)) {
 
                 if (SDCOND) {
                     indent(0);
                     debug("%sSYS times (%x) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,toerror(r.eax));
+                            (int)current->pr.rbx,toerror(r.rax));
                 }
 
             } else {
@@ -4882,15 +4785,15 @@ void ret_syscall(void) {
                 if (SDCOND) {
                     int u,s,cu,cs;
                     indent(0);
-                    u=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                    s=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
-                    cu=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+8,0);
-                    cs=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+12,0);
+                    u=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                    s=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
+                    cu=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+8,0);
+                    cs=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+12,0);
                     debug("%sSYS times (%x [u%d s%d cu%d cs%d]) = %s\n",in_libc?"[L] ":"",
-                            (int)(current->pr.ebx),u,s,cu,cs,toerror(r.eax));
+                            (int)(current->pr.rbx),u,s,cu,cs,toerror(r.rax));
                 }
 
-                add_mem(current->pr.ebx,16,0,b2,0);
+                add_mem(current->pr.rbx,16,0,b2,0);
 
             }
 
@@ -4902,11 +4805,11 @@ void ret_syscall(void) {
                 indent(0);
                 pdescr[0]=0;
                 debug("%sSYS dup (%d) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),toerror(r.eax));
+                        Xf(current->pr.rbx),toerror(r.rax));
                 dump_pdescr(0);
             }
 
-            if (r.eax>=0) dup_filedes(current->pr.ebx,r.eax,b2);
+            if (r.rax>=0) dup_filedes(current->pr.rbx,r.rax,b2);
 
             break;
 
@@ -4915,7 +4818,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                switch ((int)current->pr.ebx) {
+                switch ((int)current->pr.rbx) {
                     case PTRACE_TRACEME:     strcpy(buf,"PTRACE_TRACEME"); break;
                     case PTRACE_PEEKTEXT:    strcpy(buf,"PTRACE_PEEKTEXT"); break;
                     case PTRACE_PEEKDATA:    strcpy(buf,"PTRACE_PEEKDATA"); break;
@@ -4937,12 +4840,12 @@ void ret_syscall(void) {
                     case PTRACE_GETFPXREGS:  strcpy(buf,"PTRACE_GETFPXREGS"); break;
                     case PTRACE_SETFPXREGS:  strcpy(buf,"PTRACE_SETFPXREGS"); break;
 #endif /* PTRACE_GETFPXREGS */
-                    default: sprintf(buf,"%d",(int)current->pr.ebx);
+                    default: sprintf(buf,"%d",(int)current->pr.rbx);
                 }
 
                 debug("%sSYS ptrace (%s, %d, 0x%x, 0x%x) = %s\n",in_libc?"[L] ":"",
-                        buf,(int)current->pr.ecx,(int)current->pr.edx,
-                        (int)current->pr.esi,toerror(r.eax));
+                        buf,(int)current->pr.rcx,(int)current->pr.rdx,
+                        (int)current->pr.rsi,toerror(r.rax));
             }
 
             break;
@@ -4952,7 +4855,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                switch ((int)current->pr.ebx) {
+                switch ((int)current->pr.rbx) {
                     case RLIMIT_CPU:     strcpy(buf,"RLIMIT_CPU"); break;
                     case RLIMIT_FSIZE:   strcpy(buf,"RLIMIT_FSIZE"); break;
                     case RLIMIT_DATA:    strcpy(buf,"RLIMIT_DATA"); break;
@@ -4963,22 +4866,22 @@ void ret_syscall(void) {
                     case RLIMIT_NOFILE:  strcpy(buf,"RLIMIT_NOFILE"); break;
                     case RLIMIT_MEMLOCK: strcpy(buf,"RLIMIT_MEMLOCK"); break;
                     case RLIMIT_AS:      strcpy(buf,"RLIMIT_AS"); break;
-                    default: sprintf(buf,"%d",(int)current->pr.ebx);
+                    default: sprintf(buf,"%d",(int)current->pr.rbx);
                 }
 
                 pdescr[0]=0;
 
-                if (r.eax) {
+                if (r.rax) {
                     debug("%sSYS getrlimit (%s, %x) = %s\n",in_libc?"[L] ":"",
-                            buf,Xv(current->pr.ecx),toerror(r.eax));
+                            buf,Xv(current->pr.rcx),toerror(r.rax));
                 } else {
                     unsigned int cur,max;
-                    cur=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
-                    max=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx+4,0);
+                    cur=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
+                    max=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx+4,0);
                     debug("%sSYS getrlimit (%s, %x [cur:%d max:%d]) = %s\n",in_libc?"[L] ":"",
-                            buf,Xv(current->pr.ecx),cur,max,toerror(r.eax));
-                    add_mem(current->pr.ecx,8,0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,0);
+                            buf,Xv(current->pr.rcx),cur,max,toerror(r.rax));
+                    add_mem(current->pr.rcx,8,0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,0);
                 }
 
                 dump_pdescr(0);
@@ -4994,21 +4897,21 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                if (r.eax) {
+                if (r.rax) {
                     debug("%sSYS gettimeofday (%x, %x) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),Xv(current->pr.ecx),toerror(r.eax));
+                            Xv(current->pr.rbx),Xv(current->pr.rcx),toerror(r.rax));
                 } else {
                     unsigned int sec,usec;
                     unsigned int mwest;
-                    sec=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                    usec=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
-                    mwest=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
+                    sec=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                    usec=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
+                    mwest=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
                     debug("%sSYS gettimeofday (%x [%ds %dms], %x [mw:%d]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),sec,usec,Xv(current->pr.ecx),mwest,toerror(r.eax));
-                    add_mem(current->pr.ebx,8,0,b2,0);
-                    add_mem(current->pr.ecx,8,0,b2,0);
-                    modify_lasti(current->pr.ebx,b2,0,0,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,0);
+                            Xv(current->pr.rbx),sec,usec,Xv(current->pr.rcx),mwest,toerror(r.rax));
+                    add_mem(current->pr.rbx,8,0,b2,0);
+                    add_mem(current->pr.rcx,8,0,b2,0);
+                    modify_lasti(current->pr.rbx,b2,0,0,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,0);
                 }
 
                 dump_pdescr(0);
@@ -5024,19 +4927,19 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
 
-                if (r.eax) {
+                if (r.rax) {
                     debug("%sSYS settimeofday (%x, %x) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),Xv(current->pr.ecx),toerror(r.eax));
+                            Xv(current->pr.rbx),Xv(current->pr.rcx),toerror(r.rax));
                 } else {
                     unsigned int sec,usec;
                     unsigned int mwest;
-                    sec=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                    usec=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
-                    mwest=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
+                    sec=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                    usec=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
+                    mwest=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
                     debug("%sSYS settimeofday (%x [%ds %dms], %x [mw:%d]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),sec,usec,Xv(current->pr.ecx),mwest,toerror(r.eax));
-                    add_mem(current->pr.ebx,8,0,b2,0);
-                    add_mem(current->pr.ecx,8,0,b2,0);
+                            Xv(current->pr.rbx),sec,usec,Xv(current->pr.rcx),mwest,toerror(r.rax));
+                    add_mem(current->pr.rbx,8,0,b2,0);
+                    add_mem(current->pr.rcx,8,0,b2,0);
                 }
 
                 dump_pdescr(0);
@@ -5050,20 +4953,20 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                switch ((int)current->pr.ebx) {
+                switch ((int)current->pr.rbx) {
                     case RUSAGE_SELF:     strcpy(buf,"RUSAGE_SELF"); break;
                     case RUSAGE_CHILDREN:   strcpy(buf,"RUSAGE_CHILDREN"); break;
-                    default: sprintf(buf,"%d",(int)current->pr.ebx);
+                    default: sprintf(buf,"%d",(int)current->pr.rbx);
                 }
 
                 pdescr[0]=0;
 
                 debug("%sSYS getrusage (%s, %x) = %s\n",in_libc?"[L] ":"",
-                        buf,Xv(current->pr.ecx),toerror(r.eax));
+                        buf,Xv(current->pr.rcx),toerror(r.rax));
 
-                if (!r.eax) {
-                    add_mem(current->pr.ecx,sizeof(struct rusage),0,b2,0);
-                    modify_lasti(current->pr.ecx,b2,0,0,0);
+                if (!r.rax) {
+                    add_mem(current->pr.rcx,sizeof(struct rusage),0,b2,0);
+                    modify_lasti(current->pr.rcx,b2,0,0,0);
                 }
 
                 dump_pdescr(0);
@@ -5077,7 +4980,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
 
-                switch ((int)current->pr.ebx) {
+                switch ((int)current->pr.rbx) {
                     case RLIMIT_CPU:     strcpy(buf,"RLIMIT_CPU"); break;
                     case RLIMIT_FSIZE:   strcpy(buf,"RLIMIT_FSIZE"); break;
                     case RLIMIT_DATA:    strcpy(buf,"RLIMIT_DATA"); break;
@@ -5088,21 +4991,21 @@ void ret_syscall(void) {
                     case RLIMIT_NOFILE:  strcpy(buf,"RLIMIT_NOFILE"); break;
                     case RLIMIT_MEMLOCK: strcpy(buf,"RLIMIT_MEMLOCK"); break;
                     case RLIMIT_AS:      strcpy(buf,"RLIMIT_AS"); break;
-                    default: sprintf(buf,"%d",(int)current->pr.ebx);
+                    default: sprintf(buf,"%d",(int)current->pr.rbx);
                 }
 
                 pdescr[0]=0;
 
-                if (r.eax) {
+                if (r.rax) {
                     debug("%sSYS setrlimit (%s, %x) = %s\n",in_libc?"[L] ":"",
-                            buf,Xv(current->pr.ecx),toerror(r.eax));
+                            buf,Xv(current->pr.rcx),toerror(r.rax));
                 } else {
                     unsigned int cur,max;
-                    cur=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
-                    max=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx+4,0);
+                    cur=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
+                    max=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx+4,0);
                     debug("%sSYS setrlimit (%s, %x [cur:%d max:%d]) = %s\n",in_libc?"[L] ":"",
-                            buf,Xv(current->pr.ecx),cur,max,toerror(r.eax));
-                    add_mem(current->pr.ecx,8,0,b2,0);
+                            buf,Xv(current->pr.rcx),cur,max,toerror(r.rax));
+                    add_mem(current->pr.rcx,8,0,b2,0);
                 }
 
                 dump_pdescr(0);
@@ -5116,7 +5019,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setuid (%d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,toerror(r.eax));
+                        (int)current->pr.rbx,toerror(r.rax));
             }
 
             break;
@@ -5126,8 +5029,8 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS reboot (0x%x, 0x%x, 0x%x, 0x%x) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,
-                        (int)current->pr.edx,(int)current->pr.esi,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,
+                        (int)current->pr.rdx,(int)current->pr.rsi,toerror(r.rax));
             }
 
             break;
@@ -5137,7 +5040,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setreuid (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
             }
 
             break;
@@ -5147,7 +5050,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setregid (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.edx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rdx,toerror(r.rax));
             }
 
             break;
@@ -5156,7 +5059,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS setsid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS setsid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5166,7 +5069,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS umask (0%o) = 0%o\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)r.eax);
+                        (int)current->pr.rbx,(int)r.rax);
             }
 
             break;
@@ -5176,7 +5079,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setgid (%d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,toerror(r.eax));
+                        (int)current->pr.rbx,toerror(r.rax));
             }
 
             break;
@@ -5186,7 +5089,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setpgid (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,toerror(r.rax));
             }
 
             break;
@@ -5196,11 +5099,11 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS kill (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,toerror(r.rax));
 
                 if (!T_nodesc) {
                     indent(0);
-                    debug("+ signal %d = %s\n",(int)current->pr.ecx,strsignal(current->pr.ecx));
+                    debug("+ signal %d = %s\n",(int)current->pr.rcx,strsignal(current->pr.rcx));
                 }
             }
 
@@ -5211,65 +5114,65 @@ void ret_syscall(void) {
 
             { // Restore changed memory structure. Don't bother for int3.
                 unsigned int addr;
-                addr=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
+                addr=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
 
                 if (addr)
                     if ((addr >> 24) == CODESEG )
-                        ptrace(PTRACE_POKEDATA,pid,current->pr.ecx,addr+1);
+                        ptrace(PTRACE_POKEDATA,pid,current->pr.rcx,addr+1);
 
             }
 
             if (SDCOND) {
-                int oldh=0,newh=0;
+                unsigned long int oldh=0,newh=0;
                 indent(0);
 
-                if (r.eax == -EFAULT) {
+                if (r.rax == -EFAULT) {
 
                     debug("%sSYS sigaction (%d, %x, %x) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,(int)current->pr.ecx,(int)current->pr.edx,
-                            toerror(r.eax));
+                            (int)current->pr.rbx,(int)current->pr.rcx,(int)current->pr.rdx,
+                            toerror(r.rax));
 
                 } else {
 
-                    if (current->pr.edx) oldh=ptrace(PTRACE_PEEKDATA,pid,current->pr.edx,0);
-                    if (current->pr.ecx) newh=ptrace(PTRACE_PEEKDATA,pid,current->pr.ecx,0);
+                    if (current->pr.rdx) oldh=ptrace(PTRACE_PEEKDATA,pid,current->pr.rdx,0);
+                    if (current->pr.rcx) newh=ptrace(PTRACE_PEEKDATA,pid,current->pr.rcx,0);
 
                     pdescr[0]=0;
-                    debug("%sSYS sigaction (%d, %x [h:%x], %x [h:%x]) = %s\n",in_libc?"[L] ":"",
-                            (int)current->pr.ebx,Xv(current->pr.ecx),newh,
-                            Xv(current->pr.edx),oldh,toerror(r.eax));
+                    debug("%sSYS sigaction (%d, %x [h:%lx], %x [h:%lx]) = %s\n",in_libc?"[L] ":"",
+                            (int)current->pr.rbx,Xv(current->pr.rcx),newh,
+                            Xv(current->pr.rdx),oldh,toerror(r.rax));
                     dump_pdescr(0);
 
                     if (!T_nodesc) {
 
                         indent(0);
-                        debug("+ signal %d = %s\n",(int)current->pr.ebx,strsignal(current->pr.ebx));
+                        debug("+ signal %d = %s\n",(int)current->pr.rbx,strsignal(current->pr.rbx));
 
-                        if (current->pr.edx) {
+                        if (current->pr.rdx) {
                             indent(0);
-                            if (oldh==(int)SIG_IGN) {
-                                debug("+ 0x%x = SIG_IGN\n",oldh);
-                            } else if (oldh==(int)SIG_DFL) {
-                                debug("+ 0x%x = SIG_DFL\n",oldh);
+                            if (oldh==(long int)SIG_IGN) {
+                                debug("+ 0x%lx = SIG_IGN\n",oldh);
+                            } else if (oldh==(long int)SIG_DFL) {
+                                debug("+ 0x%lx = SIG_DFL\n",oldh);
                             } else {
-                                debug("+ 0x%x = %s\n",oldh,lookup_fnct(oldh,1,1));
+                                debug("+ 0x%lx = %s\n",oldh,lookup_fnct(oldh,1,1));
                             }
-                            add_mem(current->pr.ecx,sizeof(struct sigaction),0,b2,0);
+                            add_mem(current->pr.rcx,sizeof(struct sigaction),0,b2,0);
                         }
 
-                        if (current->pr.ecx) {
+                        if (current->pr.rcx) {
                             indent(0);
-                            if (newh==(int)SIG_IGN) {
-                                debug("+ 0x%x = SIG_IGN\n",newh);
-                                remove_handler(current->pr.ebx);
-                            } else if (newh==(int)SIG_DFL) {
-                                debug("+ 0x%x = SIG_DFL\n",newh);
-                                remove_handler(current->pr.ebx);
+                            if (newh==(long int)SIG_IGN) {
+                                debug("+ 0x%lx = SIG_IGN\n",newh);
+                                remove_handler(current->pr.rbx);
+                            } else if (newh==(long int)SIG_DFL) {
+                                debug("+ 0x%lx = SIG_DFL\n",newh);
+                                remove_handler(current->pr.rbx);
                             } else {
-                                debug("+ 0x%x = %s\n",newh,lookup_fnct(newh,1,1));
-                                add_handler(current->pr.ebx,newh);
+                                debug("+ 0x%lx = %s\n",newh,lookup_fnct(newh,1,1));
+                                add_handler(current->pr.rbx,newh);
                             }
-                            add_mem(current->pr.edx,sizeof(struct sigaction),0,b2,0);
+                            add_mem(current->pr.rdx,sizeof(struct sigaction),0,b2,0);
                         }
 
                     }
@@ -5286,18 +5189,18 @@ void ret_syscall(void) {
             if (SDCOND) {
                 char mask[8];
                 indent(0);
-                if (r.eax != -EFAULT) {
-                    AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                    AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
+                if (r.rax != -EFAULT) {
+                    AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                    AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
 
                     pdescr[0]=0;
                     debug("%sSYS sigsuspend (%x [%08x%08x]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.eax));
+                            Xv(current->pr.rbx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.rax));
                     dump_pdescr(0);
-                    add_mem(current->pr.ebx,sizeof(sigset_t),0,b2,0);
+                    add_mem(current->pr.rbx,sizeof(sigset_t),0,b2,0);
                 } else {
                     debug("%sSYS sigsuspend (%x) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),toerror(r.eax));
+                            Xv(current->pr.rbx),toerror(r.rax));
                 }
             }
             break;
@@ -5308,19 +5211,19 @@ void ret_syscall(void) {
             if (SDCOND) {
                 char mask[8];
                 indent(0);
-                if (r.eax != -EFAULT) {
-                    AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx,0);
-                    AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4,0);
+                if (r.rax != -EFAULT) {
+                    AS_UINT(mask[0])=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx,0);
+                    AS_UINT(mask[4])=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4,0);
 
                     pdescr[0]=0;
                     debug("%sSYS sigpending (%x [%08x%08x]) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.eax));
+                            Xv(current->pr.rbx),AS_UINT(mask[0]),AS_UINT(mask[4]),toerror(r.rax));
                     dump_pdescr(0);
-                    add_mem(current->pr.ebx,sizeof(sigset_t),0,b2,0);
-                    modify_lasti(current->pr.ebx,b2,0,0,0);
+                    add_mem(current->pr.rbx,sizeof(sigset_t),0,b2,0);
+                    modify_lasti(current->pr.rbx,b2,0,0,0);
                 } else {
                     debug("%sSYS sigpending (%x) = %s\n",in_libc?"[L] ":"",
-                            Xv(current->pr.ebx),toerror(r.eax));
+                            Xv(current->pr.rbx),toerror(r.rax));
                 }
             }
 
@@ -5331,24 +5234,24 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS signal (%d, 0x%x) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,toerror(r.rax));
 
                 if (!T_nodesc) {
                     indent(0);
-                    debug("+ signal %d = %s\n",(int)current->pr.ebx,strsignal(current->pr.ebx));
+                    debug("+ signal %d = %s\n",(int)current->pr.rbx,strsignal(current->pr.rbx));
                 }
 
                 if (!T_nodesc) {
                     indent(0);
-                    if (current->pr.ecx==(int)SIG_IGN) {
-                        debug("+ 0x%x = SIG_IGN\n",(int)current->pr.ecx);
-                        remove_handler(current->pr.ebx);
-                    } else if (current->pr.ecx==(int)SIG_DFL) {
-                        debug("+ 0x%x = SIG_DFL\n",(int)current->pr.ecx);
-                        remove_handler(current->pr.ebx);
+                    if (current->pr.rcx==(long int)SIG_IGN) {
+                        debug("+ 0x%x = SIG_IGN\n",(int)current->pr.rcx);
+                        remove_handler(current->pr.rbx);
+                    } else if (current->pr.rcx==(long int)SIG_DFL) {
+                        debug("+ 0x%x = SIG_DFL\n",(int)current->pr.rcx);
+                        remove_handler(current->pr.rbx);
                     } else {
-                        debug("+ 0x%x = %s\n",(int)current->pr.ecx,lookup_fnct(current->pr.ecx,1,1));
-                        add_handler(current->pr.ebx,current->pr.ecx);
+                        debug("+ 0x%x = %s\n",(int)current->pr.rcx,lookup_fnct(current->pr.rcx,1,1));
+                        add_handler(current->pr.rbx,current->pr.rcx);
 
                     }
                 }
@@ -5361,7 +5264,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS nice (%d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,toerror(r.eax));
+                        (int)current->pr.rbx,toerror(r.rax));
             }
 
             break;
@@ -5371,7 +5274,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS alarm (%d) = %d\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)r.eax);
+                        (int)current->pr.rbx,(int)r.rax);
             }
 
             break;
@@ -5380,7 +5283,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getpid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getpid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5389,8 +5292,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getpgid (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS getpgid (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5399,8 +5302,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getsid (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS getsid (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5409,8 +5312,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS personality (0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS personality (0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5419,7 +5322,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getpgrp () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getpgrp () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5428,7 +5331,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getppid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getppid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5437,7 +5340,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS pause () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS pause () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5446,7 +5349,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getuid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getuid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5455,7 +5358,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getgid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getgid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5465,18 +5368,18 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 buf[0]=0;
-                if (current->pr.ebx & LOCK_SH) { current->pr.ebx-=LOCK_SH; strcpy(buf,"LOCK_SH"); }
-                if (current->pr.ebx & LOCK_EX) { current->pr.ebx-=LOCK_EX; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_EX"); }
-                if (current->pr.ebx & LOCK_UN) { current->pr.ebx-=LOCK_UN; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_UN"); }
-                if (current->pr.ebx & LOCK_NB) { current->pr.ebx-=LOCK_NB; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_NB"); }
-                if (current->pr.ebx) {
+                if (current->pr.rbx & LOCK_SH) { current->pr.rbx-=LOCK_SH; strcpy(buf,"LOCK_SH"); }
+                if (current->pr.rbx & LOCK_EX) { current->pr.rbx-=LOCK_EX; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_EX"); }
+                if (current->pr.rbx & LOCK_UN) { current->pr.rbx-=LOCK_UN; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_UN"); }
+                if (current->pr.rbx & LOCK_NB) { current->pr.rbx-=LOCK_NB; if (buf[0]) strcat(buf," | ");strcat(buf,"LOCK_NB"); }
+                if (current->pr.rbx) {
                     if (buf[0]) strcat(buf," | ");
-                    sprintf(&buf[strlen(buf)],"0x%x",(int)current->pr.ebx);
+                    sprintf(&buf[strlen(buf)],"0x%x",(int)current->pr.rbx);
                 }
 
                 pdescr[0]=0;
                 debug("%sSYS flock (%d, %s) = %s\n",in_libc?"[L] ":"",
-                        Xf(current->pr.ebx),buf,toerror(r.eax));
+                        Xf(current->pr.rbx),buf,toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -5486,14 +5389,14 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                if (current->pr.edx == MS_ASYNC) strcpy(buf,"MS_ASYNC");
-                else if (current->pr.edx == MS_SYNC) strcpy(buf,"MS_SYNC");
-                else if (current->pr.edx == MS_INVALIDATE) strcpy(buf,"MS_INVALIDATE");
-                else sprintf(buf,"0x%x",(int)current->pr.edx);
+                if (current->pr.rdx == MS_ASYNC) strcpy(buf,"MS_ASYNC");
+                else if (current->pr.rdx == MS_SYNC) strcpy(buf,"MS_SYNC");
+                else if (current->pr.rdx == MS_INVALIDATE) strcpy(buf,"MS_INVALIDATE");
+                else sprintf(buf,"0x%x",(int)current->pr.rdx);
 
                 pdescr[0]=0;
                 debug("%sSYS msync (%x, %d, %s) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),(int)current->pr.ecx,buf,toerror(r.eax));
+                        Xv(current->pr.rbx),(int)current->pr.rcx,buf,toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -5506,7 +5409,7 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS mlock (%x, %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -5518,7 +5421,7 @@ void ret_syscall(void) {
                 indent(0);
 
                 debug("%sSYS mlockall (%d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ecx,toerror(r.eax));
+                        (int)current->pr.rcx,toerror(r.rax));
             }
 
             break;
@@ -5529,7 +5432,7 @@ void ret_syscall(void) {
                 indent(0);
 
                 debug("%sSYS munlockall () = %s\n",in_libc?"[L] ":"",
-                        toerror(r.eax));
+                        toerror(r.rax));
             }
 
             break;
@@ -5541,7 +5444,7 @@ void ret_syscall(void) {
 
                 pdescr[0]=0;
                 debug("%sSYS munlock (%x, %d) = %s\n",in_libc?"[L] ":"",
-                        Xv(current->pr.ebx),(int)current->pr.ecx,toerror(r.eax));
+                        Xv(current->pr.rbx),(int)current->pr.rcx,toerror(r.rax));
                 dump_pdescr(0);
             }
 
@@ -5551,7 +5454,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS vhangup () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS vhangup () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5560,8 +5463,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS iopl (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS iopl (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5570,8 +5473,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS vm86old (0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS vm86old (0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5580,8 +5483,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS vm86old (%d, 0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,(int)current->pr.ecx,
-                        toerror(r.eax));
+                debug("%sSYS vm86old (%d, 0x%x) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,(int)current->pr.rcx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5590,7 +5493,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS idle() = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS idle() = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5600,8 +5503,8 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS ioperm (%d, %d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,
-                        (int)current->pr.edx,toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,
+                        (int)current->pr.rdx,toerror(r.rax));
             }
 
             break;
@@ -5611,7 +5514,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS fork () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS fork () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
             install_traps();
 
@@ -5622,9 +5525,9 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS getpriority (%d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,
-                        (int)current->pr.ecx,
-                        toerror(r.eax));
+                        (int)current->pr.rbx,
+                        (int)current->pr.rcx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5634,10 +5537,10 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS setpriority (%d, %d, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,
-                        (int)current->pr.ecx,
-                        (int)current->pr.edx,
-                        toerror(r.eax));
+                        (int)current->pr.rbx,
+                        (int)current->pr.rcx,
+                        (int)current->pr.rdx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5646,7 +5549,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS sgetmask () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS sgetmask () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5655,8 +5558,8 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS ssetmask (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.ebx,
-                        toerror(r.eax));
+                debug("%sSYS ssetmask (%d) = %s\n",in_libc?"[L] ":"",(int)current->pr.rbx,
+                        toerror(r.rax));
             }
 
             break;
@@ -5666,7 +5569,7 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS brk (0x%x) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,toerror(r.eax));
+                        (int)current->pr.rbx,toerror(r.rax));
             }
 
             break;
@@ -5675,7 +5578,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS sync () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS sync () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5684,7 +5587,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS geteuid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS geteuid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5693,7 +5596,7 @@ void ret_syscall(void) {
 
             if (SDCOND) {
                 indent(0);
-                debug("%sSYS getegid () = %s\n",in_libc?"[L] ":"",toerror(r.eax));
+                debug("%sSYS getegid () = %s\n",in_libc?"[L] ":"",toerror(r.rax));
             }
 
             break;
@@ -5706,16 +5609,16 @@ void ret_syscall(void) {
                 unsigned int flags;
                 unsigned int addr,off,prot;
 
-                len=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*1,0);
-                flags=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*3,0);
-                fd=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*4,0);
+                len=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*1,0);
+                flags=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*3,0);
+                fd=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*4,0);
 
                 if (SDCOND) {
 
                     indent(0);
-                    prot=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*2,0);
-                    off=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*5,0);
-                    addr=ptrace(PTRACE_PEEKDATA,pid,current->pr.ebx+4*0,0);
+                    prot=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*2,0);
+                    off=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*5,0);
+                    addr=ptrace(PTRACE_PEEKDATA,pid,current->pr.rbx+4*0,0);
 
                     b3[0]=0;
 
@@ -5735,23 +5638,23 @@ void ret_syscall(void) {
 
                     pdescr[0]=0;
 
-                    if (r.eax<0) {
+                    if (r.rax<0) {
                         debug("%sSYS mmap (0x%x, %d, %s, %s, %d, %d) = %s\n",
                                 in_libc?"[L] ":"",addr,len,b3,buf,Xf(fd),off,
-                                toerror(r.eax));
+                                toerror(r.rax));
                     } else {
                         debug("%sSYS mmap (0x%x, %d, %s, %s, %d, %d) = 0x%08x\n",
                                 in_libc?"[L] ":"",addr,len,b3,buf,Xf(fd),off,
-                                (unsigned int)r.eax);
+                                (unsigned int)r.rax);
                     }
 
                     dump_pdescr(0);
 
                 }
 
-                if ( INLIBC(r.eax) )
+                if ( INLIBC(r.rax) )
                     if (!(flags & MAP_ANONYMOUS))
-                        add_map(fd,r.eax,len,b2);
+                        add_map(fd,r.rax,len,b2);
 
             }
 
@@ -5762,11 +5665,11 @@ void ret_syscall(void) {
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS munmap (0x%x, %d) = %s\n",in_libc?"[L] ":"",
-                        (int)current->pr.ebx,(int)current->pr.ecx,
-                        toerror(r.eax));
+                        (int)current->pr.rbx,(int)current->pr.rcx,
+                        toerror(r.rax));
             }
 
-            if (!r.eax) delete_map(current->pr.ebx);
+            if (!r.rax) delete_map(current->pr.rbx);
             break;
 
         default:
@@ -5777,10 +5680,10 @@ void ret_syscall(void) {
                         //FIXME: hardcoded?!?  more than 300+ for i386
                         scnames[current->syscall & 0xff]);
                 pdescr[0]=0;
-                display_value(current->pr.ebx,b2); debug(", ");
-                display_value(current->pr.ecx,b2); debug(", ");
-                display_value(current->pr.edx,b2); debug(") = ");
-                display_value(r.eax,b2); debug("\n");
+                display_value(current->pr.rbx,b2); debug(", ");
+                display_value(current->pr.rcx,b2); debug(", ");
+                display_value(current->pr.rdx,b2); debug(") = ");
+                display_value(r.rax,b2); debug("\n");
                 dump_pdescr(0);
             }
 
@@ -5793,7 +5696,7 @@ void ret_syscall(void) {
 char find_id_buf[100];
 
 inline char* find_id_off(unsigned int c) {
-    int i=0;
+    unsigned int i=0;
     int best=-1,bestdiff=-(PRETTYSMALL);
 
     if (!current->fnaddr) return 0;
@@ -5816,13 +5719,13 @@ inline char* find_id_off(unsigned int c) {
 
 }
 
-inline void found_fnprint(int count, struct fenris_fndb *cur, int fprint, int unused)
+inline void found_fnprint(int count, struct fenris_fndb *cur, int fprint, int unused __attribute__((unused)))
 {
     if (!count) debug("# Matches for signature %08X: ", fprint);
     debug("%s ", cur->name);
 }
 
-inline void finish_fnprint(int count, int fprint, int unused)
+inline void finish_fnprint(int count, int fprint, int unused __attribute__((unused)))
 {
     if (count) debug("\n");
     else debug("# No matches for signature %08X.\n", fprint);
@@ -5834,7 +5737,7 @@ inline void finish_fnprint(int count, int fprint, int unused)
 
 inline void handle_fncall(const char how) {
     char* f="fnct_bogus";
-    int prev;
+    unsigned int prev;
 
     current->justcalled=1;
     if (current->nest<-1) return;
@@ -5845,7 +5748,7 @@ inline void handle_fncall(const char how) {
     current->nest++;
     if (current->nest>=MAXNEST) {
         if (T_noskip) {
-            debug("* WARNING: MAXNEST exceeded at 0x%x, pretending that nothing happened.\n",(int)r.eip);
+            debug("* WARNING: MAXNEST exceeded at 0x%x, pretending that nothing happened.\n",(int)r.rip);
             current->nest--;
         } else fatal("MAXNEST exceeded in handle_fncall",0);
     }
@@ -5883,7 +5786,7 @@ inline void handle_fncall(const char how) {
         else sprintf(n,"F main:%s",q);
         free(q);
 
-        display_fparams(r.esp, current->curpcnt, n );
+        display_fparams(r.rsp, current->curpcnt, n );
     }
 
     debug(")\n");
@@ -5898,7 +5801,7 @@ inline void handle_fncall(const char how) {
 
     dump_pdescr(-1);
 
-    if (!current->is_|| T_nosig) { if (T_dostep) break_call(caddr); return; }
+    if (!current->is_static || T_nosig) { if (T_dostep) break_call(caddr); return; }
     if (strncmp(f,"fnct_",5)) { if (T_dostep) break_call(caddr); return; }
 
     {
@@ -5929,7 +5832,7 @@ inline void handle_libcall(void) {
     current->nest++;
     if (current->nest>=MAXNEST) {
         if (T_noskip) {
-            debug("* WARNING: MAXNEST exceeded at 0x%x, pretending that nothing happened.\n",(int)r.eip);
+            debug("* WARNING: MAXNEST exceeded at 0x%x, pretending that nothing happened.\n",(int)r.rip);
             current->nest--;
         } else fatal("MAXNEST exceeded in handle_libcall",0);
     }
@@ -5942,14 +5845,14 @@ inline void handle_libcall(void) {
 
     current->libcalls++;
 
-    // debug("entering libc by jumping to 0x%x at 0x%x\n",caddr,r.eip);
+    // debug("entering libc by jumping to 0x%x at 0x%x\n",caddr,r.rip);
 
     // HUH HUH?
     if (!T_dostep)
         if (current->getname) fatal("double getname attempt",0);
 
     current->getname=1;
-    current->pr.esp=r.esp;
+    current->pr.rsp=r.rsp;
     current->lentry=caddr;
 
 }
@@ -5977,7 +5880,7 @@ inline void display_libcall(unsigned int c) {
         current->jmplibc=0;
     }
 
-    if (!check_specific(name,current->pr.esp,current->curpcnt)) {
+    if (!check_specific(name,current->pr.rsp,current->curpcnt)) {
         char n[MAXDESCR];
         indent(-1);
         debug("U %s (",name);
@@ -5986,7 +5889,7 @@ inline void display_libcall(unsigned int c) {
             sprintf(n,"U %s:%s",lookup_fnct((*current->fnaddr)[current->idtop-1],0,1),name);
         else sprintf(n,"U main:%s",name);
 
-        display_fparams(current->pr.esp,current->curpcnt, n );
+        display_fparams(current->pr.rsp,current->curpcnt, n );
         debug(")\n");
         dump_pdescr(-1);
     }
@@ -6013,7 +5916,7 @@ inline void handle_ret(void) {
     if (current->nest<0 && !current->atret) return;
 
     if (in_libc) {
-        retto = ptrace(PTRACE_PEEKDATA,pid,r.esp,0);
+        retto = ptrace(PTRACE_PEEKDATA,pid,r.rsp,0);
         if (INLIBC(retto)) return;
     }
     // else {
@@ -6024,7 +5927,7 @@ inline void handle_ret(void) {
         if (!(--current->atret)) {
             current->nest=0;
 #ifdef HEAVY_DEBUG
-            debug("entered dynamic at 0x%x (%s)\n",(int)r.eip,lookup_fnct(r.eip,0,0));
+            debug("entered dynamic at 0x%x (%s)\n",(int)r.rip,lookup_fnct(r.rip,0,0));
 #endif /* HEAVY_DEBUG */
         }
         return;
@@ -6041,13 +5944,13 @@ inline void handle_ret(void) {
         } else current->nest=PRETTYSMALL;
 
         if (T_noindent)
-            debug("...return from %s = ",stop_eip?"partial trace segment":"main()");
+            debug("...return from %s = ",stop_rip?"partial trace segment":"main()");
         else {
-            if (T_addip) debug("[%08x] ",(int)r.eip);
-            debug("%d:-- ...return from %s = ",pid,stop_eip?"partial trace segment":"main()");
+            if (T_addip) debug("[%08x] ",(int)r.rip);
+            debug("%d:-- ...return from %s = ",pid,stop_rip?"partial trace segment":"main()");
         }
         if (current->retpar || T_alwaysret) {
-            display_value(r.eax,"<ret from main>");
+            display_value(r.rax,"<ret from main>");
             debug("\n");
         } else debug("<void>\n");
         dump_pdescr(0);
@@ -6078,7 +5981,7 @@ inline void handle_ret(void) {
 
         else {
             debug("...return from libc = ");
-            display_value(r.eax,"<ret from libc>");
+            display_value(r.rax,"<ret from libc>");
             debug("\n");
         }
 
@@ -6088,7 +5991,7 @@ inline void handle_ret(void) {
         debug("...return from function = ");
 
         if (current->retpar || T_alwaysret) {
-            display_value(r.eax,"<ret from fn>");
+            display_value(r.rax,"<ret from fn>");
             debug("\n");
         } else debug("<void>\n");
 
@@ -6112,7 +6015,7 @@ inline void handle_subesp(int x,unsigned char next) {
 
     if (in_libc) return;
 
-    AS_UINT(buf[0])=ptrace(PTRACE_PEEKDATA,pid,r.eip-3,0);
+    AS_UINT(buf[0])=ptrace(PTRACE_PEEKDATA,pid,r.rip-3,0);
 
     /* Eat this:
 8049a81:       83 c4 10                add    $0x10,%esp
@@ -6137,8 +6040,8 @@ inline void handle_subesp_long(int x,unsigned char next) {
 
     if (in_libc) return;
 
-    AS_UINT(buf[0])=ptrace(PTRACE_PEEKDATA,pid,r.eip-6,0);
-    AS_UINT(buf[4])=ptrace(PTRACE_PEEKDATA,pid,r.eip-2,0);
+    AS_UINT(buf[0])=ptrace(PTRACE_PEEKDATA,pid,r.rip-6,0);
+    AS_UINT(buf[4])=ptrace(PTRACE_PEEKDATA,pid,r.rip-2,0);
 
     /* Eat this:
 8049a81:       81 c4 xx xx xx xx
@@ -6163,7 +6066,7 @@ inline void handle_subesp_long(int x,unsigned char next) {
 inline void handle_call(void) {
     unsigned int there;
 
-    caddr=AS_UINT(op[1])+5+r.eip;
+    caddr=AS_UINT(op[1])+5+r.rip;
 
     if (in_libc)
         if (INLIBC(caddr))
@@ -6251,7 +6154,7 @@ inline void handle_regoffcall(unsigned int addr) {
 inline void handle_jmp(void) {
     unsigned int there;
 
-    caddr=AS_UINT(op[1])+5+r.eip;
+    caddr=AS_UINT(op[1])+5+r.rip;
 
     if (in_libc)
         if (INLIBC(caddr)) return;
@@ -6264,7 +6167,7 @@ inline void handle_jmp(void) {
         if (current->getname) fatal("double getname attempt",0);
         current->jmplibc=1;
         current->getname=1;
-        current->pr.esp=r.esp;
+        current->pr.rsp=r.rsp;
         current->lentry=caddr;
         fn_ret();
     }
@@ -6313,7 +6216,7 @@ inline void handle_regcall(unsigned int reg) {
 inline void handle_je(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     if (off>0) {
         debug("cndt: conditional block %+d %s\n",off,FSET(F_ZERO)?"skipped":"executed");
     } else {
@@ -6324,7 +6227,7 @@ inline void handle_je(int off) {
 inline void handle_jne(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     if (off>0) {
         debug("cndt: on-match block %+d %s\n",off,FSET(F_ZERO)?"executed":"skipped");
     } else {
@@ -6336,9 +6239,9 @@ inline void handle_jle(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     // JLE Jump if less than or equal (<=) Sign != Ovrflw or Zero = 1
-    c=FSET(F_ZERO) || (c=FSET(F_OVER) ^ FSET(F_SIGN));
+    c=FSET(F_ZERO) || (FSET(F_OVER) ^ FSET(F_SIGN));
     if (off>0) {
         debug("cndt: if-above block (unsigned) %+d %s\n",off,c?"skipped":"executed");
     } else {
@@ -6350,7 +6253,7 @@ inline void handle_jbe(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     // JBE Jump if below or equal (<=) Carry = 1 or Zero = 1
     c=FSET(F_CARRY) || FSET(F_ZERO);
     if (off>0) {
@@ -6364,7 +6267,7 @@ inline void handle_jg(int off) {
     int c;
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     // JG Jump if greater than (>) Sign = Ovrflw and Zero = 0
     c=(FSET(F_SIGN) == FSET(F_OVER)) && FSET(F_ZERO);
     if (off>0) {
@@ -6377,7 +6280,7 @@ inline void handle_jg(int off) {
 inline void handle_ja(int off) {
     if (in_libc || current->intercept || (current->nest<0)) return;
     indent(0);
-    debug("<%x> ",(int)r.eip);
+    debug("<%x> ",(int)r.rip);
     // JB Jump if below (<) Carry = 1
     if (off>0) {
         debug("cndt: if-below block (signed) %+d %s\n",off,FSET(F_CARRY)?"skipped":"executed");
@@ -6391,12 +6294,26 @@ inline void handle_ja(int off) {
  *******************************/
 
 inline void enter_dynamic(void) {
-    //  debug("ENTERDYNAMIC --> already=%d eip=%x op=%x %x %x %x %x %x %x %x\n",
-    //         already_main,r.eip,op[0],op[1],op[2],op[3],op[4],op[5],op[6],op[7]);
+    //  debug("ENTERDYNAMIC --> already=%d rip=%x op=%x %x %x %x %x %x %x %x\n",
+    //         already_main,r.rip,op[0],op[1],op[2],op[3],op[4],op[5],op[6],op[7]);
     already_main=1;
     if (T_dostep) break_enterdyn();
-    if (!start_eip)
+    if (!start_rip)
         if (current->nest<0) current->atret=T_atret;
+}
+
+// This is a dummy code for strlen() only.
+void minline(const char* what) {
+    if ((current->nest>=0) && ((r.rip >> 24) == CODESEG)) {
+        char buf[MAXDESCR];
+        indent(0);
+        pdescr[0]=0;
+        get_string_from_child(r.rdi,buf,sizeof(buf));
+        debug("// Found possibly inlined '%s' at 0x%08x:\n",what,(int)r.rip);
+        indent(0);
+        debug("L %s (%x \"%s\") = ??? <inlined>\n",what,Xv(r.rdi),buf);
+        dump_pdescr(0);
+    }
 }
 
 /***********************************************************
@@ -6414,38 +6331,36 @@ inline void handle_process(void) {
 
 rethink:
 
-    i=0;
-
     if (ptrace(PTRACE_GETREGS,pid,0,&r)) {
         if (errno==ESRCH) return; else fatal("PTRACE_GETREGS failed",errno);
 
         if (first_getregs) {
             first_getregs=0;
-            if (is_&& (CODESEG != ( r.eip >> 24) ))
+            if (is_static && (CODESEG != ( r.rip >> 24) ))
                 debug("********************************************************************\n"
-                        "* WARNING: This is a binary, but initial eip is not in what *\n"
+                        "* WARNING: This is a binary, but initial rip is not in what *\n"
                         "* I am told to consider a code segment. If you have difficulties   *\n"
                         "* tracing this code, please consider using -X 0x%02x option.         *\n"
-                        "********************************************************************\n",(int)r.eip>>24);
+                        "********************************************************************\n",(int)r.rip>>24);
         }
 
     }
 
     if (T_goaway) {
         // Do some very basic handling not to break aegir.
-        if (AS_USHORT(op[0])==0x80cd) current->syscall=r.eax; else current->syscall=0;
+        if (AS_USHORT(op[0])==0x80cd) current->syscall=r.rax; else current->syscall=0;
         return;
     }
 
     // Apply reptable rules... uh...
 
-    for (;i<reptop;i++) {
-        if (reptable[i].ip == r.eip) {
+    for (i=0;i<reptop;i++) {
+        if (reptable[i].ip == r.rip) {
             unsigned int x=ptrace(PTRACE_PEEKDATA,pid,reptable[i].ad);
             x = (x & 0xffffff00) + reptable[i].va;
             ptrace(PTRACE_POKEDATA,pid,reptable[i].ad,x);
             indent(0);
-            debug("// EIP 0x%x -  changed address 0x%x to 0x%02x.\n",reptable[i].ip,reptable[i].ad,reptable[i].va);
+            debug("// rip 0x%x -  changed address 0x%x to 0x%02x.\n",reptable[i].ip,reptable[i].ad,reptable[i].va);
         } else if (!reptable[i].ip) {
             unsigned int x=ptrace(PTRACE_PEEKDATA,pid,reptable[i].ad);
             x = (x & 0xffffff00) + reptable[i].va;
@@ -6456,16 +6371,16 @@ rethink:
         }
     }
 
-    AS_UINT(op[0]) = ptrace(PTRACE_PEEKDATA,pid,r.eip,0);
-    AS_UINT(op[4]) = ptrace(PTRACE_PEEKDATA,pid,r.eip+4,0);
+    AS_UINT(op[0]) = ptrace(PTRACE_PEEKDATA,pid,r.rip,0);
+    AS_UINT(op[4]) = ptrace(PTRACE_PEEKDATA,pid,r.rip+4,0);
 
-    in_libc=INLIBC(r.eip);
+    in_libc=INLIBC(r.rip);
 
     if (!current) return;
 
     if (current->intercept) {
         if (!(--current->intercept)) {
-            display_libcall(r.eip);
+            display_libcall(r.rip);
             current->checkc2=0;
         }
     }
@@ -6482,7 +6397,7 @@ rethink:
 
     if (current->nest>=0) {
         int diff;
-        diff=abs(r.eip-oldip);
+        diff=abs(r.rip-oldip);
         if (diff>10) {
             char *x, *y;
             char tmp[500];
@@ -6490,21 +6405,21 @@ rethink:
             x=lookup_fnct(oldip,0,0);
             if (!x) x=find_name_ex(oldip,2,1);
             if (x) { strcpy(tmp,x); x=tmp; }
-            y=lookup_fnct(r.eip,0,0);
-            if (!y) y=find_name_ex(r.eip,2,1);
+            y=lookup_fnct(r.rip,0,0);
+            if (!y) y=find_name_ex(r.rip,2,1);
             if (x || y) {
                 if (!x) x="<null>";
                 if (!y) y="<null>";
                 if (strcmp(x,y)) {
-                    debug("*** EIP change (%x -> %x) (%s -> %s): %x %x %x %x\n",
-                            oldip,(int)r.eip,x,y,oldop[0],oldop[1],oldop[2],oldop[3]);
+                    debug("*** rip change (%x -> %x) (%s -> %s): %x %x %x %x\n",
+                            oldip,(int)r.rip,x,y,oldop[0],oldop[1],oldop[2],oldop[3]);
                 }
             }
         }
 
     }
 
-    oldip=r.eip;
+    oldip=r.rip;
     memcpy(oldop,op,sizeof(op));
 
 #endif /* HEAVY_DEBUG */
@@ -6518,8 +6433,8 @@ rethink:
             //      current->nest++;
             //      if (current->nest>=MAXNEST) fatal("MAXNEST exceeded in FF A3 handler",0);
             //      current->pst_top[current->nest]=0;
-            caddr=r.eip;
-            r.esp+=4;
+            caddr=r.rip;
+            r.rsp+=4;
             handle_fncall(0);
             return;
         }
@@ -6533,22 +6448,22 @@ rethink:
 #ifdef HEAVY_DEBUG
             debug("** RET C2 SEGMENT CHANGE\n");
 #endif /* HEAVY_DEBUG */
-            caddr=r.eip;
-            r.esp+=4; // Skip ret address, of course...
+            caddr=r.rip;
+            r.rsp+=4; // Skip ret address, of course...
             handle_fncall(0);
             return;
         }
     }
 
-    if (start_eip && (r.eip == start_eip)) {
+    if (start_rip && (r.rip == start_rip)) {
         current->nest=0;
         indent(0);
-        debug("// Partial trace: forced start at eip 0x%x\n",start_eip);
+        debug("// Partial trace: forced start at rip 0x%x\n",start_rip);
     }
 
-    if (stop_eip && (r.eip == stop_eip)) {
+    if (stop_rip && (r.rip == stop_rip)) {
         indent(0);
-        debug("// Partial trace: forced stop at eip 0x%x\n",stop_eip);
+        debug("// Partial trace: forced stop at rip 0x%x\n",stop_rip);
 
         while (--current->nest>= -1 ) {
             indent(0);
@@ -6568,20 +6483,20 @@ rethink:
     }
 
     //  if (current->nest>=0)
-    //    debug("[%d] %x: ASM %08x\n",pid,r.eip,AS_UINT(op[0]));
+    //    debug("[%d] %x: ASM %08x\n",pid,r.rip,AS_UINT(op[0]));
 
     // This is a bit time-expensive, but hell with it.
-    if ((current->nest >=0) && ((r.eip >> 24) == CODESEG) && (!current->justcalled)) {
-        int i;
+    if ((current->nest >=0) && ((r.rip >> 24) == CODESEG) && (!current->justcalled)) {
+        unsigned int i;
         for (i=1;i<=current->signals;i++)
-            if (get_handler(i)==r.eip) {
+            if (get_handler(i)==r.rip) {
                 unsigned int retaddr;
                 // We should never see that. Do an emergency return.
-                retaddr=ptrace(PTRACE_PEEKDATA,pid,r.esp,0);
-                // debug("* Note: doing a forced return from a signal handler at %x to %x.\n",r.eip,retaddr);
+                retaddr=ptrace(PTRACE_PEEKDATA,pid,r.rsp,0);
+                // debug("* Note: doing a forced return from a signal handler at %x to %x.\n",r.rip,retaddr);
                 handle_ret();
-                r.eip=retaddr;
-                r.esp+=4;
+                r.rip=retaddr;
+                r.rsp+=4;
                 ptrace(PTRACE_SETREGS,pid,0,&r);
                 goto rethink;
             }
@@ -6605,23 +6520,23 @@ rethink:
     // actually every attempt to follow pointer to function would look
     // this way. Lucky me!
 
-    else if (AS_USHORT(op[0])==0xd0ff) handle_regcall(r.eax);
-    else if (AS_USHORT(op[0])==0xd1ff) handle_regcall(r.ecx);
-    else if (AS_USHORT(op[0])==0xd2ff) handle_regcall(r.edx);
-    else if (AS_USHORT(op[0])==0xd3ff) handle_regcall(r.ebx);
-    else if (AS_USHORT(op[0])==0xd6ff) handle_regcall(r.esi);
-    else if (AS_USHORT(op[0])==0xd7ff) handle_regcall(r.edi);
+    else if (AS_USHORT(op[0])==0xd0ff) handle_regcall(r.rax);
+    else if (AS_USHORT(op[0])==0xd1ff) handle_regcall(r.rcx);
+    else if (AS_USHORT(op[0])==0xd2ff) handle_regcall(r.rdx);
+    else if (AS_USHORT(op[0])==0xd3ff) handle_regcall(r.rbx);
+    else if (AS_USHORT(op[0])==0xd6ff) handle_regcall(r.rsi);
+    else if (AS_USHORT(op[0])==0xd7ff) handle_regcall(r.rdi);
 
     // Handle terribly stupid reg off calls... we skip 0x18(%edi,%esi,1) things
     // for now.
 
-    else if (AS_USHORT(op[0])==0x55ff) handle_regoffcall((char)op[2]+(int)r.ebp);
-    else if (AS_USHORT(op[0])==0x93ff) handle_regoffcall(AS_UINT(op[2])+(int)r.ebx);
-    else if (AS_USHORT(op[0])==0x56ff) handle_regoffcall((char)op[2]+(int)r.esi);
-    else if (AS_USHORT(op[0])==0x52ff) handle_regoffcall((char)op[2]+(int)r.edx);
-    else if (AS_USHORT(op[0])==0x51ff) handle_regoffcall((char)op[2]+(int)r.ecx);
-    else if (AS_USHORT(op[0])==0x57ff) handle_regoffcall((char)op[2]+(int)r.edi);
-    else if (AS_USHORT(op[0])==0x50ff) handle_regoffcall((char)op[2]+(int)r.eax);
+    else if (AS_USHORT(op[0])==0x55ff) handle_regoffcall((char)op[2]+(int)r.rbp);
+    else if (AS_USHORT(op[0])==0x93ff) handle_regoffcall(AS_UINT(op[2])+(int)r.rbx);
+    else if (AS_USHORT(op[0])==0x56ff) handle_regoffcall((char)op[2]+(int)r.rsi);
+    else if (AS_USHORT(op[0])==0x52ff) handle_regoffcall((char)op[2]+(int)r.rdx);
+    else if (AS_USHORT(op[0])==0x51ff) handle_regoffcall((char)op[2]+(int)r.rcx);
+    else if (AS_USHORT(op[0])==0x57ff) handle_regoffcall((char)op[2]+(int)r.rdi);
+    else if (AS_USHORT(op[0])==0x50ff) handle_regoffcall((char)op[2]+(int)r.rax);
 
     // Check for RET (C2)...
     else if ((current->nest>=0) && (AS_USHORT(op[0])==0x08c2) /* && in_libc */) current->checkc2=1;
@@ -6636,10 +6551,10 @@ rethink:
         if (!current) return;
     }
 
-    // Handle MOV %eax, %eax by setting up retpar counter
+    // Handle MOV %rax, %rax by setting up retpar counter
     else if (AS_USHORT(op[0])==0xc089) current->retpar=3;
 
-    // Handle MOV $imm, %eax
+    // Handle MOV $imm, %rax
     else if (op[0]==0xb8) current->retpar=3;
 
     // Handle INT $0x80 (CD 80), syscall entry point
@@ -6750,9 +6665,9 @@ rethink:
     else if ( (AS_UINT(op[0]) == 0xffffffb9) && (AS_UINT(op[4]) == 0xf7aef2ff ) ) minline("strlen");
 
     else if (!in_libc && (current->nest>=0) && (op[0]==0xcc)) {
-        int i,got=0;
+        unsigned int i,got=0;
         for (i=1;i<=current->signals;i++)
-            if (get_handler(i)==r.eip) { got=1; break; }
+            if (get_handler(i)==r.rip) { got=1; break; }
         if (!got) {
             if (get_handler(SIGTRAP))
                 debug("***************************************************************\n"
@@ -6760,14 +6675,14 @@ rethink:
                         "* address 0x%08x. This int3 call is \"connected\" to a    *\n"
                         "* SIGTRAP handler at 0x%08x. Please use Aegir or nc-aegir *\n"
                         "* carefully remove this trap, see the documentation.          *\n"
-                        "***************************************************************\n",(int)r.eip,get_handler(SIGTRAP));
+                        "***************************************************************\n",(int)r.rip,get_handler(SIGTRAP));
             else
                 debug("************************************************************\n"
                         "* WARNING: I detected something that looks like a debugger *\n"
                         "* trap planted in the code at address 0x%08x. If you   *\n"
                         "* experience any problems, please use Aegir or nc-aegir to *\n"
                         "* carefully remove this trap, see the documentation.       *\n"
-                        "************************************************************\n",(int)r.eip);
+                        "************************************************************\n",(int)r.rip);
         }
     }
 
@@ -6813,24 +6728,24 @@ rethink:
             maddr=CH->addr;
 
             if (CH->areg[0]) {
-                if (CH->areg[1]=='a') maddr+=r.eax; else
-                    if (CH->areg[1]=='c') maddr+=r.ecx; else
-                        if (CH->areg[1]=='b' && CH->areg[2]=='x') maddr+=r.ebx; else
-                            if (CH->areg[1]=='d' && CH->areg[2]=='x') maddr+=r.edx; else
-                                if (CH->areg[1]=='d' && CH->areg[2]=='i') maddr+=r.edi; else
-                                    if (CH->areg[1]=='s' && CH->areg[2]=='i') maddr+=r.esi; else
-                                        if (CH->areg[1]=='b' && CH->areg[2]=='p') maddr+=r.ebp; else
+                if (CH->areg[1]=='a') maddr+=r.rax; else
+                    if (CH->areg[1]=='c') maddr+=r.rcx; else
+                        if (CH->areg[1]=='b' && CH->areg[2]=='x') maddr+=r.rbx; else
+                            if (CH->areg[1]=='d' && CH->areg[2]=='x') maddr+=r.rdx; else
+                                if (CH->areg[1]=='d' && CH->areg[2]=='i') maddr+=r.rdi; else
+                                    if (CH->areg[1]=='s' && CH->areg[2]=='i') maddr+=r.rsi; else
+                                        if (CH->areg[1]=='b' && CH->areg[2]=='p') maddr+=r.rbp; else
                                             goto exit_writecheck;
             }
 
             if (CH->ireg[0]) {
-                if (CH->ireg[1]=='a') maddr+=r.eax * CH->sc; else
-                    if (CH->ireg[1]=='c') maddr+=r.ecx * CH->sc; else
-                        if (CH->ireg[1]=='b' && CH->ireg[2]=='x') maddr+=r.ebx * CH->sc; else
-                            if (CH->ireg[1]=='d' && CH->ireg[2]=='x') maddr+=r.edx * CH->sc; else
-                                if (CH->ireg[1]=='d' && CH->ireg[2]=='i') maddr+=r.edi * CH->sc; else
-                                    if (CH->ireg[1]=='s' && CH->ireg[2]=='i') maddr+=r.esi * CH->sc; else
-                                        if (CH->ireg[1]=='b' && CH->ireg[2]=='p') maddr+=r.ebp * CH->sc; else
+                if (CH->ireg[1]=='a') maddr+=r.rax * CH->sc; else
+                    if (CH->ireg[1]=='c') maddr+=r.rcx * CH->sc; else
+                        if (CH->ireg[1]=='b' && CH->ireg[2]=='x') maddr+=r.rbx * CH->sc; else
+                            if (CH->ireg[1]=='d' && CH->ireg[2]=='x') maddr+=r.rdx * CH->sc; else
+                                if (CH->ireg[1]=='d' && CH->ireg[2]=='i') maddr+=r.rdi * CH->sc; else
+                                    if (CH->ireg[1]=='s' && CH->ireg[2]=='i') maddr+=r.rsi * CH->sc; else
+                                        if (CH->ireg[1]=='b' && CH->ireg[2]=='p') maddr+=r.rbp * CH->sc; else
                                             goto exit_writecheck;
             }
 
@@ -6842,8 +6757,8 @@ rethink:
                     // debug("codeseg %x maddr %x\n",CODESEG,(maddr >> 24));
                     if (INLIBC(maddr)) {
                         // indent(0);
-                        debug("* WARNING: strange write! eip=0x%x mnemonic=%s (0x%x+%s+%s*%d)"
-                                " addr=0x%x\n",(int)r.eip,CH->mnem,CH->addr,CH->areg[0]?CH->areg:
+                        debug("* WARNING: strange write! rip=0x%x mnemonic=%s (0x%x+%s+%s*%d)"
+                                " addr=0x%x\n",(int)r.rip,CH->mnem,CH->addr,CH->areg[0]?CH->areg:
                                 "none",CH->ireg[0]?CH->ireg:"none",CH->sc,maddr);
                         goto exit_writecheck;
                     }
@@ -6872,24 +6787,24 @@ exit_writecheck:
             maddr=CH->addr;
 
             if (CH->areg[0]) {
-                if (CH->areg[1]=='a') maddr+=r.eax; else
-                    if (CH->areg[1]=='c') maddr+=r.ecx; else
-                        if (CH->areg[1]=='b' && CH->areg[2]=='x') maddr+=r.ebx; else
-                            if (CH->areg[1]=='d' && CH->areg[2]=='x') maddr+=r.edx; else
-                                if (CH->areg[1]=='d' && CH->areg[2]=='i') maddr+=r.edi; else
-                                    if (CH->areg[1]=='s' && CH->areg[2]=='i') maddr+=r.esi; else
-                                        if (CH->areg[1]=='b' && CH->areg[2]=='p') maddr+=r.ebp; else
+                if (CH->areg[1]=='a') maddr+=r.rax; else
+                    if (CH->areg[1]=='c') maddr+=r.rcx; else
+                        if (CH->areg[1]=='b' && CH->areg[2]=='x') maddr+=r.rbx; else
+                            if (CH->areg[1]=='d' && CH->areg[2]=='x') maddr+=r.rdx; else
+                                if (CH->areg[1]=='d' && CH->areg[2]=='i') maddr+=r.rdi; else
+                                    if (CH->areg[1]=='s' && CH->areg[2]=='i') maddr+=r.rsi; else
+                                        if (CH->areg[1]=='b' && CH->areg[2]=='p') maddr+=r.rbp; else
                                             goto exit_readcheck;
             }
 
             if (CH->ireg[0]) {
-                if (CH->ireg[1]=='a') maddr+=r.eax * CH->sc; else
-                    if (CH->ireg[1]=='c') maddr+=r.ecx * CH->sc; else
-                        if (CH->ireg[1]=='b' && CH->ireg[2]=='x') maddr+=r.ebx * CH->sc; else
-                            if (CH->ireg[1]=='d' && CH->ireg[2]=='x') maddr+=r.edx * CH->sc; else
-                                if (CH->ireg[1]=='d' && CH->ireg[2]=='i') maddr+=r.edi * CH->sc; else
-                                    if (CH->ireg[1]=='s' && CH->ireg[2]=='i') maddr+=r.esi * CH->sc; else
-                                        if (CH->ireg[1]=='b' && CH->ireg[2]=='p') maddr+=r.ebp * CH->sc; else
+                if (CH->ireg[1]=='a') maddr+=r.rax * CH->sc; else
+                    if (CH->ireg[1]=='c') maddr+=r.rcx * CH->sc; else
+                        if (CH->ireg[1]=='b' && CH->ireg[2]=='x') maddr+=r.rbx * CH->sc; else
+                            if (CH->ireg[1]=='d' && CH->ireg[2]=='x') maddr+=r.rdx * CH->sc; else
+                                if (CH->ireg[1]=='d' && CH->ireg[2]=='i') maddr+=r.rdi * CH->sc; else
+                                    if (CH->ireg[1]=='s' && CH->ireg[2]=='i') maddr+=r.rsi * CH->sc; else
+                                        if (CH->ireg[1]=='b' && CH->ireg[2]=='p') maddr+=r.rbp * CH->sc; else
                                             goto exit_readcheck;
             }
 
@@ -6903,8 +6818,8 @@ exit_writecheck:
                     if (!INLIBC(maddr) && maddr) {
                         // indent(0);
                         if (strcmp(CH->mnem,"lea"))
-                            debug("* WARNING: strange read! eip=0x%x mnemonic=%s (0x%x+%s+%s*%d)"
-                                    " addr=0x%x\n",(int)r.eip,CH->mnem,CH->addr,CH->areg[0]?CH->areg:
+                            debug("* WARNING: strange read! rip=0x%x mnemonic=%s (0x%x+%s+%s*%d)"
+                                    " addr=0x%x\n",(int)r.rip,CH->mnem,CH->addr,CH->areg[0]?CH->areg:
                                     "none",CH->ireg[0]?CH->ireg:"none",CH->sc,maddr);
                         goto exit_readcheck;
                     }
@@ -6929,7 +6844,7 @@ exit_readcheck:
 
         // Ok, now some PLT magic. If we are in PLT and first JMP would
         // lead us into libc, we are following resolved name and we do not
-        // have to care - just check eip in next cycle. Otherwise, the
+        // have to care - just check rip in next cycle. Otherwise, the
         // symbol is not yet resolved, do not touch anything for a while.
 
         if (  (!current->donottouch) && (AS_USHORT(op[0]) == 0x25ff)) {
@@ -6952,20 +6867,6 @@ exit_readcheck:
 
 }
 
-// This is a dummy code for strlen() only.
-void minline(const char* what) {
-    if ((current->nest>=0) && ((r.eip >> 24) == CODESEG)) {
-        char buf[MAXDESCR];
-        indent(0);
-        pdescr[0]=0;
-        get_string_from_child(r.edi,buf,sizeof(buf));
-        debug("// Found possibly inlined '%s' at 0x%08x:\n",what,(int)r.eip);
-        indent(0);
-        debug("L %s (%x \"%s\") = ??? <inlined>\n",what,Xv(r.edi),buf);
-        dump_pdescr(0);
-    }
-}
-
 /*********************************************************
  * A-ha, this is our single-step handler. The idea is to *
  * find any child to sync, if any left, to handle some   *
@@ -6977,7 +6878,7 @@ int me_do_stopped;
 char skipwait;
 int rcount;
 
-void donothing(int x) {
+void donothing(int x __attribute__((unused))) {
 }
 
 inline void singlestep(void) {
@@ -6990,12 +6891,13 @@ inline void singlestep(void) {
                 if (!ptrace(PTRACE_GETREGS,pid,0,&r)) break;
             if (first_getregs) {
                 first_getregs=0;
-                if (is_&& (CODESEG != ( r.eip >> 24) ))
-                    debug("********************************************************************\n"
-                            "* WARNING: This is a binary, but initial eip is not in what *\n"
-                            "* I am told to consider a code segment. If you have difficulties   *\n"
-                            "* tracing this code, please consider using -X 0x%02x option.         *\n"
-                            "********************************************************************\n",(int)r.eip >> 24);
+                if (is_static && (CODESEG != ( r.rip >> 24) ))
+                    debug("***************************************************************\n"
+                          "* WARNING: This is a binary, but initial rip is not in what I *\n"
+                          "* consider a code segment. If you have difficulties tracing   *\n"
+                          "* tracing this code, please consider using -X 0x%02llx option.    *\n"
+                          "***************************************************************\n",
+                          (r.rip >> 24));
                 break_sendentity();
             }
             fflush(0);
@@ -7026,7 +6928,7 @@ waitagain:
                 blocking_syscall=current->syscall;
                 break_messenger();
                 fflush(0);
-                //fprintf(stderr,"Had to wait at %x, sys %d blo %d sto %d con %d\n",r.eip,current->syscall,
+                //fprintf(stderr,"Had to wait at %x, sys %d blo %d sto %d con %d\n",r.rip,current->syscall,
                 //       blocking_syscall,break_stopped,break_continuing);
             }
             goto waitagain;
@@ -7092,20 +6994,20 @@ waitagain:
         }
         if (current->syscalldone==1) {
             ptrace(PTRACE_GETREGS,pid,0,&r);
-            //      fprintf(stderr,"syscall is DONE at 0x%x  [%d] == %d.\n",r.eip,current->syscall,r.eax);
+            //      fprintf(stderr,"syscall is DONE at 0x%x  [%d] == %d.\n",r.rip,current->syscall,r.rax);
             ret_syscall();
 
 #define ERESTARTSYS     512
 
             if (T_dostep && break_stopped) {
-                if (r.eax == -ERESTARTSYS) break_tellwillresume(1);
+                if (r.rax == -ERESTARTSYS) break_tellwillresume(1);
                 else break_tellwillresume(0);
             }
 
             current->syscalldone=2;
             rcount=0;
         } else if (!current->syscalldone && current->syscall) {
-            //      fprintf(stderr,"syscall %d is set at 0x%x, setting done.\n",current->syscall,r.eip);
+            //      fprintf(stderr,"syscall %d is set at 0x%x, setting done.\n",current->syscall,r.rip);
             current->syscalldone=1;
             sig=0;
             goto justptrace;
@@ -7260,17 +7162,17 @@ void check_binary(const char* path,unsigned char script) {
 
 void addr_check(void) {
     void *x;
-    unsigned int y;
+    unsigned long int y;
     x=dlopen("/lib/libc.so.6",RTLD_LAZY|RTLD_GLOBAL);
     if (!x) return; // Huh?
-    y=(unsigned int)dlsym(x,"open");
+    y=(unsigned long int)dlsym(x,"open");
     dlclose(x);
     if (!INLIBC(y)) {
         debug("***********************************************************\n"
                 "* During installation, I have determined that libraries   *\n"
                 "* in your system are mapped at 0x%01xnnnnnnn. Now, I've just *\n"
                 "* performed simple test to discover this is no longer     *\n"
-                "* true: library function 'open' is mapped at 0x%08x.  *\n"
+                "* true: library function 'open' is mapped at 0x%08lx.  *\n"
                 "* It might be because you've upgraded your kernel or have *\n"
                 "* some security-enhancing random address mapping feature. *\n"
                 "* In first case, all you have to do is to recompile me.   *\n"
@@ -7299,7 +7201,7 @@ void addr_check(void) {
  * Burn in flames *
  ******************/
 
-void dienow(int x) {
+void dienow(int x __attribute__((unused))) {
     fatal("interrupted",-2);
 }
 
@@ -7317,8 +7219,8 @@ void usage(void) {
             "       -E PAR=VAL     - add PAR to the environment (e.g. LD_PRELOAD)\n"
             "       -L dbase       - load additional fingerprints database\n"
             "       -t num         - main is num rets away from ctors (default: 2)\n"
-            "       -R [a]:[b]     - start trace when eip=a and/xor stop when eip=b\n"
-            "       -P [i:]a:v     - replace byte at address a with v [when eip=i]\n"
+            "       -R [a]:[b]     - start trace when rip=a and/xor stop when rip=b\n"
+            "       -P [i:]a:v     - replace byte at address a with v [when rip=i]\n"
             "       -W path        - run in debugger mode; listen on unix socket 'path'\n"
             "       -X seg         - use X as a code segment prefix (first byte value)\n"
             "       -s             - disable libc prolog detection (not recommended)\n"
@@ -7331,7 +7233,7 @@ void usage(void) {
             "       -m             - do not trace memory writes\n"
             "       -i             - do not indent\n"
             "       -x             - do not try to skip libc outro (no exit from main)\n"
-            "       -p             - prefix every line with eip\n"
+            "       -p             - prefix every line with rip\n"
             "       -A             - force return value on all functions\n"
             "       -q             - don't report last line to debugger (only with -W)\n"
             "       -G             - go away! Do not do any high-level analysis\n"
@@ -7365,8 +7267,8 @@ int main(const int argc, const char** argv) {
     signal(SIGINT,dienow);
     signal(SIGTERM,dienow);
 
-    STACKSEG=((unsigned int)(&dummy) >> 24);
-    CODESEG=((unsigned int)(main) >> 24);
+    STACKSEG=((unsigned long int)(&dummy) >> 24);
+    CODESEG=((unsigned long int)(main) >> 24);
     running_under_ncaegir=getenv("NCAEGIR_PIPE");
     unsetenv("NCAEGIR_PIPE");
     unsetenv("NCAEGIR_SOCK");
@@ -7435,8 +7337,8 @@ int main(const int argc, const char** argv) {
 
             case 'R':
                       if (!strchr(optarg,':')) fatal("-R needs :",-1);
-                      if (strchr(optarg,':')==optarg) sscanf(optarg,":%x",&stop_eip);
-                      else sscanf(optarg,"%x:%x",&start_eip,&stop_eip);
+                      if (strchr(optarg,':')==optarg) sscanf(optarg,":%x",&stop_rip);
+                      else sscanf(optarg,"%x:%x",&start_rip,&stop_rip);
                       break;
 
             case 'F':

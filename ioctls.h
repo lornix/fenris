@@ -31,7 +31,7 @@
 #define _HAVE_IOCTLS_H 1
 
 struct ioctl_data {
-    int n;
+    unsigned int n;
     char* name;
 };
 

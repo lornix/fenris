@@ -27,6 +27,8 @@
 
 #include "config.h"
 
+#include "common.h"
+
 struct fenris_mem {
     unsigned int  addr,  // Start addr of memory block (0 - unused)
                   len;   // End addr of memory block
@@ -54,7 +56,7 @@ struct fenris_map {
 struct fenris_process {
     int           pid,                  // process id
                   nest;                 // call nesting level
-    struct user_regs_struct  pr;        // saved regs (syscall)
+    struct my_user_regs_struct pr;      // saved regs (syscall)
     unsigned char atret,                // atret counter for prolog detection
                   intercept,            // delayed display_libcall() counter
                   getname,              // look for library function names
@@ -98,7 +100,7 @@ struct fenris_process {
 
     unsigned int fntop,                 // top of function stacks
                  fnid[MAXNEST],         // function ID stack
-                 fneip[MAXNEST],        // function call eip
+                 fnrip[MAXNEST],        // function call rip
                  frstart[MAXNEST],      // function frame start stack
                  frend[MAXNEST];        // function frame end stack
 
