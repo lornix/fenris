@@ -290,7 +290,7 @@ inline void * __constant_memcpy(void * to, const void * from, size_t n)
             *(4+(unsigned long *)to) = *(4+(const unsigned long *)from);
             return to;
     }
-#define COMMON(x) \
+#define COMMON1(x) \
     __asm__ __volatile__( \
             "rep ; movsl" \
             x \
@@ -300,14 +300,14 @@ inline void * __constant_memcpy(void * to, const void * from, size_t n)
     {
         int d0, d1, d2;
         switch (n % 4) {
-            case 0: COMMON(""); return to;
-            case 1: COMMON("\n\tmovsb"); return to;
-            case 2: COMMON("\n\tmovsw"); return to;
-            default: COMMON("\n\tmovsw\n\tmovsb"); return to;
+            case 0: COMMON1(""); return to;
+            case 1: COMMON1("\n\tmovsb"); return to;
+            case 2: COMMON1("\n\tmovsw"); return to;
+            default: COMMON1("\n\tmovsw\n\tmovsb"); return to;
         }
     }
 
-#undef COMMON
+#undef COMMON1
 }
 
 #define __HAVE_ARCH_MEMCPY
@@ -477,7 +477,7 @@ inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, siz
             *(unsigned long *)s = pattern;
             return s;
     }
-#define COMMON(x) \
+#define COMMON2(x) \
     __asm__  __volatile__( \
             "rep ; stosl" \
             x \
@@ -487,14 +487,14 @@ inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, siz
     {
         int d0, d1;
         switch (count % 4) {
-            case 0: COMMON(""); return s;
-            case 1: COMMON("\n\tstosb"); return s;
-            case 2: COMMON("\n\tstosw"); return s;
-            default: COMMON("\n\tstosw\n\tstosb"); return s;
+            case 0: COMMON2(""); return s;
+            case 1: COMMON2("\n\tstosb"); return s;
+            case 2: COMMON2("\n\tstosw"); return s;
+            default: COMMON2("\n\tstosw\n\tstosb"); return s;
         }
     }
 
-#undef COMMON
+#undef COMMON2
 }
 
 #define __constant_c_x_memset(s, c, count) \

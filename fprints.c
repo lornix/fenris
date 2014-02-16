@@ -36,7 +36,9 @@
 
 unsigned char buf[SIGNATSIZE+4];
 
-#define CODESEG (((unsigned int)buf) >> 24)
+/*
+ * #define CODESEG (((unsigned int)buf) >> 24)
+ */
 
 unsigned int result[4];
 MD5_CTX kuku;
@@ -92,7 +94,7 @@ int main(int argc,char* argv[]) {
                 bzero(buf,sizeof(buf));
                 read(f,buf,SIGNATSIZE);
 
-                f=fnprint_compute(buf,CODESEG);
+                f=fnprint_compute(buf,(((unsigned int)buf) >> 24));
 
                 if (f!=0xA120AD5C) { // Ignore only NOPs
                     printf("[%s+%d] %s ",argv[1],off,name);

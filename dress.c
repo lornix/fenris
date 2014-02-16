@@ -100,7 +100,9 @@ unsigned char* code;
 unsigned int calls[MAXCALLS];
 unsigned int ctop;
 
-#define CODESEG (((unsigned int)calls) >> 24)
+/*
+ * #define CODESEG (((unsigned int)calls) >> 24)
+ */
 
 static inline void found_fnprint_file(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
 {
@@ -232,7 +234,7 @@ int main(int argc,char* argv[]) {
 
         memcpy(buf,&code[calls[i]],SIGNATSIZE);
 
-        r = fnprint_compute(buf, CODESEG);
+        r = fnprint_compute(buf, (((unsigned int)calls) >> 24));
 
         if (tofile)
             find_fnprints(r, found_fnprint_file, finish_fnprint_file, calls[i]);
