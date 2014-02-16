@@ -70,12 +70,12 @@ inline void original_free(void *r)
     return free(r);
 }
 
-inline void fatal(const char *msg)
+inline void allocs_fatal(const char *msg)
 {
     if (global_error_handler)
         global_error_handler(msg, 0);
     else {
-        printf("%s\n",msg);
+        fprintf(stderr,"%s\n",msg);
         exit(1);
     }
 }
@@ -129,10 +129,10 @@ inline void* my_malloc(const int size)
     int siz;
 
     if (size <= 0)
-        fatal("my_malloc size is <= 0");
+        allocs_fatal("my_malloc size is <= 0");
     ret=original_malloc(size);
     if (!ret)
-        fatal("malloc failed");
+        allocs_fatal("malloc failed");
     bzero(ret, size);
     siz=malloc_usable_size(ret);
     if (size < siz)
@@ -159,14 +159,14 @@ inline void* my_realloc(void *r,const int size)
     }
     register_atexit();
     if (!RSTree_remove(allocs_tree, (int)r))
-        fatal("realloc on non-allocated memory");
+        allocs_fatal("realloc on non-allocated memory");
 #endif /* DEBUG */
     if (size < 0)
-        fatal("my_realloc size is < 0");
+        allocs_fatal("my_realloc size is < 0");
     oldsiz=malloc_usable_size(r);
     ret=original_realloc(r, size);
     if (size != 0 && !ret)
-        fatal("realloc failed");
+        allocs_fatal("realloc failed");
     if (size > oldsiz)
         bzero(ret+oldsiz, size-oldsiz);
 #ifdef DEBUG
@@ -182,7 +182,7 @@ inline void* my_strdup(const void *r)
 
     ret=original_strdup(r);
     if (!ret)
-        fatal("strdup failed");
+        allocs_fatal("strdup failed");
 #ifdef DEBUG
     register_atexit();
     RSTree_put_val(allocs_tree, (int)ret, malloc_usable_size(ret));
@@ -196,7 +196,7 @@ inline void my_free(void *r)
 #ifdef DEBUG
     register_atexit();
     if (!RSTree_remove(allocs_tree, (int)r))
-        fatal("free for non-allocated chunk");
+        allocs_fatal("free for non-allocated chunk");
     memop++;
 #endif /* DEBUG */
     original_free(r);

@@ -85,41 +85,5 @@ int load_fnbase(const char* x);
 /* return the number of loaded fingerprints */
 int fnprints_count();
 
-/* compute fingerprint for bytes given in sig
- * codeseg is the code segment used to detect relocations
- * sig has to be at last SIGNATSIZE+4 bytes long */
-
-inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
-    unsigned int result[4];
-    MD5_CTX kuku;
-    int i,tagme=0;
-
-    for (i=2;i<SIGNATSIZE;i++) {
-        // Three NOPs? That ain't no stinkin' code!
-        if ((sig[i-2]==0x90) && (sig[i-1] == 0x90) && (sig[i] == 0x90)) {
-            sig[i-2]=sig[i-1]=0;
-            tagme=1;
-        }
-
-        if (tagme) sig[i]=0;
-    }
-
-    // I suck. TODO: parse relocs in signatures. For now,
-    // just carefully exterminate anything interesting ;)
-    for (i=0;i<SIGNATSIZE;i++)
-        if (sig[i]==codeseg) bzero(&sig[i-3],4);
-
-    for (i=0;i<SIGNATSIZE;i++)
-        if (sig[i]==0xe8) bzero(&sig[i+1],4);
-
-    MD5_Init(&kuku);
-    MD5_Update(&kuku,sig,SIGNATSIZE);
-    MD5_Final((unsigned char*)result,&kuku);
-
-    result[0] ^= result[2];
-    result[1] ^= result[3];
-
-    return (result[0] ^ result[1]);
-}
-
+unsigned long fnprint_compute(unsigned char *sig, int codeseg);
 #endif /* not _HAVE_LIBFNPRINTS_H */
