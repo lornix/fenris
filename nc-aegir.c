@@ -464,7 +464,7 @@ static void do_disass(char* param) {
         len=0;
     } else {
         if (strchr(param,' ')) {
-            if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
+            if (sscanf(param,"%lld %lld",&l1,&l2)!=2) {
                 MSG("Numeric parameters required.\n");
                 return;
             }
@@ -476,7 +476,7 @@ static void do_disass(char* param) {
                 return;
             }
         } else {
-            if (sscanf(param,"%Li",&l1)!=1) {
+            if (sscanf(param,"%lld",&l1)!=1) {
                 MSG("The parameter needs to be an address.\n");
                 return;
             }
@@ -572,7 +572,7 @@ static void do_memdump(char* param) {
         return;
     } else {
         if (strchr(param,' ')) {
-            if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
+            if (sscanf(param,"%lld %lld",&l1,&l2)!=2) {
                 MSG("Numeric parameters required.\n");
                 return;
             }
@@ -584,7 +584,7 @@ static void do_memdump(char* param) {
                 return;
             }
         } else {
-            if (sscanf(param,"%Li",&l1)!=1) {
+            if (sscanf(param,"%lld",&l1)!=1) {
                 MSG("Numeric parameter required.\n");
                 return;
             }
@@ -623,7 +623,7 @@ static void do_rwatch(char* param) {
         MSG("Two parameters required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
+        if (sscanf(param,"%lld %lld",&l1,&l2)!=2) {
             MSG("Two numeric parameters required.\n");
             return;
         }
@@ -684,7 +684,7 @@ static void do_wwatch(char* param) {
         MSG("Two parameters required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
+        if (sscanf(param,"%lld %lld",&l1,&l2)!=2) {
             MSG("Two numeric parameters required.\n");
             return;
         }
@@ -710,7 +710,7 @@ static void do_setmem(char* param) {
         MSG("Two parameters required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
+        if (sscanf(param,"%lld %lld",&l1,&l2)!=2) {
             MSG("Numeric parameters required.\n");
             return;
         }
@@ -736,7 +736,7 @@ static void do_strdump(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -805,7 +805,7 @@ static void do_setreg(char* param) {
         return;
     }
 
-    if (sscanf(param,"%s %Li",regname,&l1)!=2) {
+    if (sscanf(param,"%s %lld",regname,&l1)!=2) {
         MSG("Two parameters, register name and numeric value, required.\n");
         return;
     }
@@ -919,7 +919,7 @@ static void do_addr(char* param) {
         return;
     }
 
-    if (sscanf(param,"%Li",&l1)!=1) {
+    if (sscanf(param,"%lld",&l1)!=1) {
         x=(void*)send_message(DMSG_GETADDR,param,0);
         if (!*x) MSG("Name '%s' not found.\n",param);
         else {
@@ -943,7 +943,7 @@ static void do_fd(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -962,7 +962,7 @@ static void do_break(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -981,7 +981,7 @@ static void do_fprint(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -1001,7 +1001,7 @@ static void do_sbreak(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
 
             for (st=0;st<256;st++)
                 if (scnames[st])
@@ -1028,7 +1028,7 @@ static void do_ibreak(char* param) {
         MSG("Parameter required.\n");
         return;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             for (st=0;st<MAXMYSIG;st++)
                 if (my_siglist[st])
                     if (!strcasecmp(param,my_siglist[st])) break;
@@ -1053,7 +1053,7 @@ static void do_ret(char* param) {
     if (!param) {
         st=1;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -1073,7 +1073,7 @@ static void do_step(char* param) {
     if (!param) {
         st=1;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
@@ -1104,7 +1104,7 @@ static void do_del(char* param) {
     if (!param) {
         st=1;
     } else {
-        if (sscanf(param,"%Li",&l1)!=1) {
+        if (sscanf(param,"%lld",&l1)!=1) {
             MSG("Numeric parameter required.\n");
             return;
         }
