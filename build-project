@@ -31,144 +31,32 @@ PROGNAME4=dress
 PROGNAME5=aegir
 PROGNAME6=nc-aegir
 
-if [ "$1" = "install" ]; then
-    make install
-    exit 1
-fi
-
 CFLAGS="-O9 -fomit-frame-pointer -funroll-loops -fexpensive-optimizations \
     -ffast-math -Wall"
 
 CFLAGS2="-O9 -fomit-frame-pointer -funroll-loops -fexpensive-optimizations \
     -ffast-math "
 
-if [ "$1" = "minimal" ]; then
-    CFLAGS="$CFLAGS -fno-inline -DMINIMAL=1"
-fi
-
 LDFLAGS="-ldl -lbfd -liberty -rdynamic"
-
-if [ "$HOSTNAME" = "nimue.bos.bindview.com" ]; then
-    LDFLAGS="$LDFLAGS -lnoexit"
-fi
 
 if [ "$1" = "debug" ]; then
     CFLAGS="-Wall -ggdb -DDEBUG=1"
     CFLAGS2="-ggdb -DDEBUG=1"
-    NOSTRIP=1
 fi
 
 if [ "$1" = "heavy" ]; then
     CFLAGS="-Wall -ggdb -DDEBUG=1 -DHEAVY_DEBUG=1"
     CFLAGS2="-ggdb -DDEBUG=1  -DHEAVY_DEBUG=1"
-    NOSTRIP=1
 fi
 
 if [ "$1" = "prof" ]; then
     CFLAGS="-Wall -DDEBUG=1 -fno-inline -ggdb -pg -DPROFILE=1"
     CFLAGS2="-DDEBUG=1 -fno-inline -ggdb -pg -DPROFILE=1"
-    NOSTRIP=1
 fi
-
-OKLIBC="2.0.7 2.1.92 2.2.2 2.2 2.1.3 2.2.4 2.3.2"
-OKGCC="2.8.1 2.96 2.95.2 2.95.3 3.2.2"
-
-ulimit -c 0 2>/dev/null
-
-clear
-cat doc/fenris.asc
-usleep 100000 &>/dev/null
-test "$1" = "" && sleep 2
-clear
-
-echo
-echo "fenris - program execution path analysis tool"
-echo "---------------------------------------------"
-echo "Copyright (C) 2001, 2002 by Bindview Corporation"
-echo "Portions Copyright (C) 2001, 2002 by their respective contributors"
-echo "Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>"
-echo
-
-echo "  Fenris is still under development. Your comments, complaints,"
-echo "  bugfixes, ideas and code are welcome and will be greatly appreciated."
-echo "  If you notice any problems during the compilation process or while"
-echo "  using this software, please consult the documentation and use "
-echo "  'fenris-bug' reporting application. Thanks!"
-echo
-
-test "$1" = "" && sleep 2
-
-BUILD=`cat doc/.build 2>/dev/null`
-test "$BUILD" = "" && BUILD=0
-
-if [ "$HOSTNAME" = "nimue.bos.bindview.com" -o "$HOSTNAME" = "io.rogue-squirrel.org" ]; then
-    BUILD=$[BUILD+1]
-    echo "$BUILD" >doc/.build 2>/dev/null
-    echo -n "[?] Changes in this build: "
-    read x
-    if [ ! "$x" = "" ]; then
-        echo "$VERSION [$BUILD]: $x" >.tmp
-        cat doc/ChangeLog >>.tmp 2>/dev/null
-        cat .tmp >doc/ChangeLog
-        rm -f .tmp
-    fi
-    tar cf /home/lcamtuf/fenris-back.tar /fenris 2>/dev/null
-fi
-
-echo "[+] Version (build): $VERSION ($BUILD)"
-
-if [ "$2" = "strip" ]; then
-    LAMESTRIP=1
-    echo "[*] Overriding sanity checks! Yuppi!"
-fi
-
-if [ "$1" = "strip" ]; then
-    LAMESTRIP=1
-    echo "[*] Overriding sanity checks! Yuppi!"
-fi
-
-echo -n "[+] Operating system check: "
-
-SYSNAME=`uname -s 2>/dev/null`
-
-test "$SYSNAME" = "" && SYSNAME="unknown"
-
-if [ ! "$SYSNAME" = "Linux" ]; then
-    echo "$SYSNAME is not supported!"
-    echo "[-] I do not support your OS yet. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo "Linux (supported)"
-
-echo -n "[+] Processor check: "
-
-PROC=`uname -m 2>/dev/null`
-test "$PROC" = "" && PROC="unknown"
-PROCOK=`echo $PROC|grep ^i.86\$ 2>/dev/null`
-
-if [ "$PROCOK" = "" ]; then
-    echo "$PROC is not supported!"
-    echo "[-] I do not support your CPU yet. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo "$PROC (supported)"
 
 echo -n "[+] GNU C library version: "
 
 LIBCVER=`/lib/libc.so.6|awk -F'version ' '{print $2}'|awk -F, '{print $1}'|head -1`
-
-if [ "$LIBCVER" = "" ]; then
-    echo "cannot determine libc version!"
-    echo "[-] I am afraid I cannot continue. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo -n "$LIBCVER"
 
 unset VEROK
 for i in $OKLIBC; do test "$LIBCVER" = "$i" && VEROK="1"; done
@@ -180,65 +68,6 @@ if [ "$VEROK" = "" ]; then
     echo
 else
     echo " (tested)"
-fi
-
-echo -n "[+] GNU C compiler version: "
-
-GCCVER=`gcc -v 2>&1|grep 'gcc version' 2>/dev/null|awk '{print $3}' 2>/dev/null`
-
-if [ "$GCCVER" = "" ]; then
-    echo "problems calling gcc!"
-    echo "[-] I cannot continue. Please consult documentation."
-    echo
-    exit 1
-fi
-
-echo -n "$GCCVER"
-
-unset VEROK
-for i in $OKGCC; do test "$GCCVER" = "$i" && VEROK="1"; done
-
-if [ "$VEROK" = "" ]; then
-    echo " (untested!)"
-    echo "[!] This voids your warranty ;) Please consult documentation."
-    echo "    And, if this is not a big deal, contact author :)"
-    echo
-else
-    echo " (tested)"
-fi
-
-echo -n "[+] GNU libc binary test: "
-
-STRILI=`file -L /lib/libc.so.6 2>/dev/null|grep 'not strip'`
-GENLI=`file -L /lib/libc.so.6 2>/dev/null|grep 'strip'`
-
-if [ "$GENLI" = "" ]; then
-    echo "failed!"
-    echo "[-] I cannot read your /lib/libc.so.6 (or your 'file' utility"
-    echo "    is broken). Please fix it. Yes, you need libc6, yes, I need"
-    echo "    to be able to read it. Thanks =)"
-    echo
-    exit 1
-fi
-
-if [ "$STRILI" = "" ]; then
-    echo "stripped?"
-    if [ "$LAMESTRIP" = "" ]; then
-        echo "[-] Come on, you didn't strip your libc binary, did you?;)"
-        echo "    I am sorry, but I really want to read some information"
-        echo "    from there. Can you fix that? If not, please run me providing"
-        echo "    'strip' as second parameter of this script, e.g.:"
-        echo
-        echo "      $0 all strip"
-        echo "      $0 minimal strip"
-        echo
-        echo "    I would not be able to perform some checks, but I'll try to"
-        echo "    continue and, well, maybe everything will be just fine?;)"
-        echo
-        exit 1
-    fi
-else
-    echo "passed"
 fi
 
 echo -n "[+] GCC crt code binary test: "
@@ -254,26 +83,6 @@ if [ "$GENLI" = "" ]; then
     exit 1
 fi
 
-if [ "$STRILI" = "" ]; then
-    echo "stripped?"
-    if [ "$LAMESTRIP" = "" ]; then
-        echo "[-] Come on, you didn't strip your crt binary, did you?;)"
-        echo "    I am sorry, but I really want to read some information"
-        echo "    from there. Can you fix that? If not, please run me providing"
-        echo "    'strip' as second parameter of this script, e.g.:"
-        echo
-        echo "      $0 all strip"
-        echo "      $0 minimal strip"
-        echo
-        echo "    I would not be able to perform some checks, but I'll try to"
-        echo "    continue and, well, maybe everything will be just fine?;)"
-        echo
-        exit 1
-    fi
-else
-    echo "passed"
-fi
-
 echo -n "[+] GNU libc linker test: "
 
 STRILI=`file -L /lib/ld-linux.so.2 2>/dev/null|grep 'not strip'`
@@ -286,26 +95,6 @@ if [ "$GENLI" = "" ]; then
     echo "    to be able to read it. Thanks =)"
     echo
     exit 1
-fi
-
-if [ "$STRILI" = "" ]; then
-    echo "stripped?"
-    if [ "$LAMESTRIP" = "" ]; then
-        echo "[-] Come on, you didn't strip your crt binary, did you?;)"
-        echo "    I am sorry, but I really want to read some information"
-        echo "    from there. Can you fix that? If not, please run me providing"
-        echo "    'strip' as second parameter of this script, e.g.:"
-        echo
-        echo "      $0 all strip"
-        echo "      $0 minimal strip"
-        echo
-        echo "    I would not be able to perform some checks, but I'll try to"
-        echo "    continue and, well, maybe everything will be just fine?;)"
-        echo
-        exit 1
-    fi
-else
-    echo "passed"
 fi
 
 echo -n "[+] Endian and sizeof() checks: "
@@ -725,19 +514,6 @@ echo -n "[*] Compiling libi386: "
 
 gcc -c $CFLAGS2 libdisasm/i386.c 2>.testerr
 
-if [ ! -s i386.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
-
 echo "done"
 
 if [ -s .testerr ]; then
@@ -750,19 +526,6 @@ rm -f .testerr
 echo -n "[*] Compiling libdis: "
 
 gcc -c $CFLAGS2 libdisasm/libdis.c 2>.testerr
-
-if [ ! -s libdis.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -777,19 +540,6 @@ echo -n "[*] Compiling i386-dis: "
 
 gcc -c $CFLAGS2 libdisasm/opcodes2/i386-dis.c 2>.testerr
 
-if [ ! -s i386-dis.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
-
 echo "done"
 
 if [ -s .testerr ]; then
@@ -802,19 +552,6 @@ rm -f .testerr
 echo -n "[*] Compiling hooks: "
 
 gcc -c $CFLAGS2 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG  hooks.c 2>.testerr
-
-if [ ! -s hooks.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -829,19 +566,6 @@ echo -n "[*] Compiling opdis: "
 
 gcc -c $CFLAGS2 libdisasm/opcodes2/opdis.c 2>.testerr
 
-if [ ! -s opdis.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
-
 echo "done"
 
 if [ -s .testerr ]; then
@@ -854,19 +578,6 @@ rm -f .testerr
 echo -n "[*] Compiling rstree: "
 
 gcc -c $CFLAGS rstree.c 2>.testerr
-
-if [ ! -s rstree.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work our. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -881,19 +592,6 @@ echo -n "[*] Compiling allocs: "
 
 gcc -c $CFLAGS allocs.c 2>.testerr
 
-if [ ! -s allocs.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work our. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
-
 echo "done"
 
 if [ -s .testerr ]; then
@@ -906,19 +604,6 @@ rm -f .testerr
 echo -n "[*] Compiling libfnprints: "
 
 gcc -c $CFLAGS libfnprints.c 2>.testerr
-
-if [ ! -s libfnprints.o ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -933,19 +618,6 @@ echo -n "[*] Compiling $PROGNAME (this might take few minutes): "
 
 gcc $LDFLAGS $CFLAGS $PROGNAME.c -o $PROGNAME -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG i386.o libdis.o rstree.o allocs.o libfnprints.o hooks.o $LDFLAGS 2>.testerr
 
-if [ ! -s $PROGNAME ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
-
 echo "done"
 
 if [ -s .testerr ]; then
@@ -954,24 +626,10 @@ if [ -s .testerr ]; then
 fi
 
 rm -f .testerr
-test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
 
 echo -n "[*] Compiling $PROGNAME2: "
 
 gcc $LDFLAGS $CFLAGS $PROGNAME2.c -o $PROGNAME2 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG 2>.testerr
-
-if [ ! -s $PROGNAME2 ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -983,19 +641,6 @@ fi
 echo -n "[*] Compiling $PROGNAME3: "
 
 gcc $LDFLAGS $CFLAGS $PROGNAME3.c -o $PROGNAME3 -DVERSION=\"$VERSION\" -DBUILD=\"$BUILD\" -DLIBCSEG=$MAPSEG $LDFLAGS 2>.testerr
-
-if [ ! -s $PROGNAME3 ]; then
-    echo "failed!"
-    echo "[-] Sorry it didn't work out. Please consult the documentation."
-    echo "[-] Note: if this is because of no memory left, try './build-project minimal',"
-    echo "[-] or, better, temporarily enable some swap memory."
-    echo
-    echo "[-] Error messages:"
-    cat .testerr
-    echo
-    rm -f .testerr
-    exit 1
-fi
 
 echo "done"
 
@@ -1081,17 +726,9 @@ else
     sleep 1
 fi
 
-test "$NOSTRIP" = "" && strip $PROGNAME 2>/dev/null
-test "$NOSTRIP" = "" && strip $PROGNAME4 2>/dev/null
-test "$NOSTRIP" = "" && strip $PROGNAME2 2>/dev/null
-test "$NOSTRIP" = "" && strip $PROGNAME3 2>/dev/null
-test "$NOSTRIP" = "" && strip $PROGNAME5 2>/dev/null
-test "$NOSTRIP" = "" && strip $PROGNAME6 2>/dev/null
-
 HUH=""
 test "$1" = "" && HUH=1
 test "$1" = "all" && HUH=1
-test "$1" = "minimal" && HUH=1
 
 if [ "$HUH" = "1" ]; then
     touch fnprints.dat
@@ -1143,11 +780,4 @@ if [ "$HUH" = "1" ]; then
 
 fi
 
-if [ -f test.c ]; then
-    echo "[+] Ah, I see you have test.c here... Lemme compile it for you!"
-    gcc test.c &>/dev/null
-fi
-
-echo "[+] All set. Please read the documentation."
-echo
 exit 0

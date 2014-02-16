@@ -569,9 +569,6 @@
      make all      - typical compilation; highly optimized, but build
                      process is time and memory consuming
 
-     make minimal  - optimized version; should compile much faster,
-                     but might deliver lower performance.
-
      make debug    - debugging version; this enables memory tracing,
                      debugging symbols, disables all optimizations
                      and such; not recommended for everyday use.
@@ -1741,13 +1738,6 @@
   - Fenris does not support clone()d threads. This can be fixed, but
     requires some hacking around process tables and many other routines -
     and a good synchronization of logs.
-
-  - Compilation takes insane amounts of memory and time (can take few hundred
-    megs); this is due to GCC - it has problems with large number of inlined
-    functions. Workaround is to change many of them with less elegant
-    but much more efficient #defines. Until then, you can './build-project minimal',
-    which added -fno-inline to compilation options, or simply enable some
-    swap memory and wait patiently.
 
   - Syscalls are reported AFTER a syscall is completed, except for some cases
     that are known not to return (execve, exit). It would require major

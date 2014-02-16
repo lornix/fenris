@@ -27,16 +27,20 @@ MANFILES=$(addprefix doc/man/, $(addsuffix .1, $(PROGNAMES) $(TOOLNAMES)))
 DOCFILES=$(addprefix doc/, ChangeLog LICENSE README TODO anti-fenris.txt be.txt debug-api.txt depends.txt fenris.asc other.txt reverse.txt roadmap.txt)
 
 VERSION=0.07-m2
+BUILD=`echo 3`
 
 PREFIX=/usr/local
 
-all: fenris
+CFLAGS+=-DBUILD=$(BUILD) -DVERSION=$(VERSION)
 
-fenris: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build-project
+all: $(PROGNAMES)
 
-minimal: fenris.c fenris.h config.h ioctls.h fprints.c
-	@./build-project minimal
+fenris:
+ragnarok:
+fprints:
+dress:
+aegir:
+nc-aegir:
 
 debug: fenris.c fenris.h config.h ioctls.h fprints.c
 	@./build-project debug

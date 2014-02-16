@@ -107,10 +107,6 @@
 #define inline
 #endif /* PROFILE */
 
-#ifdef MINIMAL
-#define inline
-#endif /* MINIMAL */
-
 // including allocs.h will automagically turn every malloc, realloc, free
 // and strdup into my_malloc,my_realloc,my_free and my_strdup respectively
 // you can override this by uncommenting the following line:
