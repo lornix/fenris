@@ -74,10 +74,6 @@ void refresh_all(int t);
 
 WINDOW *Waegir, *Wregs, *Wdata, *Winput, *Wstatus, *Wcode, *Wfenris;
 
-#ifndef UNIX_PATH_MAX           /* max unix socket name length */
-#define UNIX_PATH_MAX   108
-#endif
-
 #include "config.h"
 #include "fdebug.h"
 #include "libdisasm/opcodes2/opdis.h"

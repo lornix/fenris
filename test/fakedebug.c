@@ -13,10 +13,6 @@
 #include <sys/user.h>
 #include <errno.h>
 
-#ifndef UNIX_PATH_MAX           /* max unix socket name length */
-#define UNIX_PATH_MAX   108
-#endif
-
 #include "../fdebug.h"
 
 #include "../common.h"
