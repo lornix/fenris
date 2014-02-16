@@ -41,18 +41,16 @@
 #include <errno.h>
 #include <bfd.h>
 
-#ifndef UNIX_PATH_MAX           /* max unix socket name length */
-#define UNIX_PATH_MAX   108
-#endif
-
 #include "fenris.h"
 #include "fdebug.h"
 #include "hooks.h"
 #include "libfnprints.h"
 
+//FIXME: odd, ostream NEVER created, only extern'd
 #undef debug
 #define debug(x...) fprintf(ostream,x)
 
+//FIXME: only extern'd here, also, fatal never created that I can find. We'll see
 extern FILE* ostream;
 extern void fatal(const char* x, const int err);
 
@@ -375,7 +373,6 @@ extern char* find_id_off(unsigned int c);
 extern char* find_name_ex(unsigned int c,char prec,char non);
 extern char* lookup_fnct(unsigned int c, unsigned int add,char prec);
 
-#define MAXMYSIG 31
 const static char* my_siglist[] = { "none", "sighup", "sigint", "sigquit",
     "sigill", "sigtrap", "sigabrt", "sigbus", "sigfpe", "sigkill", "sigusr1",
     "sigsegv", "sigusr2", "sigpipe", "sigalrm", "sigterm", "sigchld", "sigcont",

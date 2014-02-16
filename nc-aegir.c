@@ -97,11 +97,9 @@ unsigned int Wcode_addr;
 
 #include "rstree.h"
 
-//#define debug(x...)     fprintf(stderr,x)
-#define debug(x...)     my_wprintw(Waegir,x)
+#define MSG(x...)    my_wprintw(Waegir,x)
 
-#define pfatal(y)       { if (y) debug("FATAL: %s (%s)\n",y,sys_errlist[errno]); clean_exit(1); }
-#define fatal(x)        { wattrset(Waegir,fatal_color); debug("FATAL: %s\n",x); clean_exit(1); }
+#define FATALMSG(x)  do { wattrset(Waegir,fatal_color); MSG("FATAL: %s\n",x); clean_exit(1); } while (0);
 
 #include "common.h"
 
@@ -113,7 +111,6 @@ const static char* scnames[256]= {
     0
 };
 
-#define MAXMYSIG 31
 const static char* my_siglist[] = { "none", "sighup", "sigint", "sigquit",
     "sigill", "sigtrap", "sigabrt", "sigbus", "sigfpe", "sigkill", "sigusr1",
     "sigsegv", "sigusr2", "sigpipe", "sigalrm", "sigterm", "sigchld", "sigcont",
@@ -146,12 +143,15 @@ struct Wcode_info {
 
 // For sscanf hack. Blame libc authors.
 
-unsigned long long l1, l2;
+unsigned long long int l1, l2;
 
-#define LC(x) { \
-    if (x > 0xffffffff) { debug("Value out of range.\n"); \
-        return; } \
-}
+//FIXME: this is obsolete, no reason to limit to 32 bits
+/*
+ * #define LC(x) { \
+ *     if (x > 0xffffffff) { MSG("Value out of range.\n"); \
+ *         return; } \
+ * }
+ */
 
 /******************************************************************************/
 
@@ -162,23 +162,23 @@ static unsigned int sd;
 static void connect_to_fenris(char* where) {
     struct sockaddr_un sun;
 
-    debug("[+] Connecting to Fenris at %s...\n",where);
+    MSG("[+] Connecting to Fenris at %s...\n",where);
 
     if ((sd = socket (AF_LOCAL, SOCK_STREAM, 0))<0) {
-        pfatal("cannot create a socket");
+        MSG("FATAL: cannot create a socket (%s)\n",sys_errlist[errno]);
         clean_exit(1);
     }
 
     sun.sun_family = AF_LOCAL;
     strncpy (sun.sun_path, where, UNIX_PATH_MAX);
     if (connect (sd, (struct sockaddr*)&sun,sizeof (sun))) {
-        pfatal("cannot connect to Fenris socket");
+        MSG("FATAL: cannot connect to Fenris socket (%s)\n",sys_errlist[errno]);
         clean_exit(1);
     }
 
-    debug("[+] Trying to send \"hello\" message...\n");
+    MSG("[+] Trying to send \"hello\" message...\n");
     send_message(DMSG_FOO,0,0);
-    debug("[*] Response ok, connection established.\n\n");
+    MSG("[*] Response ok, connection established.\n\n");
 
 }
 
@@ -189,20 +189,20 @@ static char str_buf[MAXFENT];
 static char* get_string_sock(int sock) {
     int len=0;
     while (1) {
-        if (read(sock,str_buf+len,1)!=1) fatal("short read in get_string_sock from Fenris");
+        if (read(sock,str_buf+len,1)!=1) FATALMSG("short read in get_string_sock from Fenris");
 
         if (!str_buf[len])return str_buf;
 
         if(++len >= sizeof(str_buf)-2)
-            fatal("string from Fenris is of excessive length");
+            FATALMSG("string from Fenris is of excessive length");
     }
-    fatal("Another broken Turing machine. Rhubarb.");
+    FATALMSG("Another broken Turing machine. Rhubarb.");
 }
 
 static int get_dword_sock(int sock) {
     int ret=0;
     if (read(sock,&ret,4)!=4)
-        fatal("short read in get_dword_sock in Fenris");
+        FATALMSG("short read in get_dword_sock in Fenris");
     return ret;
 }
 
@@ -233,23 +233,23 @@ void* send_message(int mtype,void* data,void* store) {
         case DMSG_LISTBREAK: case DMSG_KILL: case DMSG_DYNAMIC:
         case DMSG_FOO:  dlen=0; break;
 
-        default: fatal("unknown message type in send_message");
+        default: FATALMSG("unknown message type in send_message");
 
     }
 
     if (mtype!=DMSG_NOMESSAGE) {
-        if (dlen && !data) fatal("message needs data but data is NULL");
+        if (dlen && !data) FATALMSG("message needs data but data is NULL");
         x.magic1=DMSG_MAGIC1;
         x.magic2=DMSG_MAGIC2;
         x.type=mtype;
 
         errno=0;
         if (write(sd,&x,sizeof(x))<=0)
-            fatal("connection to Fenris dropped (tried to send message header)");
+            FATALMSG("connection to Fenris dropped (tried to send message header)");
 
         if (dlen)
             if (write(sd,data,dlen)<=0)
-                fatal("connection to Fenris dropped (tried to send message data)");
+                FATALMSG("connection to Fenris dropped (tried to send message data)");
 
     }
 
@@ -260,10 +260,10 @@ void* send_message(int mtype,void* data,void* store) {
         bzero(&x,sizeof(x));
 
         if (read(sd,&x,sizeof(x))!=sizeof(x))
-            fatal("disconnected from Fenris");
+            FATALMSG("disconnected from Fenris");
 
-        if (x.magic1 != DMSG_MAGIC1) fatal("incorrect magic1 from Fenris");
-        if (x.magic2 != DMSG_MAGIC2) fatal("incorrect magic2 from Fenris");
+        if (x.magic1 != DMSG_MAGIC1) FATALMSG("incorrect magic1 from Fenris");
+        if (x.magic2 != DMSG_MAGIC2) FATALMSG("incorrect magic2 from Fenris");
 
         stopped=!(x.code_running);
         syscnum=x.code_running;
@@ -277,28 +277,28 @@ void* send_message(int mtype,void* data,void* store) {
 
         if (x.type == DMSG_ASYNC) {
             char* xx=get_string_sock(sd);
-            debug("%s",xx);     //FIXME
+            MSG("%s",xx);     //FIXME
             if(mtype == DMSG_NOMESSAGE)break;
             continue;
         }
 
-        if (x.type != DMSG_REPLY) fatal("invalid message type from Fenris");
+        if (x.type != DMSG_REPLY) FATALMSG("invalid message type from Fenris");
 
         switch (mtype) {
             // If we didn't send any message, we don't want replies.
             case DMSG_NOMESSAGE:
-                fatal("no sync response expected for DMSG_NOMESSAGE"); break;
+                FATALMSG("no sync response expected for DMSG_NOMESSAGE"); break;
                 // GETMEM returns dword:length and raw data
 
             case DMSG_GETMEM:
                 a=get_dword_sock(sd);
-                if (a<0 || a>=MAXFENT-4) fatal("excessive data length in DMSG_GETMEM");
+                if (a<0 || a>=MAXFENT-4) FATALMSG("excessive data length in DMSG_GETMEM");
                 memcpy(store,&a,4);
                 b=0;
                 while (b<a) {
                     int inc;
                     inc=read(sd,&((char*)store)[4+b],a-b);
-                    if (inc<=0) fatal("short read on DMSG_GETMEM");
+                    if (inc<=0) FATALMSG("short read on DMSG_GETMEM");
                     b+=inc;
                 }
                 break;
@@ -347,14 +347,14 @@ void* send_message(int mtype,void* data,void* store) {
             case DMSG_GETREGS:
                 if (read(sd,store,sizeof(struct user_regs_struct))!=
                         sizeof(struct user_regs_struct))
-                    fatal("short read on DMSG_RETREGS");
+                    FATALMSG("short read on DMSG_RETREGS");
                 break;
 
                 // Empty.
             case DMSG_FOO:  break;
 
                             // Catch whatever I missed...
-            default: fatal("implementation error in send_message");
+            default: FATALMSG("implementation error in send_message");
         }
         break;
     }
@@ -369,27 +369,27 @@ static void load_module(char* what) {
     void (*modinit)(void);
 
     if (!what) {
-        debug("You have to provide module name.\n");
+        MSG("You have to provide module name.\n");
         return;
     }
 
     x=dlopen(what,RTLD_LAZY|RTLD_GLOBAL);
 
     if (!x) {
-        debug("Cannot open module %s: %s\n",what,dlerror());
+        MSG("Cannot open module %s: %s\n",what,dlerror());
         return;
     }
 
     modinit=dlsym(x,"aegir_module_init");
 
     if (!modinit) {
-        debug("Error: this module does not have 'aegir_module_init' export.\n");
+        MSG("Error: this module does not have 'aegir_module_init' export.\n");
         dlclose(x);
         return;
     }
 
     modinit();
-    debug("Module %s loaded.\n",what);
+    MSG("Module %s loaded.\n",what);
 
 }
 
@@ -407,21 +407,21 @@ static void display_help(char* param) {
             start=cmd[q].help;
         } else {
             strncpy(command,cmd[q].help,sizeof(command)-1);
-            if (!strchr(command,':')) fatal("Are you insane?");
+            if (!strchr(command,':')) FATALMSG("Are you insane?");
             *strchr(command,':')=0;
             start=strchr(cmd[q].help,':')+1;
             while (*start && isspace(*start)) start++;
         }
-        debug("%-15s - %s\n",command,start);
+        MSG("%-15s - %s\n",command,start);
         q++;
     }
-    debug("\nFor additional help, please refer to debugger's documentation.\n");
+    MSG("\nFor additional help, please refer to debugger's documentation.\n");
 }
 
 // "quit" handler
 static void handle_quit(char* param) {
     if (!param) {
-        debug("Use 'quit yes' or 'q y' if you really mean it.\n");
+        MSG("Use 'quit yes' or 'q y' if you really mean it.\n");
         return;
     }
     clean_exit(0);
@@ -430,7 +430,7 @@ static void handle_quit(char* param) {
 // "exec" handler
 static void exec_cmd(char* param) {
     if (!param) {
-        debug("You have to provide a command to be executed.\n");
+        MSG("You have to provide a command to be executed.\n");
         return;
     }
     endwin();
@@ -452,7 +452,7 @@ static int nc_fprintf(FILE *stream, char *format, ...)
 
 // "disass" handler
 static void do_disass(char* param) {
-    unsigned int st,len;
+    unsigned long long int st,len;
     char* mem;
     unsigned int par[2];
     int retlen;
@@ -465,31 +465,31 @@ static void do_disass(char* param) {
     } else {
         if (strchr(param,' ')) {
             if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
-                debug("Numeric parameters required.\n");
+                MSG("Numeric parameters required.\n");
                 return;
             }
             st=l1;len=l2;
-            LC(l1); LC(l2);
+            // LC(l1); LC(l2);
 
             if (len<0) {
-                debug("Empty range provided.\n");
+                MSG("Empty range provided.\n");
                 return;
             }
         } else {
             if (sscanf(param,"%Li",&l1)!=1) {
-                debug("The parameter needs to be an address.\n");
+                MSG("The parameter needs to be an address.\n");
                 return;
             }
             st=l1;
             len=0;
-            LC(l1);
+            // LC(l1);
             Wcode_addr=l1;
             reg_mem_code_update();
         }
     }
 
     if (len > MAXFENT-30) {
-        debug("You exceeded the maximum memory size per single request.\n");
+        MSG("You exceeded the maximum memory size per single request.\n");
         len=MAXFENT-30;
     }
 
@@ -497,15 +497,15 @@ static void do_disass(char* param) {
     mem=send_message(DMSG_GETMEM,(char*)&par,0);
     retlen=*((unsigned int*)mem);
     if (retlen<=0) {
-        debug("Unable to access memory at 0x%x.\n",st);
+        MSG("Unable to access memory at 0x%x.\n",st);
         return;
     }
     {
-        debug("\n");
+        MSG("\n");
         opdis_disass( (FILE*)Waegir, &mem[4], st, len>retlen ? retlen : len);
     }
     if (retlen<len)
-        debug("Truncated - unable to access memory past 0x%x.\n",st+retlen);
+        MSG("Truncated - unable to access memory past 0x%x.\n",st+retlen);
 }
 
 // Describe addresses in disassembly. Called from opdis.c.
@@ -565,31 +565,31 @@ static char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
 
 // "x" handler
 static void do_memdump(char* param) {
-    unsigned int st,len;
+    unsigned long long int st,len;
 
     if (!param) {
-        debug("One or two parameters required.\n");
+        MSG("One or two parameters required.\n");
         return;
     } else {
         if (strchr(param,' ')) {
             if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
-                debug("Numeric parameters required.\n");
+                MSG("Numeric parameters required.\n");
                 return;
             }
             st=l1;len=l2;
-            LC(l1); LC(l2);
+            // LC(l1); LC(l2);
 
             if (len<0) {
-                debug("Empty range provided.\n");
+                MSG("Empty range provided.\n");
                 return;
             }
         } else {
             if (sscanf(param,"%Li",&l1)!=1) {
-                debug("Numeric parameter required.\n");
+                MSG("Numeric parameter required.\n");
                 return;
             }
             //      st=l1;
-            LC(l1);
+            // LC(l1);
             st=wdata_addr;
             wdata_addr=l1;
             len=16*4;
@@ -602,12 +602,12 @@ static void do_memdump(char* param) {
     }
 
     if (len > MAXFENT-20) {
-        debug("You exceeded the maximum memory size per single request.\n");
+        MSG("You exceeded the maximum memory size per single request.\n");
         len=MAXFENT-20;
     }
 
     if (st > st + len) {
-        debug("Illegal combination of start address and length.\n");
+        MSG("Illegal combination of start address and length.\n");
         return;
     }
 
@@ -620,24 +620,24 @@ static void do_rwatch(char* param) {
     unsigned int par[2];
 
     if (!param) {
-        debug("Two parameters required.\n");
+        MSG("Two parameters required.\n");
         return;
     } else {
         if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
-            debug("Two numeric parameters required.\n");
+            MSG("Two numeric parameters required.\n");
             return;
         }
         par[0]=l1;par[1]=l2;
-        LC(l1); LC(l2);
+        // LC(l1); LC(l2);
 
         if (par[0] > par[1]) {
-            debug("Empty range provided.\n");
+            MSG("Empty range provided.\n");
             return;
         }
     }
 
     mem=send_message(DMSG_RWATCH,(char*)&par,0);
-    debug("%s",mem);
+    MSG("%s",mem);
 }
 
 FILE* extralog;
@@ -646,28 +646,28 @@ static void do_log(char* param) {
     FILE* tmp;
 
     if (!param && extralog) {
-        debug("Logging stopped.\n");
+        MSG("Logging stopped.\n");
         fclose(extralog); extralog=0;
         return;
     }
 
-    if (!param && !extralog) { debug("Log never started.\n"); return; }
+    if (!param && !extralog) { MSG("Log never started.\n"); return; }
 
     if (param && extralog) {
-        debug("Closing old log...\n");
+        MSG("Closing old log...\n");
         fclose(extralog); extralog=0;
     }
 
     tmp=fopen(param,"w");
 
     if (!tmp) {
-        debug("Cannot create log file '%s'.\n",param);
+        MSG("Cannot create log file '%s'.\n",param);
         return;
     }
 
     extralog=tmp;
 
-    debug("New log '%s' initiated.\n",param);
+    MSG("New log '%s' initiated.\n",param);
 
 }
 
@@ -681,24 +681,24 @@ static void do_wwatch(char* param) {
     unsigned int par[2];
 
     if (!param) {
-        debug("Two parameters required.\n");
+        MSG("Two parameters required.\n");
         return;
     } else {
         if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
-            debug("Two numeric parameters required.\n");
+            MSG("Two numeric parameters required.\n");
             return;
         }
         par[0]=l1;par[1]=l2;
-        LC(l1); LC(l2);
+        // LC(l1); LC(l2);
 
         if (par[0] > par[1]) {
-            debug("Empty range provided.\n");
+            MSG("Empty range provided.\n");
             return;
         }
     }
 
     mem=send_message(DMSG_WWATCH,(char*)&par,0);
-    debug("%s",mem);
+    MSG("%s",mem);
 }
 
 // "x" handler
@@ -707,20 +707,20 @@ static void do_setmem(char* param) {
     unsigned int par[2];
 
     if (!param) {
-        debug("Two parameters required.\n");
+        MSG("Two parameters required.\n");
         return;
     } else {
         if (sscanf(param,"%Li %Li",&l1,&l2)!=2) {
-            debug("Numeric parameters required.\n");
+            MSG("Numeric parameters required.\n");
             return;
         }
         par[0]=l1;par[1]=l2;
-        LC(l1); LC(l2);
+        // LC(l1); LC(l2);
 
     }
 
     res=send_message(DMSG_SETMEM,(char*)&par,0);
-    debug("%s",res);
+    MSG("%s",res);
 
 }
 
@@ -733,15 +733,15 @@ static void do_strdump(char* param) {
     int i;
 
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
 
@@ -752,22 +752,22 @@ static void do_strdump(char* param) {
     retlen=*((unsigned int*)mem);
 
     if (retlen<=0) {
-        debug("Unable to access memory at 0x%x.\n",st);
+        MSG("Unable to access memory at 0x%x.\n",st);
         return;
     }
 
-    debug("%08x: \"",st);
+    MSG("%08x: \"",st);
 
     for (i=0;i<retlen;i++) {
         if (!mem[4+i]) break;
-        if (isprint(mem[4+i]) && mem[4+i]!='"') debug("%c",mem[4+i]);
-        else debug("\\x%02x",(unsigned char)mem[4+i]);
+        if (isprint(mem[4+i]) && mem[4+i]!='"') MSG("%c",mem[4+i]);
+        else MSG("\\x%02x",(unsigned char)mem[4+i]);
     }
 
     if (i==retlen) {
-        if (retlen<MAXYSTR) debug("\"... <read past accessible memory>\n");
-        else debug("\"...\n");
-    } else debug("\"\n");
+        if (retlen<MAXYSTR) MSG("\"... <read past accessible memory>\n");
+        else MSG("\"...\n");
+    } else MSG("\"\n");
 
 }
 
@@ -775,22 +775,22 @@ static void do_regs(char* param) {
     struct user_regs_struct* x;
     x=(void*)send_message(DMSG_GETREGS,0,0);
 
-    debug("eax \t0x%08x\t %d\n",x->eax,x->eax);
-    debug("ebx \t0x%08x\t %d\n",x->ebx,x->ebx);
-    debug("ecx \t0x%08x\t %d\n",x->ecx,x->ecx);
-    debug("edx \t0x%08x\t %d\n",x->edx,x->edx);
-    debug("esi \t0x%08x\t %d\n",x->esi,x->esi);
-    debug("edi \t0x%08x\t %d\n",x->edi,x->edi);
-    debug("ebp \t0x%08x\t %d\n",x->ebp,x->ebp);
-    debug("esp \t0x%08x\t %d\n",x->esp,x->esp);
-    debug("eip \t0x%08x\t %d\n",x->eip,x->eip);
-    debug("eflags \t0x%08x\t 0%o\n",x->eflags,x->eflags);
-    debug("ds \t0x%x\n",x->xds);
-    debug("es \t0x%x\n",x->xes);
-    debug("fs \t0x%x\n",x->xfs);
-    debug("gs \t0x%x\n",x->xgs);
-    debug("cs \t0x%x\n",x->xes);
-    debug("ss \t0x%x\n",x->xss);
+    MSG("eax \t0x%08x\t %d\n",x->eax,x->eax);
+    MSG("ebx \t0x%08x\t %d\n",x->ebx,x->ebx);
+    MSG("ecx \t0x%08x\t %d\n",x->ecx,x->ecx);
+    MSG("edx \t0x%08x\t %d\n",x->edx,x->edx);
+    MSG("esi \t0x%08x\t %d\n",x->esi,x->esi);
+    MSG("edi \t0x%08x\t %d\n",x->edi,x->edi);
+    MSG("ebp \t0x%08x\t %d\n",x->ebp,x->ebp);
+    MSG("esp \t0x%08x\t %d\n",x->esp,x->esp);
+    MSG("eip \t0x%08x\t %d\n",x->eip,x->eip);
+    MSG("eflags \t0x%08x\t 0%o\n",x->eflags,x->eflags);
+    MSG("ds \t0x%x\n",x->xds);
+    MSG("es \t0x%x\n",x->xes);
+    MSG("fs \t0x%x\n",x->xfs);
+    MSG("gs \t0x%x\n",x->xgs);
+    MSG("cs \t0x%x\n",x->xes);
+    MSG("ss \t0x%x\n",x->xss);
 
 }
 
@@ -801,112 +801,112 @@ static void do_setreg(char* param) {
     int val;
 
     if (!param) {
-        debug("Parameters required.\n");
+        MSG("Parameters required.\n");
         return;
     }
 
     if (sscanf(param,"%s %Li",regname,&l1)!=2) {
-        debug("Two parameters, register name and numeric value, required.\n");
+        MSG("Two parameters, register name and numeric value, required.\n");
         return;
     }
-    LC(l1);
+    // LC(l1);
     val=l1;
 
     send_message(DMSG_GETREGS,0,&x);
 
     if (!strcasecmp("eax",regname)) {
-        debug("Changing %s from 0x%x to 0x%x...\n",regname,x.eax,val);
+        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.eax,val);
         x.eax=val;
     } else
 
         if (!strcasecmp("ebx",regname)) {
-            debug("Changing %s from 0x%x to 0x%x...\n",regname,x.ebx,val);
+            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ebx,val);
             x.ebx=val;
         } else
 
             if (!strcasecmp("ecx",regname)) {
-                debug("Changing %s from 0x%x to 0x%x...\n",regname,x.ecx,val);
+                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ecx,val);
                 x.ecx=val;
             } else
 
                 if (!strcasecmp("edx",regname)) {
-                    debug("Changing %s from 0x%x to 0x%x...\n",regname,x.edx,val);
+                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.edx,val);
                     x.edx=val;
                 } else
 
                     if (!strcasecmp("esi",regname)) {
-                        debug("Changing %s from 0x%x to 0x%x...\n",regname,x.esi,val);
+                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.esi,val);
                         x.esi=val;
                     } else
 
                         if (!strcasecmp("edi",regname)) {
-                            debug("Changing %s from 0x%x to 0x%x...\n",regname,x.edi,val);
+                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.edi,val);
                             x.edi=val;
                         } else
 
                             if (!strcasecmp("esp",regname)) {
-                                debug("Changing %s from 0x%x to 0x%x...\n",regname,x.esp,val);
+                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.esp,val);
                                 x.esp=val;
                             } else
 
                                 if (!strcasecmp("eip",regname)) {
-                                    debug("Changing %s from 0x%x to 0x%x...\n",regname,x.eip,val);
-                                    debug("Note: modifying eip is the best way to trash Fenris. Act wisely.\n");
+                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.eip,val);
+                                    MSG("Note: modifying eip is the best way to trash Fenris. Act wisely.\n");
                                     x.eip=val;
                                 } else
 
                                     if (!strcasecmp("ebp",regname)) {
-                                        debug("Changing %s from 0x%x to 0x%x...\n",regname,x.ebp,val);
+                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ebp,val);
                                         x.ebp=val;
                                     } else
 
                                         if (!strcasecmp("eflags",regname)) {
-                                            debug("Changing %s from 0x%x to 0x%x...\n",regname,x.eflags,val);
+                                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.eflags,val);
                                             x.eflags=val;
                                         } else
 
                                             if (!strcasecmp("ds",regname)) {
-                                                debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xds,val);
+                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xds,val);
                                                 x.xds=val;
                                             } else
 
                                                 if (!strcasecmp("es",regname)) {
-                                                    debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xes,val);
+                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xes,val);
                                                     x.xes=val;
                                                 } else
 
                                                     if (!strcasecmp("fs",regname)) {
-                                                        debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xfs,val);
+                                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xfs,val);
                                                         x.xfs=val;
                                                     } else
 
                                                         if (!strcasecmp("gs",regname)) {
-                                                            debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xgs,val);
+                                                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xgs,val);
                                                             x.xgs=val;
                                                         } else
 
                                                             if (!strcasecmp("cs",regname)) {
-                                                                debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xcs,val);
+                                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xcs,val);
                                                                 x.xcs=val;
                                                             } else
 
                                                                 if (!strcasecmp("ss",regname)) {
-                                                                    debug("Changing %s from 0x%x to 0x%x...\n",regname,x.xss,val);
+                                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xss,val);
                                                                     x.xss=val;
                                                                 } else {
-                                                                    debug("Unknown register '%s'.\n",regname);
+                                                                    MSG("Unknown register '%s'.\n",regname);
                                                                     return;
                                                                 }
 
     ww=send_message(DMSG_SETREGS,&x,0);
-    debug("%s",ww);
+    MSG("%s",ww);
 
 }
 
 static void do_back(char* param) {
     char* x;
     x=(void*)send_message(DMSG_GETBACK,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_addr(char* param) {
@@ -915,24 +915,24 @@ static void do_addr(char* param) {
     int st;
 
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     }
 
     if (sscanf(param,"%Li",&l1)!=1) {
         x=(void*)send_message(DMSG_GETADDR,param,0);
-        if (!*x) debug("Name '%s' not found.\n",param);
+        if (!*x) MSG("Name '%s' not found.\n",param);
         else {
-            debug("Name '%s' has address 0x%08x.\n",param,*x);
+            MSG("Name '%s' has address 0x%08x.\n",param,*x);
             fifi=*x;
             x=(void*)send_message(DMSG_DESCADDR,&fifi,0);
-            debug("%s",x);
+            MSG("%s",x);
         }
     } else {
         st=l1;
-        LC(l1);
+        // LC(l1);
         x=(void*)send_message(DMSG_DESCADDR,&st,0);
-        debug("%s",x);
+        MSG("%s",x);
     }
 }
 
@@ -940,57 +940,57 @@ static void do_fd(char* param) {
     char* x;
     int st;
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
     x=(void*)send_message(DMSG_DESCFD,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_break(char* param) {
     char* x;
     int st;
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
     x=(void*)send_message(DMSG_ABREAK,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_fprint(char* param) {
     char* x;
     int st;
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
     x=(void*)send_message(DMSG_FPRINT,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_sbreak(char* param) {
@@ -998,7 +998,7 @@ static void do_sbreak(char* param) {
     int st;
 
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
@@ -1008,24 +1008,24 @@ static void do_sbreak(char* param) {
                     if (!strcasecmp(scnames[st],param)) break;
 
             if (st==256) {
-                debug("Invalid syscall name.\n");
+                MSG("Invalid syscall name.\n");
                 return;
             }
         } else {
-            LC(l1);
+            // LC(l1);
             st=l1;
         }
     }
 
     x=(void*)send_message(DMSG_SBREAK,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_ibreak(char* param) {
     char* x;
     int st;
     if (!param) {
-        debug("Parameter required.\n");
+        MSG("Parameter required.\n");
         return;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
@@ -1033,17 +1033,17 @@ static void do_ibreak(char* param) {
                 if (my_siglist[st])
                     if (!strcasecmp(param,my_siglist[st])) break;
             if (st==MAXMYSIG) {
-                debug("Invalid signal name.\n");
+                MSG("Invalid signal name.\n");
                 return;
             }
         } else {
             st=l1;
-            LC(l1);
+            // LC(l1);
         }
 
     }
     x=(void*)send_message(DMSG_IBREAK,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_ret(char* param) {
@@ -1054,16 +1054,16 @@ static void do_ret(char* param) {
         st=1;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
 
     x=(void*)send_message(DMSG_TORET,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_step(char* param) {
@@ -1074,27 +1074,27 @@ static void do_step(char* param) {
         st=1;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
 
     if (st<0) {
-        debug("Nonsense parameter.\n");
+        MSG("Nonsense parameter.\n");
         return;
     }
 
     x=(void*)send_message(DMSG_STEP,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_dynamic(char* param) {
     char* x;
     x=(void*)send_message(DMSG_DYNAMIC,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_del(char* param) {
@@ -1105,94 +1105,94 @@ static void do_del(char* param) {
         st=1;
     } else {
         if (sscanf(param,"%Li",&l1)!=1) {
-            debug("Numeric parameter required.\n");
+            MSG("Numeric parameter required.\n");
             return;
         }
         st=l1;
-        LC(l1);
+        // LC(l1);
 
     }
 
     x=(void*)send_message(DMSG_DEL,&st,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_libc(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLIBCALL,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_sys(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOSYSCALL,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_signals(char* param) {
     char* x;
     x=(void*)send_message(DMSG_SIGNALS,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_call(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLOCALCALL,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_down(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TOLOWERNEST,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_list(char* param) {
     char* x;
     x=(void*)send_message(DMSG_LISTBREAK,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_fdmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_FDMAP,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_memmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_GETMAP,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_fnmap(char* param) {
     char* x;
     x=(void*)send_message(DMSG_FNLIST,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_run(char* param) {
     char* x;
     x=(void*)send_message(DMSG_RUN,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_stop(char* param) {
     char* x;
     x=(void*)send_message(DMSG_STOP,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_halt(char* param) {
     char* x;
     x=(void*)send_message(DMSG_HALT,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 static void do_next(char* param) {
     char* x;
     x=(void*)send_message(DMSG_TONEXT,0,0);
-    debug("%s",x);
+    MSG("%s",x);
 }
 
 /******************************************************************************/
@@ -1244,9 +1244,9 @@ struct aegir_cmd cmd[MAXCMD+1] = {
 
 void register_command(char* commd,void* handler,char* help) {
     int q=0;
-    if (!commd) fatal("You cannot register command with null name");
+    if (!commd) FATALMSG("You cannot register command with null name");
     while (cmd[q].cmd) q++;
-    if (q>=MAXCMD) fatal("MAXCMD exceeded");
+    if (q>=MAXCMD) FATALMSG("MAXCMD exceeded");
     cmd[q].cmd=strdup(commd);
     cmd[q].handler=handler;
     cmd[q].help=strdup(help);
@@ -1475,7 +1475,7 @@ void clean_exit(int n)
     RSTree_destroy(Wcode_info.tree);
 
     wattrset(Waegir, fatal_color);
-    debug("** Your session will be now terminated. You can most likely switch **\n"
+    MSG("** Your session will be now terminated. You can most likely switch **\n"
             "** to another window to examine output from Fenris before exiting. **\n");
     wrefresh(Waegir);
 
@@ -2033,14 +2033,6 @@ void a_handler(int s)
     exit(0);
 }
 
-#define MAG     "\033[0;35m"
-#define DAR     "\033[1;30m"
-#define CYA     "\033[0;36m"
-#define NOR     "\033[0;37m"
-#define RED     "\033[1;31m"
-#define GRE     "\033[1;32m"
-#define YEL     "\033[1;33m"
-#define BRI     "\033[1;37m"
 
 /******************************************************************************/
 
@@ -2592,7 +2584,7 @@ int main(int argc,char* argv[])
     reset_wdata_addr();
 
     wattrset(Waegir,cyan_color);
-    debug(
+    MSG(
             ".---------------------------------------------------------------------.\n"
             "| -= Welcome to nc-aegir - an interactive debugger GUI for Fenris! =- |\n"
             "|---------------------------------------------------------------------|\n"
@@ -2682,7 +2674,10 @@ int main(int argc,char* argv[])
             char buf[1024];
             int n;
             n=read(fpfd,buf,sizeof(buf)-1);
-            if (n<0) pfatal("read on ENVPIPE (fenris died?)");
+            if (n<0) {
+                MSG("FATAL: read on ENVPIPE (fenris died? (%s)\n",sys_errlist[errno]);
+                clean_exit(1);
+            }
 
             if(n){
                 buf[n]=0;
@@ -2782,14 +2777,14 @@ int main(int argc,char* argv[])
                                 doingstop=1;
                             }
                         }else{
-                            debug("Use 'quit yes' (or 'q y') to quit.\n");
+                            MSG("Use 'quit yes' (or 'q y') to quit.\n");
                         }
                         break;
 
                     case ALT('s'):
                     case ALT('S'):
                         async^=1;
-                        debug("Switched to %ssynchronous input mode.\n",async?"a":"");
+                        MSG("Switched to %ssynchronous input mode.\n",async?"a":"");
                         if(!stopped) do_prompt(0);
                         break;
 
@@ -2842,7 +2837,7 @@ int main(int argc,char* argv[])
             matches[0]=0;
 
             wattrset(Waegir,regs_color);
-            debug(">> %s\n",cmdp);
+            MSG(">> %s\n",cmdp);
             wattrset(Waegir,def);
 
             for(i=0;cmd[i].cmd && i<MAXCMD;i++){
@@ -2854,7 +2849,7 @@ int main(int argc,char* argv[])
             }
 
             if (nmatches>1){
-                debug("Ambiguous command. Matches: %s\n",matches);
+                MSG("Ambiguous command. Matches: %s\n",matches);
                 do_prompt(0);
                 continue;
             }
@@ -2865,9 +2860,9 @@ int main(int argc,char* argv[])
                     if(async || stopped)do_prompt(0);
                     continue;
                 }
-                debug("This command is not yet implemented.\n");
+                MSG("This command is not yet implemented.\n");
             }else{
-                debug("Command '%s' unrecognized. Try 'help' for help.\n", cmdp);
+                MSG("Command '%s' unrecognized. Try 'help' for help.\n", cmdp);
             }
 
             do_prompt(0);

@@ -32,9 +32,6 @@
 #else
 #include <md5global.h>
 #include <md5.h>
-#define MD5_Init   MD5Init
-#define MD5_Final  MD5Final
-#define MD5_Update MD5Update
 #endif /* USE_OPENSSL */
 
 #include "config.h"
@@ -115,9 +112,9 @@ static inline unsigned long fnprint_compute(unsigned char *sig, int codeseg) {
     for (i=0;i<SIGNATSIZE;i++)
         if (sig[i]==0xe8) bzero(&sig[i+1],4);
 
-    MD5_Init(&kuku);
-    MD5_Update(&kuku,sig,SIGNATSIZE);
-    MD5_Final((char*)result,&kuku);
+    MD5Init(&kuku);
+    MD5Update(&kuku,sig,SIGNATSIZE);
+    MD5Final((char*)result,&kuku);
 
     result[0] ^= result[2];
     result[1] ^= result[3];

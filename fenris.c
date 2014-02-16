@@ -7194,9 +7194,6 @@ int main(const int argc, const char** argv) {
 
     if (running_under_ncaegir && !getenv("DISPLAY")) {
 
-#define NOR     "\033[0;37m"
-#define RED     "\033[1;31m"
-
         debug( RED "Note: this is a program I/O screen. If you are not automatically taken\n"
                 "to the debugger screen, press ctrl+a, n or another screen switching\n"
                 "sequence configured for your 'screen' utility. " NOR "\n\n");

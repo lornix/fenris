@@ -58,9 +58,6 @@
 #else
 #include <md5global.h>
 #include <md5.h>
-#define MD5_Init   MD5Init
-#define MD5_Final  MD5Final
-#define MD5_Update MD5Update
 #endif /* USE_OPENSSL */
 
 #include "common.h"

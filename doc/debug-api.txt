@@ -278,7 +278,7 @@ parameter to Aegir ;-)
 When the program is stopped at the location you wanted, fetch interesting
 memory region using DMSG_GETMEM, and do the comparison or evaluate any
 other fancy condition. If you got it, simply write a message to the console
-using debug() and return from your handler leaving the program in stopped
+using STDERRMSG() and return from your handler leaving the program in stopped
 state. If not, try again.
 
 One more thing - definitions of Aegir API is in aegir-mod.h. All other
@@ -290,7 +290,7 @@ same. There is only one difference, you have to include curses.h
 and put the following code:
 
 extern WINDOW* Waegir;
-#define debug(x...) wprintw(Waegir,x)
+#define MSG(x...) wprintw(Waegir,x)
 
-All reporting to the user has to be done by calling debug(). Its semantics
+All reporting to the user has to be done by calling MSG(). Its semantics
 is roughly the same as for printf().

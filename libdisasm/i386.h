@@ -180,9 +180,9 @@ typedef unsigned char   BYTE;
 typedef unsigned short  WORD;
 typedef unsigned int    DWORD;
 
-#define  x86_MAIN 0
-#define  x86_0F   1
-#define  x86_80   2
+#define x86_MAIN 0
+#define x86_0F   1
+#define x86_80   2
 
 #define REG_DWORD_OFFSET   0
 #define REG_WORD_OFFSET    1  * 8

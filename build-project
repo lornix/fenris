@@ -101,13 +101,12 @@ echo -n "[+] Endian and sizeof() checks: "
 
 cat >.testme.c 2>/dev/null <<_EOF_
 #include <assert.h>
-#define AS_UINT(x)      (*((unsigned int*)&(x)))
 char endian_test[4]={1,2,3,4};
 main() {
     char signtest=100;
     assert(sizeof(int)==4);
     assert(sizeof(short int)==2);
-    assert(AS_UINT(endian_test)==0x04030201);
+    assert((*((unsigned int*)&(endian_test)))==0x04030201);
     assert(sizeof(char)==1);
     assert(sizeof(void*)==4);
     signtest+=100;
