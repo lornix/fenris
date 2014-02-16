@@ -87,7 +87,7 @@ CFLAGS+=-DLIBCSEG=0x00
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h i386.o libdis.o rstree.o allocs.o libfnprints.o hooks.o
+fenris: fenris.c fenris.h libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 ragnarok: ragnarok.c
@@ -99,41 +99,45 @@ fprints: fprints.c
 dress: dress.c libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-aegir: aegir.c libfnprints.o i386-dis.o opdis.o
+aegir: aegir.c libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-nc-aegir: nc-aegir.c libfnprints.o i386-dis.o opdis.o rstree.o
+nc-aegir: nc-aegir.c libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-libdisasm/i386.so: libdisasm/i386.c
+# ===================== Libraries =========================
+
+rstree.o: rstree.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libdisasm/libdis.so: libdisasm/libdis.c
+allocs.o: allocs.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libdisasm/opcodes/i386-dis.so: libdisasm/opcodes/i386-dis.c
+libfnprints.o: libfnprints.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libdisasm/opcodes/opdis.so: libdisasm/opcodes/opdis.c
+hooks.o: hooks.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-rstree.so: rstree.c
+libdisasm/i386.o: libdisasm/i386.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-allocs.so: allocs.c
+libdisasm/libdis.o: libdisasm/libdis.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libfnprints.so: libfnprints.c
+libdisasm/opcodes/i386-dis.o: libdisasm/opcodes/i386-dis.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-hooks.so: hooks.c
+libdisasm/opcodes/opdis.o: libdisasm/opcodes/opdis.c
 	$(CC) -c $(CFLAGS) -o $@ $<
+
+.PHONY: fingerprints install uninstall clean gather_syscalls
 
 fingerprints:
 	@touch fnprints.dat
-	@echo "[*] Updating libc fingerprints database (this will take a while)..."
+	@echo "[*] Updating libc fingerprint database (this will take a while)..."
 	@-NOBANNER=1 ./getfprints
-	@echo "[*] Sorting your fingerprints..."
+	@echo "[*] Sorting fingerprints..."
 	@sort fnprints.dat NEW-fnprints.dat | uniq > .tmp
 	@mv .tmp fnprints.dat
 	@rm -f NEW-fnprints.dat
