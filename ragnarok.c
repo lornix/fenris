@@ -38,7 +38,8 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
-#include "asmstring.h"
+// removed initially, possibly restore later
+// #include "asmstring.h"
 #include <fcntl.h>
 #include <malloc.h>
 #include <sys/mman.h>

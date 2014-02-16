@@ -586,7 +586,7 @@ loopover:
 
                                  for (i=1;i<=current->fntop;i++) {
                                      sprintf(small,"From %x [%s]: fnct_%d ",
-                                             current->fneip[i],break_getname(current->fneip[i]),
+                                             current->fnrip[i],break_getname(current->fnrip[i]),
                                              current->fnid[i]);
 
                                      sprintf(&small[strlen(small)],"[%s] %x, stack %x -> %x\n",

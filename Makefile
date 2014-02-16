@@ -20,6 +20,7 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
+CC=gcc
 
 PROGNAMES=fenris ragnarok fprints dress aegir nc-aegir
 TOOLNAMES=getfprints fenris-bug ragsplit splitter.pl
@@ -58,7 +59,9 @@ CFLAGS+=-g3
 # CFLAGS+=-fno-inline -pg -DPROFILE=1 -DDEBUG=1
 #
 # basic libraries needed
-# LDFLAGS+=-ldl -lbfd -liberty
+LDFLAGS+=-ldl
+LDFLAGS+=-lbfd
+# LDFLAGS+=-liberty
 # LDFLAGS+=-rdynamic
 #
 # for openSSL
@@ -89,8 +92,8 @@ CFLAGS+=-DLIBCSEG="0x2A"
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o build_syscallnames
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+fenris: fenris.c fenris.h build_syscallnames libdisasm/i386.o libdisasm/libdis.o rstree.o allocs.o libfnprints.o hooks.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o
 
 ragnarok: ragnarok.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
@@ -101,36 +104,15 @@ fprints: fprints.c
 dress: dress.c libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-aegir: aegir.c libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o build_syscallnames
+aegir: aegir.c build_syscallnames libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-nc-aegir: nc-aegir.c libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o build_syscallnames
+nc-aegir: nc-aegir.c build_syscallnames libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 # ===================== Libraries =========================
 
-rstree.o: rstree.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-allocs.o: allocs.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-libfnprints.o: libfnprints.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-hooks.o: hooks.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-libdisasm/i386.o: libdisasm/i386.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-libdisasm/libdis.o: libdisasm/libdis.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-libdisasm/opcodes/i386-dis.o: libdisasm/opcodes/i386-dis.c
-	$(CC) -c $(CFLAGS) -o $@ $<
-
-libdisasm/opcodes/opdis.o: libdisasm/opcodes/opdis.c
+%.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 .PHONY: fingerprints install uninstall clean gather_syscalls

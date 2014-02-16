@@ -70,7 +70,8 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
-#include "asmstring.h"
+// removed initially, possibly restore later
+// #include "asmstring.h"
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <asm/unistd.h>
