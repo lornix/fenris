@@ -856,8 +856,8 @@ symbol table and a new ELF file will be generated. Usage is rather simple:
 
 Additional options:
 
-    -F nnn             - use this file for fingerprint database
-    -S xxx             - use this name as a code section (override .text)
+    -f nnn             - use this file for fingerprint database
+    -s xxx             - use this name as a code section (override .text)
 
 Note that symbols generated are not GDB debugging info. In other words, you
 can view them with nm, objdump, they will be shown in gdb disassembly, but you

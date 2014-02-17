@@ -2,7 +2,7 @@
 nobody@sandbox$ file the-binary
 the-binary: ELF 32-bit LSB executable, Intel 80386, version 1, statically linked, stripped
 
-nobody@sandbox$ ./dress -F support/fn-libc5.dat ./the-binary new-binary
+nobody@sandbox$ ./dress -f support/fn-libc5.dat ./the-binary new-binary
 dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>
 [+] Loaded 63405 fingerprints...
 [*] Code section at 0x08048090 - 0x080675cc, offset 144 in the file.

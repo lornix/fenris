@@ -64,7 +64,7 @@ database, provided in support/ subdirectory. The database is named
 'fn-libc5.dat'. You can do one thing before continuing - why not reconstruct
 symbols in your ELF so that using objdump or gdb is less troublesome?
 
-nobody@sandbox$ ./dress -F support/fn-libc5.dat ./the-binary new-binary
+nobody@sandbox$ ./dress -f support/fn-libc5.dat ./the-binary new-binary
 dress - stripped static binary recovery tool by <lcamtuf@coredump.cx>
 [+] Loaded 63405 fingerprints...
 [*] Code section at 0x08048090 - 0x080675cc, offset 144 in the file.

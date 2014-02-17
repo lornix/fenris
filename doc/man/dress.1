@@ -3,7 +3,7 @@
 dress \- ELF symtab recovery
 .SH SYNOPSIS
 .B dress
-.I [ -F file ] [ -S seg ] old_elf [ new_elf ]
+.I [ -f file ] [ -s seg ] old_elf [ new_elf ]
 .br
 .SH "DESCRIPTION"
 This is an ELF symtab recovery tool, a part of
@@ -37,7 +37,7 @@ Mandatory parameter is the old ELF binary filename, eventually followed
 by the output ELF name. Input binary has to be a native, stripped, static
 ELF file. You can use the following optional parameters:
 
-\fB-F file\fR
+\fB-f file\fR
 
 This option will load a non-default fingerprint supplementary fingerprint
 database. This option can be used multiple times. Its behavior is
@@ -46,7 +46,7 @@ similar to
 option in
 .BR fenris .
 
-\fB-S segname\fR
+\fB-s segname\fR
 
 Perform analysis of a segment different than .text. This is useful for
 non-standard ELF binaries.
@@ -54,7 +54,7 @@ non-standard ELF binaries.
 .SH FILES
 .BI ./fnprints.dat ,
 .BI ~/.fenris/fnprints.dat ,
-.BI /etc/fnprints.dat ,
+.BI /etc/fenris/fnprints.dat ,
 .BI ~/fnprints.dat ,
 
 default fingerprints database locations (in search order)
