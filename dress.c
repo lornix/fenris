@@ -80,7 +80,7 @@ unsigned int symtop;
 void copier(char* src,char* dst,char* secname);
 
 void add_signature(int addr,char* name) {
-    if (symtop>0 && sym[symtop-1].addr == addr) {
+    if (symtop>0 && sym[symtop-1].addr == (unsigned int)addr) {
         char buf[10000];
         sprintf(buf,"%s / %s",sym[symtop-1].name,name);
         free(sym[symtop-1].name);
@@ -104,18 +104,18 @@ unsigned int ctop;
  * #define CODESEG (((unsigned int)calls) >> 24)
  */
 
-inline void found_fnprint_file(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
+inline void found_fnprint_file(int count __attribute__((unused)), struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
 {
     add_signature(addr, cur->name);
 }
 
-inline void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint, unsigned int addr)
+inline void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
 {
     if (!count) printf("0x%08x: %s",addr,cur->name);
     else printf(", %s",cur->name);
 }
 
-inline void finish_fnprint(int count, unsigned int fprint, int unused)
+inline void finish_fnprint(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
 {
     if (count) {
         found++;
@@ -123,7 +123,7 @@ inline void finish_fnprint(int count, unsigned int fprint, int unused)
     }
 }
 
-inline void finish_fnprint_file(int count, unsigned int fprint, int unused)
+inline void finish_fnprint_file(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
 {
     if (count) found++;
 }
@@ -131,9 +131,11 @@ inline void finish_fnprint_file(int count, unsigned int fprint, int unused)
 int main(int argc,char* argv[]) {
     bfd* b;
     char opt;
-    struct sec* ss;
+    //FIXME: struct type mis-match?
+    // struct sec* ss;
+    struct bfd_section* ss;
     int fi;
-    int i;
+    unsigned int i;
 
     bfd_init();
 
@@ -179,6 +181,7 @@ int main(int argc,char* argv[]) {
         exit(1);
     }
 
+    //FIXME: strange, did this work before?
     ss=b->sections;
 
     while (ss) {
@@ -191,28 +194,39 @@ int main(int argc,char* argv[]) {
 
     STDERRMSG("[*] Code section at 0x%08x - 0x%08x, offset %d in the file.\n",
             (int)ss->vma,
-            (int)(bfd_get_start_address(b)+ss->_raw_size),
+            //FIXME: did this name change in 10 years?
+            // (int)(bfd_get_start_address(b)+ss->_raw_size),
+            (int)(bfd_get_start_address(b)+ss->rawsize),
             (int)ss->filepos);
 
     STDERRMSG("[*] For your initial breakpoint, use *0x%x\n",(int)ss->vma);
 
     fi=open(argv[optind],O_RDONLY);
     if (!fi) FATALEXIT("cannot open input file");
-    if (!(code=malloc(ss->_raw_size+5))) FATALEXIT("malloc failed");
+    //FIXME: did this name change in 10 years?
+    // if (!(code=malloc(ss->_raw_size+5))) FATALEXIT("malloc failed");
+    if (!(code=malloc(ss->rawsize+5))) FATALEXIT("malloc failed");
     lseek(fi,ss->filepos,SEEK_SET);
-    if (read(fi,code,ss->_raw_size)!=ss->_raw_size) FATALEXIT("read failed");
+    //FIXME: did this name change in 10 years?
+    // if (read(fi,code,ss->_raw_size)!=ss->_raw_size) FATALEXIT("read failed");
+    if ((unsigned long int)read(fi,code,ss->rawsize)!=ss->rawsize) FATALEXIT("read failed");
     close(fi);
 
     STDERRMSG("[+] Locating CALLs... ");
 
     // This will catch many false positives, but who cares?
-    for (i=0;i<ss->_raw_size-5;i++) {
+    //FIXME: did this name change in 10 years?
+    // for (i=0;i<ss->_raw_size-5;i++) {
+    for (i=0;i<ss->rawsize-5;i++) {
         if (code[i]==0xe8) {
-            int a,got=0;
+            unsigned int a;
             unsigned int daddr;
+            int got=0;
             int *off=(int*)&code[i+1];
             daddr=i+(*off)+5;
-            if (daddr > ss->_raw_size) continue; // Nah, stupid.
+            //FIXME: did this name change in 10 years?
+            // if (daddr > ss->_raw_size) continue; // Nah, stupid.
+            if (daddr > ss->rawsize) continue; // Nah, stupid.
             for (a=0;a<ctop;a++) if (calls[a] == daddr) { got=1; break; } // Dupe.
             if (!got) {
                 calls[ctop]=daddr;
@@ -234,7 +248,7 @@ int main(int argc,char* argv[]) {
 
         memcpy(buf,&code[calls[i]],SIGNATSIZE);
 
-        r = fnprint_compute(buf, (((unsigned int)calls) >> 24));
+        r = fnprint_compute(buf, (((unsigned long int)calls) >> 24));
 
         if (tofile)
             find_fnprints(r, found_fnprint_file, finish_fnprint_file, calls[i]);
@@ -255,7 +269,9 @@ int main(int argc,char* argv[]) {
 
 void copier(char* src,char* dst,char* secname) {
 
-    struct sec* s;
+    //FIXME: another oddness with bfd
+    //// struct sec* s;
+    struct bfd_section* s;
     bfd *ibfd,*obfd;
 
     bfd_init();
@@ -280,7 +296,9 @@ void copier(char* src,char* dst,char* secname) {
     STDERRMSG("[+] Setting up sections: ");
 
     while (s) {
-        struct sec* os;
+        //FIXME: bfd name oddness?
+        // struct sec* os;
+        struct bfd_section* os;
 
         os=bfd_make_section_anyway(obfd,bfd_section_name(ibfd,s));
         if (s->name[0]=='.') STDERRMSG("%s ",bfd_section_name(ibfd,s));
@@ -311,7 +329,7 @@ void copier(char* src,char* dst,char* secname) {
 
         asymbol *ptrs[symtop+1];
         asymbol *news;
-        int i;
+        unsigned int i;
 
         for (i=0;i<symtop;i++) {
             news = bfd_make_empty_symbol(obfd);
@@ -345,7 +363,9 @@ void copier(char* src,char* dst,char* secname) {
     while (s) {
         int siz;
         if (s->name[0]=='.') STDERRMSG("%s ",s->name);
-        siz = bfd_get_section_size_before_reloc(s);
+        //FIXME: name change?
+        // siz = bfd_get_section_size_before_reloc(s);
+        siz = bfd_get_section_size(s);
         if (siz>=0)
             if (bfd_get_section_flags(ibfd, s) & SEC_HAS_CONTENTS) {
                 void* memhunk = malloc(siz);

@@ -99,15 +99,15 @@ ragnarok: ragnarok.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 fprints: fprints.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
 dress: dress.c libfnprints.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
+
+aegir: aegir.c build_syscallnames libfnprints.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-aegir: aegir.c build_syscallnames libfnprints.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
-nc-aegir: nc-aegir.c build_syscallnames libfnprints.o rstree.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
+nc-aegir: nc-aegir.c build_syscallnames libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 # ===================== Libraries =========================

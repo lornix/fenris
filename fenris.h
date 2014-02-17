@@ -56,6 +56,7 @@ struct fenris_map {
 struct fenris_process {
     int           pid,                  // process id
                   nest;                 // call nesting level
+    //FIXME: removed unsigned'ness from register vars
     struct my_user_regs_struct pr;      // saved regs (syscall)
     unsigned char atret,                // atret counter for prolog detection
                   intercept,            // delayed display_libcall() counter

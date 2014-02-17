@@ -251,7 +251,7 @@ void get_buffers(void) {
                 STDERRMSG("[!] Warning: this is a static application, I'm not too good at it!\n");
                 staticwarn=1;
             }
-        } else
+        } else {
 
             if (!strncmp(x,"+++ Process ",11) && strstr(x,"image replaced")) {
                 int miau;
@@ -262,6 +262,7 @@ void get_buffers(void) {
                 }
                 continue;
             }
+        }
 
         { int miau;
             if (sscanf(x,"%d:",&miau)==1) {
@@ -273,23 +274,36 @@ void get_buffers(void) {
             }
         }
 
-        if (!(cline % 941))
+        if (!(cline % 941)) {
             STDERRMSG("[+] Collecting data... %0.02f%% (%d lines) done\r", ((float)(my_ptr-my_file)) * 100.0 / ((float)(my_end-my_file)),cline);
+        }
 
         if (x[0]=='>') {
-            if (strstr(x,"more processes")) exitcond=1; else {
+            if (strstr(x,"more processes")) {
+                exitcond=1; 
+            } else {
                 problems++;
                 STDERRMSG("[!] line %d: trace error: %s\n",cline,x+2);
             }
         }
 
         if (x[0]=='*') {
-            if (!T_domem) if (strstr(x,"strange")) continue;
-            if (!hadstar) problems++;
-            if (x[1]=='*') hadstar=!hadstar;
+            if (!T_domem) {
+                if (strstr(x,"strange")) 
+                { continue;
+                }
+            }
+            if (!hadstar) {
+                problems++;
+            }
+            if (x[1]=='*') {
+                hadstar=!hadstar;
+            }
             STDERRMSG("[!] line %d: %s\n",cline,x);
             continue;
-        } else hadstar=0;
+        } else {
+            hadstar=0;
+        }
 
         if (btop<0) {
             int i;
@@ -448,7 +462,7 @@ void get_buffers(void) {
             if (len<0) fatal("assumed new length < 0");
             if ((q=find_inrange(addr,addr+len))>=0) {
                 while (q>=0) {
-                    if ((b[q].addr == addr) && (b[q].size == len)) goto getmeout;
+                    if ((b[q].addr == addr) && (b[q].size == (unsigned int)len)) goto getmeout;
                     if (T_verb) STDERRMSG("= Adjust #%d into #%d: %x:%d -> %x:%d\n",q,btop,b[q].addr,b[q].size,addr,len);
                     b[q].st=ST_FREE;
                     q=find_inrange(addr,addr+len);
@@ -463,17 +477,17 @@ void get_buffers(void) {
             b[btop].t=bufno;
             btop=-1;
             continue;
-        }
-
-        else if (!strncmp(x,"@ ",2)) {
-            char* w=strstr(x+2," fd ");
-            int i;
-            if ((!w) || (sscanf(w+4,"%d",&i)!=1)) fatal("malformed @ line.");
-            if (topfd<i) topfd=i;
+        } else {
+            if (!strncmp(x,"@ ",2)) {
+                char* w=strstr(x+2," fd ");
+                int i;
+                if ((!w) || (sscanf(w+4,"%d",&i)!=1)) fatal("malformed @ line.");
+                if (topfd<i) topfd=i;
+            }
         }
 
 getmeout:
-
+        ;
     }
 
 bailout:
@@ -498,7 +512,7 @@ bailout:
             int j;
             if (!(i % 123)) STDERRMSG("[+] Sorting buffers... %0.02f%% done\r",((float)i*100.0)/((float)bufno));
             for (j=0;j<breally;j++) {
-                if ((b[j].t==i) && b[j].st) {
+                if ((b[j].t==(unsigned int)i) && b[j].st) {
                     b[j].st=ST_CUR;
                     memcpy(&x[j],&b[j],sizeof(struct bufdesc));
                     bynum[b[j].num]=j;
@@ -630,7 +644,7 @@ reanalyze:
 
             char ttip[1000];
             strcpy(ttip,x);
-            { int i;for (i=0;i<strlen(ttip);i++) {
+            { unsigned int i;for (i=0;i<strlen(ttip);i++) {
                                                      if (ttip[i]=='<') ttip[i]='('; else
                                                          if (ttip[i]=='>') ttip[i]=')'; else
                                                              if (ttip[i]=='"') ttip[i]='`'; else
@@ -953,7 +967,8 @@ reprocess:
         }
 
         else if (!strncmp(x,"\\ merge",7)) {
-            unsigned int addr,q;
+            unsigned int addr;
+            int q;
             x+=14;
             if (sscanf(x,"%x:%d %x:%d (%*[^)]) -> %x:%d",&q,&q,&q,&q,&addr,&q)<6) continue;
             if ((q=find_addr(addr))>=0) {
@@ -1045,7 +1060,7 @@ reprocess:
         // became obsolete at this location, but I'm way too lazy to
         // move it to a separate function ;P
         else if (!strncmp(x,"\\ data migration",16)) {
-            unsigned int a1,a2;
+            int a1,a2;
             int q1,q2;
 handle_migration:
             if (sscanf(x,"\\ data migration: %x to %x",&a1,&a2)!=2)
@@ -1078,12 +1093,13 @@ handle_migration:
         else if (!strncmp(x,"U ",2)) {
             char ttip[1000];
             strcpy(ttip,x+2);
-            { int i;for (i=0;i<strlen(ttip);i++) {
-                                                     if (ttip[i]=='<') ttip[i]='('; else
-                                                         if (ttip[i]=='>') ttip[i]=')'; else
-                                                             if (ttip[i]=='"') ttip[i]='`'; else
-                                                                 if (ttip[i]=='\'') ttip[i]='`';
-                                                 }
+            { unsigned int i;
+                for (i=0;i<strlen(ttip);i++) {
+                    if (ttip[i]=='<') ttip[i]='('; else
+                        if (ttip[i]=='>') ttip[i]=')'; else
+                            if (ttip[i]=='"') ttip[i]='`'; else
+                                if (ttip[i]=='\'') ttip[i]='`';
+                }
             }
             fnum++;
             *(x-1)=0;
@@ -1106,17 +1122,16 @@ handle_migration:
             bzero(a[nest],MAXADDR);
             continue;
 
-        }
-
-        else if (!strncmp(x,"local ",6)) {
+        } else if (!strncmp(x,"local ",6)) {
             char ttip[1000];
             strcpy(ttip,x+6);
-            { int i;for (i=0;i<strlen(ttip);i++) {
-                                                     if (ttip[i]=='<') ttip[i]='('; else
-                                                         if (ttip[i]=='>') ttip[i]=')'; else
-                                                             if (ttip[i]=='"') ttip[i]='`'; else
-                                                                 if (ttip[i]=='\'') ttip[i]='`';
-                                                 }
+            { unsigned int i;
+                for (i=0;i<strlen(ttip);i++) {
+                    if (ttip[i]=='<') ttip[i]='('; else
+                        if (ttip[i]=='>') ttip[i]=')'; else
+                            if (ttip[i]=='"') ttip[i]='`'; else
+                                if (ttip[i]=='\'') ttip[i]='`';
+                }
             }
             fnum++;
             *(x-1)=0;
@@ -1135,9 +1150,7 @@ handle_migration:
             strncpy(fname[nest],x+6,MAXNAME);
             bzero(a[nest],MAXADDR);
             continue;
-        }
-
-        else if (!strncmp(x,"L ",2)) {
+        } else if (!strncmp(x,"L ",2)) {
             unsigned int addr;
             int len,q,i;
             char mem[MAXADDR];
@@ -1145,14 +1158,17 @@ handle_migration:
             int migrated=0;
             char ttip[1000];
             strcpy(ttip,x+2);
-            { int i;for (i=0;i<strlen(ttip);i++) {
-                                                     if (ttip[i]=='<') ttip[i]='('; else
-                                                         if (ttip[i]=='>') ttip[i]=')'; else
-                                                             if (ttip[i]=='"') ttip[i]='`'; else
-                                                                 if (ttip[i]=='\'') ttip[i]='`';
-                                                 }
+            { unsigned int i;
+                for (i=0;i<strlen(ttip);i++) {
+                    if (ttip[i]=='<') ttip[i]='('; else
+                        if (ttip[i]=='>') ttip[i]=')'; else
+                            if (ttip[i]=='"') ttip[i]='`'; else
+                                if (ttip[i]=='\'') ttip[i]='`';
+                }
             }
-            bzero(modtable,sizeof(modtable));
+            //FIXME: this was odd
+            // bzero(modtable,sizeof(modtable));
+            bzero(modtable,topfd+1);
 
             migrated=0;
             strcpy(tmp,x);
@@ -1233,6 +1249,7 @@ handle_migration:
 
                         bounceback=1; goto handle_migration;
 knowncont:
+                        ;
                     } else if (strstr(x,"\\ merge")) {
                         x+=14;
                         if (sscanf(x,"%x:%d %x:%d (%*[^)]) -> %x:%d",&q,&q,&q,&q,&addr,&len)<6) continue;
@@ -1314,27 +1331,29 @@ knowncont:
 
             x=ox;
             goto reanalyze;
-        }
-
-        else if (!strncmp(x,"SYS",3)) {
+        } else if (!strncmp(x,"SYS",3)) {
             unsigned int addr;
             int len,q,i;
             char mem[MAXADDR];
             char tmp[1024];
             int migrated=0;
             char ttip[1000];
-            bzero(modtable,sizeof(modtable));
+            //FIXME: conceptual error? really?
+            // bzero(modtable,sizeof(modtable));
+            bzero(modtable,topfd+1);
 
             strcpy(ttip,x);
-            { int i;for (i=0;i<strlen(ttip);i++) {
-                                                     if (ttip[i]=='<') ttip[i]='('; else
-                                                         if (ttip[i]=='>') ttip[i]=')'; else
-                                                             if (ttip[i]=='"') ttip[i]='`'; else
-                                                                 if (ttip[i]=='\'') ttip[i]='`';
-                                                 }
+            { unsigned int i;
+                for (i=0;i<strlen(ttip);i++) {
+                    if (ttip[i]=='<') ttip[i]='('; else
+                        if (ttip[i]=='>') ttip[i]=')'; else
+                            if (ttip[i]=='"') ttip[i]='`'; else
+                                if (ttip[i]=='\'') ttip[i]='`';
+                }
             }
 
             strcpy(tmp,x);
+            //FIXME: serious conceptual error.  does not work! Are there more?
             bzero(mem,sizeof(mem));
 
             while ((ox=x=my_gets())) {
@@ -1410,6 +1429,7 @@ knowncont:
 
                         bounceback=2; goto handle_migration;
 sysccont:
+                        ;
                     } else if (strstr(x,"\\ merge")) {
                         x+=14;
                         if (sscanf(x,"%x:%d %x:%d (%*[^)]) -> %x:%d",&q,&q,&q,&q,&addr,&len)<6) continue;
@@ -1498,9 +1518,7 @@ sysccont:
 
             x=ox;
             goto reanalyze;
-        }
-
-        else if (*x=='<') {
+        } else if (*x=='<') {
             // This is a conditional expression.
             if (hadconditional==1) continue;
             hadconditional=1;

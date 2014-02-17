@@ -4,7 +4,7 @@
 
 #define STDERRMSG(x...) fprintf(stderr,x)
 #define FATALEXIT(x)    do { STDERRMSG("FATAL: %s\n",x); exit(1); } while (0);
-#define PERROREXIT(x)   do ( perror(x); exit(1); } while (0);
+#define PERROREXIT(x)   do { perror(x); exit(1); } while (0);
 
 #define MAXMYSIG 31
 
