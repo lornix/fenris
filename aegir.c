@@ -58,8 +58,6 @@
 #include "fdebug.h"
 #include "libdisasm/opcodes2/opdis.h"
 
-#include "common.h"
-
 void do_addr(char* param);
 void do_back(char* param);
 void do_break(char* param);

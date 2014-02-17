@@ -47,8 +47,6 @@
 #include "config.h"
 #include "html.h"
 
-#include "common.h"
-
 #define outf(x...)      fprintf(outfile,x)
 //FIXME: this one is weird, references cline often when not set yet, replace
 //with FATALEXIT?

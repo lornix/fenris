@@ -97,8 +97,6 @@ unsigned int Wcode_addr;
 
 #define FATALMSG(x)  do { wattrset(Waegir,fatal_color); MSG("FATAL: %s\n",x); clean_exit(1); } while (0);
 
-#include "common.h"
-
 /******************************************************************************/
 
 //FIXME: hardcoded?!?  more than 300+ for i386

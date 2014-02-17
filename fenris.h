@@ -27,8 +27,6 @@
 
 #include "config.h"
 
-#include "common.h"
-
 struct fenris_mem {
     unsigned int  addr,  // Start addr of memory block (0 - unused)
                   len;   // End addr of memory block

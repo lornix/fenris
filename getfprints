@@ -22,90 +22,150 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
-TRYLIBS="/usr/lib/libc.a /usr/lib/libm.a /usr/lib/libdl.a \
-    /usr/lib/libresolv.a /usr/lib/libreadline.a /usr/lib/libtermcap.a \
-    /usr/lib/libssl.a /usr/lib/libBrokenLocale.a \
-    /usr/lib/libcrypt.a"
+TRYLIBS="
+    libc.a
+    libm.a
+    libdl.a
+    libresolv.a
+    libreadline.a
+    libtermcap.a
+    libssl.a
+    libBrokenLocale.a
+    libcrypt.a
+"
 
-if [ ! "$1" = "" ]; then
-    TRYLIBS="$1"
+# various machines, stock, x86_64, arm emulation, raspberry pi (raspian)
+TRYPATHS="
+    /usr/lib
+    /usr/lib/x86_64-linux-gnu
+    /usr/lib/arm-none-eabi
+    /usr/lib/arm-linux-gnueabihf
+"
+
+OUTFILE=NEW-fnprints.dat
+
+usage()
+{
+    cat <<-EOF
+Usage: $(basename $0) [options] [libraries]
+
+    libraries    optional libraries to scan
+
+    -q | --quiet don't display banners
+    -f | --force force overwriting existing ${OUTFILE}
+    -h | --help  show this usage info
+
+$(basename $0) pulls library fingerprints from a preset list of libraries,
+or a list given on command line, outputting results info '${OUTFILE}'.
+EOF
+    exit 2
+}
+
+QUIET=0
+FORCE=0
+
+args=$(getopt --name "$0" --options "qfh" --longoptions "quiet,force,help" -- "$@")
+if [ $? -gt 0 ]; then
+    usage
+    exit 1
+fi
+eval set -- "${args}"
+#
+for arg; do
+    case ${arg} in
+        -q|--quiet) shift; QUIET=1;;
+        -f|--force) shift; FORCE=1;;
+        -h)         usage;; # never returns
+        --)         shift; break;;
+    esac
+done
+
+if [ -n "$1" ]; then
+    TRYLIBS="$@"
 fi
 
-if [ "$NOBANNER" = "" ]; then
+if [ ${QUIET} -eq 0 ]; then
     echo "auto library function signature collector for fenris -- <lcamtuf@coredump.cx>"
 fi
 
-export FANCY=1
-ACNT=0
-FCNT=0
-O=NEW-fnprints.dat
+LIBLIST=""
+declare -i LIBCOUNT=0
 
-PATH=$PATH:.
-
-echo -n >$O
-
-TRYTHEM=""
-
-for i in $TRYLIBS; do
-    test -f $i && TRYTHEM="$TRYTHEM $i"
+# look for each file
+for f in ${TRYLIBS}; do
+    # in each path
+    for p in "" ${TRYPATHS}; do
+        if [ -f ${p}/${f} ]; then
+            # saving the path/file combo when found
+            LIBLIST="${LIBLIST} ${p}/${f}"
+            LIBCOUNT=${LIBCOUNT}+1
+            # but only the first one found
+            break
+        fi
+    done
 done
 
-FCOUNT=`echo $TRYTHEM|wc -w`
-
-if [ "$FCOUNT" = "0" ]; then
-    echo "No usable libraries. Tried the following: $TRYLIBS."
+if [ ${LIBCOUNT} -eq 0 ]; then
+    echo "No usable libraries found"
     exit 1
 fi
 
-fprints &>/dev/null
+# find fprints in path, or locally IF it exists and is exec'able
+FPRINTS=$(which fprints || ( test -x ./fprints && echo ./fprints ) )
 
-if [ ! "$?" = "1" ]; then
+if [ -z "${FPRINTS}" ]; then
     echo "Cannot find 'fprints' in your path or in current directory."
     exit 1
 fi
 
-CAR=0
+if [ -f ${OUTFILE} ] && [ ${FORCE} -eq 0 ]; then
+    echo "Cowardly refusing to overwrite existing output file: '${OUTFILE}'"
+    exit 1
+fi
 
-for i in $TRYTHEM; do
-    CAR=$[CAR+1]
+declare -i CURRENT_ARCHIVE=0
+declare -i ARCHIVE_COUNT=0
+declare -i FILE_COUNT=0
+declare -i PERCENT=0
 
-    MIAU=`basename $i`
+for LIB in ${LIBLIST}; do
+    CURRENT_ARCHIVE=${CURRENT_ARCHIVE}+1
+    MIAU=$(basename ${LIB})
+    LIST=$(ar t ${LIB})
+    IC=$(echo ${LIST} | wc -w)
+    ARCHIVE_COUNT=${ARCHIVE_COUNT}+1
 
-    LIST=`ar t $i`
-    IC=`echo $LIST | wc -w`
-    ACNT=$[ACNT+1]
-    IN=0
+    declare -i IN=0
 
-    for j in $LIST; do
-        IN=$[IN+1]
-        ar x $i $j
-        echo -n "[$CAR/$[FCOUNT]] [$[IN*100/IC]%] $MIAU:$j - "
-        fprints $j >>$O
-        rm -f $j
+    for j in ${LIST}; do
+        IN=${IN}+1
+        ar x ${LIB} ${j}
+        PERCENT=${IN}*100/${IC}
+        echo -n "[${CURRENT_ARCHIVE}/${LIBCOUNT}] [${PERCENT}%] ${MIAU}:${j} - "
+        ${FPRINTS} --fancy ${j} >>${OUTFILE}
+        rm -f ${j}
         echo -ne "                   \r"
-        FCNT=$[FCNT+1]
+        FILE_COUNT=${FILE_COUNT}+1
     done
 done
 
-echo 'main() {getuid();}' >.test-$$.c 2>/dev/null
-gcc -static .test-$$.c -o .test-$$ &>/dev/null
-fprints .test-$$ 2>/dev/null >>$O
-rm -f .test-$$.c .test-$$
+TMPFILE=tmptest-$$
 
-OCNT=`grep -c . $O`
+echo 'main() {getuid();}' > ${TMPFILE}.c
+gcc -static ${TMPFILE}.c -o ${TMPFILE} >/dev/null 2>&1
+${FPRINTS} --fancy ${TMPFILE} 2>/dev/null >>${OUTFILE}
+rm -f ${TMPFILE}.c ${TMPFILE}
 
-# cat $O >>miau
+FUNC_COUNT=$(grep -c . ${OUTFILE})
 
 export ID="?"
 
-sed 's/ __/ /g;s/_IO_//g;s/ _/ /g' <$O | awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
-    sort | uniq >$O-$$.tmp
-
-cat $O-$$.tmp | grep -vE 'free_mem|Letext' >$O
-rm -f $O-$$.tmp
+sed 's/ __/ /g;s/_IO_//g;s/ _/ /g' ${OUTFILE} | \
+    awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
+    sort | uniq | grep -vE 'free_mem|Letext' > ${TMPFILE}
+mv ${TMPFILE} ${OUTFILE}
 
 echo
-echo "Done. Read $ACNT archives, $FCNT files, found $OCNT functions."
+echo "Read ${ARCHIVE_COUNT} archives, ${FILE_COUNT} files, found ${FUNC_COUNT} functions."
 
-rm -f *.o
 exit 0

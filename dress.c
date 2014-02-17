@@ -60,8 +60,6 @@
 #include <md5.h>
 #endif /* USE_OPENSSL */
 
-#include "common.h"
-
 char* lookfor=".text";
 char* tofile;
 int found;

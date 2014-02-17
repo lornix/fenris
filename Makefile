@@ -91,38 +91,55 @@ CFLAGS+=-DLIBCSEG="0x2A"
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h syscallnames.h hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
+fenris: fenris.c fenris.h config.h ioctls.h libdisasm/libdis.h fdebug.h hooks.h allocs.h libfnprints.h syscallnames.h hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 
-ragnarok: ragnarok.c
+ragnarok: ragnarok.c config.h html.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-fprints: fprints.c
+fprints: fprints.c config.h libfnprints.h libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-dress: dress.c libfnprints.o
+dress:   dress.c   config.h libfnprints.h libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-aegir: aegir.c syscallnames.h libfnprints.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+aegir:    aegir.c    config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libfnprints.o          libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
-nc-aegir: nc-aegir.c syscallnames.h libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+nc-aegir: nc-aegir.c config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -lncurses -o $@ $< rstree.o libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
 # ===================== Libraries =========================
 
-%.o: %.c
-	$(CC) -c $(CFLAGS) -o $@ $<
+allocs.o: allocs.c allocs.h rstree.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+hooks.o: hooks.c hooks.h fenris.h fdebug.h libfnprints.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+libfnprints.o: libfnprints.c libfnprints.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+rstree.o: rstree.c rstree.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+libdisasm/i386.o: libdisasm/i386.c libdisasm/i386.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+libdisasm/libdis.o: libdisasm/libdis.c libdisasm/bastard.h libdisasm/extension.h libdisasm/libdis.h libdisasm/i386.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+libdisasm/opcodes2/i386-dis.o: libdisasm/opcodes2/i386-dis.c libdisasm/opcodes2/dis-asm.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+libdisasm/opcodes2/opdis.o: libdisasm/opcodes2/opdis.c libdisasm/opcodes2/dis-asm.h libdisasm/opcodes2/opdis.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 fingerprints:
-	@touch fnprints.dat
+	@if [ ! -f fnprints.dat ]; then touch fnprints.dat; fi
 	@echo "[*] Updating libc fingerprint database (this will take a while)..."
-	@-NOBANNER=1 ./getfprints
+	@./getfprints --quiet --force
 	@echo "[*] Sorting fingerprints..."
-	@sort fnprints.dat NEW-fnprints.dat | uniq > .tmp
-	@mv .tmp fnprints.dat
-	@rm -f NEW-fnprints.dat
-	@echo "You have `wc -l < fnprints.dat` fingerprints"
+	@BEFORE=`wc -l < fnprints.dat`; \
+	       sort fnprints.dat NEW-fnprints.dat | uniq > .tmp; \
+	       mv .tmp fnprints.dat; \
+	       rm -f NEW-fnprints.dat; \
+	       AFTER=`wc -l < fnprints.dat`; \
+	       CHANGE=`expr $${AFTER} - $${BEFORE}`; \
+	       echo "You have $${AFTER} fingerprints, a change of $${CHANGE}"
 
 # debug: fenris.c fenris.h config.h ioctls.h fprints.c
 #         @./build-project debug

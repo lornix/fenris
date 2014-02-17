@@ -15,8 +15,6 @@
 
 #include "../fdebug.h"
 
-#include "../common.h"
-
 unsigned int sd;
 
 void flisten(char* where) {

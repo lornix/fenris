@@ -47,8 +47,6 @@
 #include "hooks.h"
 #include "libfnprints.h"
 
-#include "common.h"
-
 //FIXME: odd, ostream NEVER created, only extern'd
 #undef debug
 #define debug(x...) fprintf(ostream,x)
