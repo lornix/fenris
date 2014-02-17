@@ -41,16 +41,16 @@
 /* Hackish hack to import kernel stat struct without much collateral damage */
 
 #define stat __kernel_stat
-#define stat64 __kernel_stat64
-#define old_stat __old_kernel_stat
-#define new_stat __kernel_stat
+/* #define stat64 __kernel_stat64 */
+/* #define old_stat __old_kernel_stat */
+/* #define new_stat __kernel_stat */
 
 #include <asm/stat.h>
 
 #undef stat
-#undef stat64
-#undef old_stat
-#undef new_stat
+/* #undef stat64 */
+/* #undef old_stat */
+/* #undef new_stat */
 
 /* End of nasty hack. */
 
@@ -127,7 +127,7 @@ char verybigbuf[200000];           // output buffer
 extern int break_stopped;          // The process is stopped.
 extern int break_continuing;
 
-struct my_user_regs_struct  r;        // Current process: registers
+struct signed_user_regs_struct r;  // Current process: registers
 unsigned char            op[8];    // Current process: rip[0..8]
 int                      pid;      // Current process: pid
 int                      in_libc;  // Current process: rip in LIBCSEG?

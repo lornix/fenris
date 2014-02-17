@@ -90,7 +90,7 @@ void check_messages(void) {
     STDERRMSG("[+] Received message %d with %d bytes of payload.\n",x.type,dlen);
 
     if (x.type == 5) {
-        struct user_regs_struct x;
+        struct signed_ user_regs_struct x;
         x.eip=0x12345678;
         send_message(DMSG_REPLY,(char*)&x,sizeof(x));
     } else if (x.type == 2) {

@@ -35,7 +35,7 @@
 #include <dlfcn.h>
 #include <sys/socket.h>
 #include <termios.h>
-#include <sys/un.h>
+#include <linux/un.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <errno.h>
@@ -69,7 +69,7 @@
 int doingstop;
 int syscnum;
 
-void inline do_prompt(int n);
+void do_prompt(int n);
 void refresh_all(int t);
 
 WINDOW *Waegir, *Wregs, *Wdata, *Winput, *Wstatus, *Wcode, *Wfenris;
@@ -154,7 +154,7 @@ unsigned long long int l1, l2;
 
 void* send_message(int mtype,void* data,void* store);
 
-unsigned int sd;
+int sd;
 
 void connect_to_fenris(char* where) {
     struct sockaddr_un sun;
@@ -162,14 +162,14 @@ void connect_to_fenris(char* where) {
     MSG("[+] Connecting to Fenris at %s...\n",where);
 
     if ((sd = socket (AF_LOCAL, SOCK_STREAM, 0))<0) {
-        MSG("FATAL: cannot create a socket (%s)\n",sys_errlist[errno]);
+        MSG("FATAL: cannot create a socket (%s)\n",strerror(errno));
         clean_exit(1);
     }
 
     sun.sun_family = AF_LOCAL;
     strncpy (sun.sun_path, where, UNIX_PATH_MAX);
     if (connect (sd, (struct sockaddr*)&sun,sizeof (sun))) {
-        MSG("FATAL: cannot connect to Fenris socket (%s)\n",sys_errlist[errno]);
+        MSG("FATAL: cannot connect to Fenris socket (%s)\n",strerror(errno));
         clean_exit(1);
     }
 
@@ -184,16 +184,17 @@ void connect_to_fenris(char* where) {
 char str_buf[MAXFENT];
 
 char* get_string_sock(int sock) {
-    int len=0;
+    unsigned int len=0;
     while (1) {
         if (read(sock,str_buf+len,1)!=1) FATALMSG("short read in get_string_sock from Fenris");
 
-        if (!str_buf[len])return str_buf;
+        if (!str_buf[len])
+            break;
 
         if(++len >= sizeof(str_buf)-2)
             FATALMSG("string from Fenris is of excessive length");
     }
-    FATALMSG("Another broken Turing machine. Rhubarb.");
+    return str_buf;
 }
 
 int get_dword_sock(int sock) {
@@ -221,7 +222,7 @@ void* send_message(int mtype,void* data,void* store) {
         case DMSG_GETNAME: dlen=4; break;
 
         case DMSG_GETADDR: dlen=strlen(data)+1; break;
-        case DMSG_SETREGS: dlen=sizeof(struct user_regs_struct); break;
+        case DMSG_SETREGS: dlen=sizeof(struct signed_user_regs_struct); break;
 
         case DMSG_GETREGS: case DMSG_GETMAP:    case DMSG_FDMAP: case DMSG_FNLIST:
         case DMSG_SIGNALS: case DMSG_TOLIBCALL: case DMSG_TOSYSCALL:
@@ -340,10 +341,10 @@ void* send_message(int mtype,void* data,void* store) {
                 memcpy(store,&a,4);
                 break;
 
-                // GETREGS returns user_regs_struct
+                // GETREGS returns signed_user_regs_struct
             case DMSG_GETREGS:
-                if (read(sd,store,sizeof(struct user_regs_struct))!=
-                        sizeof(struct user_regs_struct))
+                if (read(sd,store,sizeof(struct signed_user_regs_struct))!=
+                        sizeof(struct signed_user_regs_struct))
                     FATALMSG("short read on DMSG_RETREGS");
                 break;
 
@@ -391,7 +392,7 @@ void load_module(char* what) {
 }
 
 // "help" handler
-void display_help(char* param) {
+void display_help(char* param __attribute__((unused))) {
     int q=0;
     while (cmd[q].cmd) {
         char command[512];
@@ -449,15 +450,15 @@ int nc_fprintf(FILE *stream, char *format, ...)
 
 // "disass" handler
 void do_disass(char* param) {
-    unsigned long long int st,len;
+    long long int st,len;
     char* mem;
     unsigned int par[2];
     int retlen;
 
     if (!param) {
-        struct user_regs_struct* x;
+        struct signed_user_regs_struct* x;
         x=(void*)send_message(DMSG_GETREGS,0,0);
-        st=x->eip;
+        st=x->rip;
         len=0;
     } else {
         if (strchr(param,' ')) {
@@ -516,8 +517,8 @@ char* describe_address(unsigned int addr) {
 char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
 {
     char* mem;
-    int retlen;
-    int caddr;
+    unsigned int retlen;
+    unsigned int caddr;
 
     unsigned int par[2]={st,st+len};
     mem=send_message(DMSG_GETMEM,(char*)&par,0);
@@ -562,7 +563,7 @@ char * wmemdump(WINDOW *w, unsigned int st, unsigned int len,char verb)
 
 // "x" handler
 void do_memdump(char* param) {
-    unsigned long long int st,len;
+    long long int st,len;
 
     if (!param) {
         MSG("One or two parameters required.\n");
@@ -768,32 +769,32 @@ void do_strdump(char* param) {
 
 }
 
-void do_regs(char* param) {
-    struct user_regs_struct* x;
+void do_regs(char* param __attribute__((unused))) {
+    struct signed_user_regs_struct* x;
     x=(void*)send_message(DMSG_GETREGS,0,0);
 
-    MSG("eax \t0x%08x\t %d\n",x->eax,x->eax);
-    MSG("ebx \t0x%08x\t %d\n",x->ebx,x->ebx);
-    MSG("ecx \t0x%08x\t %d\n",x->ecx,x->ecx);
-    MSG("edx \t0x%08x\t %d\n",x->edx,x->edx);
-    MSG("esi \t0x%08x\t %d\n",x->esi,x->esi);
-    MSG("edi \t0x%08x\t %d\n",x->edi,x->edi);
-    MSG("ebp \t0x%08x\t %d\n",x->ebp,x->ebp);
-    MSG("esp \t0x%08x\t %d\n",x->esp,x->esp);
-    MSG("eip \t0x%08x\t %d\n",x->eip,x->eip);
+    MSG("eax \t0x%08x\t %d\n",x->rax,x->rax);
+    MSG("ebx \t0x%08x\t %d\n",x->rbx,x->rbx);
+    MSG("ecx \t0x%08x\t %d\n",x->rcx,x->rcx);
+    MSG("edx \t0x%08x\t %d\n",x->rdx,x->rdx);
+    MSG("esi \t0x%08x\t %d\n",x->rsi,x->rsi);
+    MSG("edi \t0x%08x\t %d\n",x->rdi,x->rdi);
+    MSG("ebp \t0x%08x\t %d\n",x->rbp,x->rbp);
+    MSG("esp \t0x%08x\t %d\n",x->rsp,x->rsp);
+    MSG("eip \t0x%08x\t %d\n",x->rip,x->rip);
     MSG("eflags \t0x%08x\t 0%o\n",x->eflags,x->eflags);
-    MSG("ds \t0x%x\n",x->xds);
-    MSG("es \t0x%x\n",x->xes);
-    MSG("fs \t0x%x\n",x->xfs);
-    MSG("gs \t0x%x\n",x->xgs);
-    MSG("cs \t0x%x\n",x->xes);
-    MSG("ss \t0x%x\n",x->xss);
+    MSG("ds \t0x%x\n",x->ds);
+    MSG("es \t0x%x\n",x->es);
+    MSG("fs \t0x%x\n",x->fs);
+    MSG("gs \t0x%x\n",x->gs);
+    MSG("cs \t0x%x\n",x->es);
+    MSG("ss \t0x%x\n",x->ss);
 
 }
 
 void do_setreg(char* param) {
     char* ww;
-    struct user_regs_struct x;
+    struct signed_user_regs_struct x;
     char regname[128];
     int val;
 
@@ -812,49 +813,49 @@ void do_setreg(char* param) {
     send_message(DMSG_GETREGS,0,&x);
 
     if (!strcasecmp("eax",regname)) {
-        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.eax,val);
-        x.eax=val;
+        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rax,val);
+        x.rax=val;
     } else
 
         if (!strcasecmp("ebx",regname)) {
-            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ebx,val);
-            x.ebx=val;
+            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rbx,val);
+            x.rbx=val;
         } else
 
             if (!strcasecmp("ecx",regname)) {
-                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ecx,val);
-                x.ecx=val;
+                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rcx,val);
+                x.rcx=val;
             } else
 
                 if (!strcasecmp("edx",regname)) {
-                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.edx,val);
-                    x.edx=val;
+                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rdx,val);
+                    x.rdx=val;
                 } else
 
                     if (!strcasecmp("esi",regname)) {
-                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.esi,val);
-                        x.esi=val;
+                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rsi,val);
+                        x.rsi=val;
                     } else
 
                         if (!strcasecmp("edi",regname)) {
-                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.edi,val);
-                            x.edi=val;
+                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rdi,val);
+                            x.rdi=val;
                         } else
 
                             if (!strcasecmp("esp",regname)) {
-                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.esp,val);
-                                x.esp=val;
+                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rsp,val);
+                                x.rsp=val;
                             } else
 
                                 if (!strcasecmp("eip",regname)) {
-                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.eip,val);
+                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rip,val);
                                     MSG("Note: modifying eip is the best way to trash Fenris. Act wisely.\n");
-                                    x.eip=val;
+                                    x.rip=val;
                                 } else
 
                                     if (!strcasecmp("ebp",regname)) {
-                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ebp,val);
-                                        x.ebp=val;
+                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.rbp,val);
+                                        x.rbp=val;
                                     } else
 
                                         if (!strcasecmp("eflags",regname)) {
@@ -863,33 +864,33 @@ void do_setreg(char* param) {
                                         } else
 
                                             if (!strcasecmp("ds",regname)) {
-                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xds,val);
-                                                x.xds=val;
+                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ds,val);
+                                                x.ds=val;
                                             } else
 
                                                 if (!strcasecmp("es",regname)) {
-                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xes,val);
-                                                    x.xes=val;
+                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.es,val);
+                                                    x.es=val;
                                                 } else
 
                                                     if (!strcasecmp("fs",regname)) {
-                                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xfs,val);
-                                                        x.xfs=val;
+                                                        MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.fs,val);
+                                                        x.fs=val;
                                                     } else
 
                                                         if (!strcasecmp("gs",regname)) {
-                                                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xgs,val);
-                                                            x.xgs=val;
+                                                            MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.gs,val);
+                                                            x.gs=val;
                                                         } else
 
                                                             if (!strcasecmp("cs",regname)) {
-                                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xcs,val);
-                                                                x.xcs=val;
+                                                                MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.cs,val);
+                                                                x.cs=val;
                                                             } else
 
                                                                 if (!strcasecmp("ss",regname)) {
-                                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.xss,val);
-                                                                    x.xss=val;
+                                                                    MSG("Changing %s from 0x%x to 0x%x...\n",regname,x.ss,val);
+                                                                    x.ss=val;
                                                                 } else {
                                                                     MSG("Unknown register '%s'.\n",regname);
                                                                     return;
@@ -900,7 +901,7 @@ void do_setreg(char* param) {
 
 }
 
-void do_back(char* param) {
+void do_back(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_GETBACK,0,0);
     MSG("%s",x);
@@ -1089,7 +1090,7 @@ void do_step(char* param) {
     MSG("%s",x);
 }
 
-void do_dynamic(char* param) {
+void do_dynamic(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_DYNAMIC,0,0);
     MSG("%s",x);
@@ -1115,79 +1116,79 @@ void do_del(char* param) {
     MSG("%s",x);
 }
 
-void do_libc(char* param) {
+void do_libc(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLIBCALL,0,0);
     MSG("%s",x);
 }
 
-void do_sys(char* param) {
+void do_sys(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOSYSCALL,0,0);
     MSG("%s",x);
 }
 
-void do_signals(char* param) {
+void do_signals(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_SIGNALS,0,0);
     MSG("%s",x);
 }
 
-void do_call(char* param) {
+void do_call(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLOCALCALL,0,0);
     MSG("%s",x);
 }
 
-void do_down(char* param) {
+void do_down(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLOWERNEST,0,0);
     MSG("%s",x);
 }
 
-void do_list(char* param) {
+void do_list(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_LISTBREAK,0,0);
     MSG("%s",x);
 }
 
-void do_fdmap(char* param) {
+void do_fdmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_FDMAP,0,0);
     MSG("%s",x);
 }
 
-void do_memmap(char* param) {
+void do_memmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_GETMAP,0,0);
     MSG("%s",x);
 }
 
-void do_fnmap(char* param) {
+void do_fnmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_FNLIST,0,0);
     MSG("%s",x);
 }
 
-void do_run(char* param) {
+void do_run(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_RUN,0,0);
     MSG("%s",x);
 }
 
-void do_stop(char* param) {
+void do_stop(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_STOP,0,0);
     MSG("%s",x);
 }
 
-void do_halt(char* param) {
+void do_halt(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_HALT,0,0);
     MSG("%s",x);
 }
 
-void do_next(char* param) {
+void do_next(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TONEXT,0,0);
     MSG("%s",x);
@@ -1555,11 +1556,10 @@ char * nc_getline(int ch)                // readline replacement
 {
     char * tmp;
     int cursor=0;
-    int new_buf, cur_buf;
+    int new_buf=0, cur_buf=0;
     struct buff_struct buffers[N_BUFFERS];
-    char * last_buf;
+    char* last_buf=NULL;
 
-#define C_BUF           (buffers[cur_buf])
     switch(ch){
         case KEY_LEFT:
             if(cursor==0){
@@ -1569,7 +1569,7 @@ char * nc_getline(int ch)                // readline replacement
             break;
 
         case KEY_RIGHT:
-            if(cursor==C_BUF.len){
+            if(cursor==(buffers[cur_buf]).len){
                 beep();return 0;
             }
             cursor++;
@@ -1581,9 +1581,9 @@ char * nc_getline(int ch)                // readline replacement
                 beep();return 0;
             }
             cur_buf=(cur_buf+N_BUFFERS-1)%N_BUFFERS;
-            cursor=C_BUF.len;
+            cursor=(buffers[cur_buf]).len;
             wmove(Winput,0,8); wclrtoeol(Winput);
-            waddstr(Winput,C_BUF.buf);
+            waddstr(Winput,(buffers[cur_buf]).buf);
             break;
 
         case KEY_DOWN:
@@ -1592,9 +1592,9 @@ char * nc_getline(int ch)                // readline replacement
                 beep();return 0;
             }
             cur_buf=(cur_buf + 1)%N_BUFFERS;
-            cursor=C_BUF.len;
+            cursor=(buffers[cur_buf]).len;
             wmove(Winput,0,8); wclrtoeol(Winput);
-            waddstr(Winput,C_BUF.buf);
+            waddstr(Winput,(buffers[cur_buf]).buf);
             break;
 
         case 127:
@@ -1602,18 +1602,18 @@ char * nc_getline(int ch)                // readline replacement
             if(cursor==0){
                 beep();return 0;
             }
-            memmove(C_BUF.buf + cursor-1, C_BUF.buf + cursor, C_BUF.len-cursor+1);
+            memmove((buffers[cur_buf]).buf + cursor-1, (buffers[cur_buf]).buf + cursor, (buffers[cur_buf]).len-cursor+1);
             mvwdelch(Winput,0,8+cursor-1);
-            cursor--;C_BUF.len--;
+            cursor--;(buffers[cur_buf]).len--;
             break;
 
         case KEY_DC:
-            if(cursor==C_BUF.len){
+            if(cursor==(buffers[cur_buf]).len){
                 beep();return 0;
             }
-            memmove(C_BUF.buf + cursor, C_BUF.buf + cursor+1, C_BUF.len-cursor);
+            memmove((buffers[cur_buf]).buf + cursor, (buffers[cur_buf]).buf + cursor+1, (buffers[cur_buf]).len-cursor);
             wdelch(Winput);
-            C_BUF.len--;
+            (buffers[cur_buf]).len--;
             break;
 
         case CONTROL('A'):
@@ -1623,13 +1623,13 @@ char * nc_getline(int ch)                // readline replacement
 
         case CONTROL('E'):
         case KEY_END:
-            cursor=C_BUF.len;
+            cursor=(buffers[cur_buf]).len;
             break;
 
         case CONTROL('U'):
             wmove(Winput,0,8);
-            memmove(C_BUF.buf, C_BUF.buf + cursor, C_BUF.len-cursor);
-            C_BUF.len-=cursor;
+            memmove((buffers[cur_buf]).buf, (buffers[cur_buf]).buf + cursor, (buffers[cur_buf]).len-cursor);
+            (buffers[cur_buf]).len-=cursor;
             for(;cursor>0;cursor--)wdelch(Winput);
             break;
 
@@ -1641,7 +1641,7 @@ char * nc_getline(int ch)                // readline replacement
                     beep();return 0;
                 }
 
-                for(c=&C_BUF.buf[cursor-1];*c==' ' && cursor>0;c--){
+                for(c=&(buffers[cur_buf]).buf[cursor-1];*c==' ' && cursor>0;c--){
                     mvwdelch(Winput,0,8+cursor-1);cursor--;
                 }
 
@@ -1649,8 +1649,8 @@ char * nc_getline(int ch)                // readline replacement
                     mvwdelch(Winput,0,8+cursor-1);cursor--;
                 }
 
-                memmove(c, C_BUF.buf + oldcursor-1, C_BUF.len-oldcursor+1);
-                C_BUF.len-=(C_BUF.len-oldcursor+1);
+                memmove(c, (buffers[cur_buf]).buf + oldcursor-1, (buffers[cur_buf]).len-oldcursor+1);
+                (buffers[cur_buf]).len-=((buffers[cur_buf]).len-oldcursor+1);
             }
             break;
 
@@ -1659,8 +1659,8 @@ char * nc_getline(int ch)                // readline replacement
             my_wprintw(Wfenris,"");
             my_wprintw(Waegir,"");
 
-            if(C_BUF.buf[0]){
-                last_buf=C_BUF.buf;
+            if((buffers[cur_buf]).buf[0]){
+                last_buf=(buffers[cur_buf]).buf;
             }else{
                 if(!getline_optns.repeat_last)return 0;
 
@@ -1679,24 +1679,24 @@ char * nc_getline(int ch)                // readline replacement
 
             new_buf=(new_buf+1)%N_BUFFERS;
 
-            C_BUF.buf[C_BUF.len]=0;
-            tmp=C_BUF.buf;
+            (buffers[cur_buf]).buf[(buffers[cur_buf]).len]=0;
+            tmp=(buffers[cur_buf]).buf;
             cur_buf=new_buf;
-            cursor=C_BUF.len=0;
+            cursor=(buffers[cur_buf]).len=0;
             return tmp;
             break;
 
         default:
-            if(ch<32 || ch>128 || C_BUF.len+8==COLS-3
-                    || C_BUF.len==INPUT_BUFLEN-1){
+            if(ch<32 || ch>128 || (buffers[cur_buf]).len+8==COLS-3
+                    || (buffers[cur_buf]).len==INPUT_BUFLEN-1){
                 beep(); return 0;
             }
             winsch(Winput,ch);
-            if(cursor<C_BUF.len)
-                memmove(C_BUF.buf + cursor+1, C_BUF.buf + cursor, C_BUF.len - cursor);
+            if(cursor<(buffers[cur_buf]).len)
+                memmove((buffers[cur_buf]).buf + cursor+1, (buffers[cur_buf]).buf + cursor, (buffers[cur_buf]).len - cursor);
 
-            C_BUF.buf[cursor]=ch;
-            cursor++; C_BUF.len++;
+            (buffers[cur_buf]).buf[cursor]=ch;
+            cursor++; (buffers[cur_buf]).len++;
     }
 
     wmove(Winput,0,cursor+8);
@@ -1742,19 +1742,19 @@ int getcpid(int pid)
 
 void reset_wdata_addr()
 {
-    struct user_regs_struct* x;
+    struct signed_user_regs_struct* x;
 
     x=(void*)send_message(DMSG_GETREGS,0,0);
-    wdata_addr=x->esp-WD*16;
+    wdata_addr=x->rsp-WD*16;
     reg_mem_code_update();
 }
 
 void reset_wcode_addr()
 {
-    struct user_regs_struct* x;
+    struct signed_user_regs_struct* x;
 
     x=(void*)send_message(DMSG_GETREGS,0,0);
-    Wcode_addr=x->eip;
+    Wcode_addr=x->rip;
     reg_mem_code_update();
 }
 
@@ -1877,6 +1877,8 @@ void Wcode_set_addr(unsigned int addr) {
 
     par[0]=addr; par[1]=par[0]+WC_MAX_OPSIZE;
     mem=((char*)(ff=send_message(DMSG_GETMEM,(char*)&par,0)))+4;
+    //FIXME: side effects.... sigh
+    mem=mem;
 
     if (*ff>0) {
         Wcode_info.top_node=RSTree_put(Wcode_info.tree,addr);
@@ -1907,7 +1909,7 @@ const struct {
 
 char * reg_mem_code_update()
 {
-    struct user_regs_struct* x;
+    struct signed_user_regs_struct* x;
     int i;
     char * m;
 
@@ -1915,9 +1917,9 @@ char * reg_mem_code_update()
     wmove(Wregs,0,0);
     wattrset(Wregs, regs_color);
     wprintw(Wregs,"eax 0x%08x  ebx 0x%08x  ecx 0x%08x  edx 0x%08x  esi 0x%08x\n",
-            x->eax, x->ebx, x->ecx, x->edx, x->esi);
+            x->rax, x->rbx, x->rcx, x->rdx, x->rsi);
     wprintw(Wregs,"edi 0x%08x  ebp 0x%08x  esp 0x%08x  eip 0x%08x  flags ",
-            x->edi, x->ebp, x->esp, x->eip, x->eflags);
+            x->rdi, x->rbp, x->rsp, x->rip, x->eflags);
 
     for(i=0;i<N_FLAGS;i++)
         if (x->eflags & (1<<flags[i].o)) {
@@ -1932,11 +1934,11 @@ char * reg_mem_code_update()
     wnoutrefresh(Wregs);
 
     if (stopped && !please_disass && Wcode_addr)
-        x->eip=Wcode_addr;
+        x->rip=Wcode_addr;
     else
-        Wcode_addr=x->eip;
+        Wcode_addr=x->rip;
 
-    Wcode_set_addr(x->eip);
+    Wcode_set_addr(x->rip);
 
     m=wmemdump(Wdata,wdata_addr,WD*16,0);
     wmove(Wdata,10,0);
@@ -1947,7 +1949,7 @@ char * reg_mem_code_update()
 
 /******************************************************************************/
 
-void inline do_prompt(int n)
+void do_prompt(int n)
 {
     werase(Winput);
 
@@ -2025,9 +2027,9 @@ void gui_help()
 
 int screen_pid;
 
-void a_handler(int s)
+void a_handler(int s __attribute__((unused)))
 {
-    if(screen_pid>=0)kill(screen_pid,15);
+    if(screen_pid>=0) kill(screen_pid,15);
     STDERRMSG("Debugger session closed down.\n");
     exit(0);
 }
@@ -2038,8 +2040,9 @@ void a_handler(int s)
 void do_splash(char *what) {
     char bigbuf[100000];
     char *cmd="--undefined--",
-         *uid=0,*fp=0,*tfro=0,*tto=0,*cseg=0,*lpro=0,*lout=0,*mac=0,*con=0,
-         *sym=0,*par=0,*mwri=0,*ind=0,*rval=0,*add=0, *goaway=0;
+         *uid=0,*fp=0,*tfro=0,*tto=0,*cseg=0,*add=0;
+    unsigned char lpro=0,lout=0,goaway=0,mac=0,con=0,
+                  sym=0,par=0,mwri=0,ind=0,rval=0;
     struct termios tios;
     ioctl(0,TCGETS,&tios);
 
@@ -2114,16 +2117,16 @@ void do_splash(char *what) {
             case 'D': if (ana[1]) tfro=strdup(&ana[1]); else tfro=0; break;
             case 'E': if (ana[1]) tto=strdup(&ana[1]); else tto=0; break;
             case 'F': if (ana[1]) cseg=strdup(&ana[1]); else cseg=0; break;
-            case 'G': lpro=(void*)!(int)lpro; break;
-            case 'H': lout=(void*)!(int)lout; break;
-            case 'I': goaway=(void*)!(int)goaway; break;
-            case 'J': mac=(void*)!(int)mac; break;
-            case 'K': con=(void*)!(int)con; break;
-            case 'L': sym=(void*)!(int)sym; break;
-            case 'M': par=(void*)!(int)par; break;
-            case 'N': mwri=(void*)!(int)mwri; break;
-            case 'O': ind=(void*)!(int)ind; break;
-            case 'P': rval=(void*)!(int)rval; break;
+            case 'G': lpro=!lpro; break;
+            case 'H': lout=!lout; break;
+            case 'I': goaway=!goaway; break;
+            case 'J': mac=!mac; break;
+            case 'K': con=!con; break;
+            case 'L': sym=!sym; break;
+            case 'M': par=!par; break;
+            case 'N': mwri=!mwri; break;
+            case 'O': ind=!ind; break;
+            case 'P': rval=!rval; break;
             case 'Q': if (ana[1]) add=strdup(&ana[1]); else add=0; break;
             case 'R': goto i_am_free;
 
@@ -2209,13 +2212,14 @@ int scroll_data(int by, int ed)
 
 int edit_data(int ch)
 {
-    int cx, cy;
-    int mode;    // 0 - hex, 1 - ascii
-    char * mem;
+    int cx=0, cy=0;
+    int mode=0;    // 0 - hex, 1 - ascii
+    char* mem;
 
     switch (ch) {
         case 0:
-            cx=cy=0;
+            cx=0;
+            cy=0;
             mode=0;
             {
                 unsigned int par[2]={wdata_addr, wdata_addr+WD*16};
@@ -2351,10 +2355,10 @@ int edit_data(int ch)
 
 int edit_regs(int ch)
 {
-    struct user_regs_struct x;
-    long * regs[] = { &x.eax, &x.ebx, &x.ecx, &x.edx, &x.esi,
-        &x.edi, &x.ebp, &x.esp, &x.eip, 0 };
-    int r,p;
+    struct signed_user_regs_struct x;
+    long long int* regs[] = { &x.rax, &x.rbx, &x.rcx, &x.rdx, &x.rsi,
+        &x.rdi, &x.rbp, &x.rsp, &x.rip, 0 };
+    int r=0,p=0;
 
     switch (ch) {
         case 0:
@@ -2545,7 +2549,7 @@ int main(int argc,char* argv[])
             sprintf(buf,"%s fenris -q -W '%s' -o '#%s' %s", win_wrapper,
                     envsock, envpipe, envcmd);
         }
-        execl("/bin/sh","sh","-c",buf,0);
+        execl("/bin/sh","sh","-c",buf,NULL);
         perror("execve('/bin/sh')");
         exit(1);
     }
@@ -2606,7 +2610,7 @@ int main(int argc,char* argv[])
         switch(active_window){
             case 0:
                 if (winchange){
-                    if(!sync || stopped)
+                    if(!async || stopped)
                         do_prompt(0);
                     else
                         do_prompt(1);
@@ -2674,7 +2678,7 @@ int main(int argc,char* argv[])
             int n;
             n=read(fpfd,buf,sizeof(buf)-1);
             if (n<0) {
-                MSG("FATAL: read on ENVPIPE (fenris died? (%s)\n",sys_errlist[errno]);
+                MSG("FATAL: read on ENVPIPE (fenris died? (%s)\n",strerror(errno));
                 clean_exit(1);
             }
 

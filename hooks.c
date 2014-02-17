@@ -57,7 +57,7 @@
 extern FILE* ostream;
 extern void fatal(const char* x, const int err);
 
-extern struct user_regs_struct r;        // Current process: registers
+extern struct signed_user_regs_struct r;        // Current process: registers
 extern struct fenris_process*  current;  // Currently traced process
 extern int T_dostep;
 extern char T_goaway;
@@ -348,13 +348,13 @@ void get_mem(unsigned int start, unsigned int end) {
 }
 
 void get_regs(void) {
-    struct user_regs_struct x;
+    struct signed_user_regs_struct x;
     if (ptrace(PTRACE_GETREGS,pid,0,&x)) memcpy(&x,&r,sizeof(x));
     send_message(DMSG_REPLY,&x,sizeof(x));
 }
 
 void set_regs(void) {
-    struct user_regs_struct x;
+    struct signed_user_regs_struct x;
     if (read(sd,&x,sizeof(x))!=sizeof(x)) fatal("short read from client",0);
     ptrace(PTRACE_SETREGS,pid,0,&x);
     ptrace(PTRACE_GETREGS,pid,0,&r);

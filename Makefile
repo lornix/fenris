@@ -39,6 +39,7 @@ CFLAGS+=-DBUILD='"$(BUILD)"' -DVERSION='"$(VERSION)"'
 # always want these
 CFLAGS+=-Wall -Wextra -Wunused
 CFLAGS+=-Werror
+CFLAGS+=-Wunused-macros
 #
 # some optimizations?
 # CFLAGS+=-fomit-frame-pointer -funroll-loops -fexpensive-optimizations -ffast-math
@@ -71,10 +72,6 @@ LDFLAGS+=-lcrypto
 # for readline
 # CFLAGS+=-DHAVE_READLINE -D__USE_TERMCAP
 # LDFLAGS+=-lreadline -ltermcap
-#
-# for ncurses
-# CFLAGS+=
-# LDFLAGS+=-lncurses
 #
 # link time optimizations? smaller execs!
 # CFLAGS+=-flto
@@ -110,7 +107,7 @@ aegir: aegir.c syscallnames.h libfnprints.o libdisasm/opcodes2/i386-dis.o libdis
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
 nc-aegir: nc-aegir.c syscallnames.h libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) -lncurses -o $@ $< rstree.o libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
 # ===================== Libraries =========================
 

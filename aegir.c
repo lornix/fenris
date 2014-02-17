@@ -333,7 +333,7 @@ void do_disass(char* param) {
     int retlen;
 
     if (!param) {
-        struct user_regs_struct* x;
+        struct signed_user_regs_struct* x;
         x=(void*)send_message(DMSG_GETREGS,0,0);
         st=x->rip;
         len=0;
@@ -593,7 +593,7 @@ void do_strdump(char* param) {
 }
 
 void do_regs(char* param __attribute__((unused))) {
-    struct user_regs_struct* x;
+    struct signed_user_regs_struct* x;
     x=(void*)send_message(DMSG_GETREGS,0,0);
 
     STDERRMSG("eax \t0x%08x\t %d\n",(int)x->rax,(int)x->rax);
@@ -617,7 +617,7 @@ void do_regs(char* param __attribute__((unused))) {
 
 void do_setreg(char* param) {
     char* ww;
-    struct user_regs_struct x;
+    struct signed_user_regs_struct x;
     char regname[128];
     int val;
 
@@ -1109,7 +1109,7 @@ void* send_message(int mtype,void* data,void* store) {
         case DMSG_GETNAME: dlen=4; break;
 
         case DMSG_GETADDR: dlen=strlen(data)+1; break;
-        case DMSG_SETREGS: dlen=sizeof(struct user_regs_struct); break;
+        case DMSG_SETREGS: dlen=sizeof(struct signed_user_regs_struct); break;
 
         case DMSG_GETREGS: case DMSG_GETMAP:    case DMSG_FDMAP: case DMSG_FNLIST:
         case DMSG_SIGNALS: case DMSG_TOLIBCALL: case DMSG_TOSYSCALL:
@@ -1246,11 +1246,11 @@ read_loop:
                 memcpy(store,&a,4);
                 break;
 
-                // GETREGS returns user_regs_struct
+                // GETREGS returns signed_user_regs_struct
             case DMSG_GETREGS:
                 fcntl(sd,F_SETFL,O_SYNC);
-                if (read(sd,store,sizeof(struct user_regs_struct))!=
-                        sizeof(struct user_regs_struct))
+                if (read(sd,store,sizeof(struct signed_user_regs_struct))!=
+                        sizeof(struct signed_user_regs_struct))
                     FATALEXIT("short read on DMSG_RETREGS");
                 fcntl(sd,F_SETFL,O_NONBLOCK);
                 break;

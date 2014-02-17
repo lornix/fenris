@@ -18,7 +18,7 @@
 #define BRI      "\\033[1;37m"
 
 
-struct my_user_regs_struct
+struct signed_user_regs_struct
 {
   long long int r15;
   long long int r14;

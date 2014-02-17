@@ -218,7 +218,7 @@ bfd_byte *addr;
 #define Eb      OP_E,      b_mode
 #define Ev      OP_E,      v_mode
 #define Ed      OP_E,      d_mode
-#define indirEb OP_indirE, b_mode
+/* #define indirEb OP_indirE, b_mode */
 #define indirEv OP_indirE, v_mode
 #define Ew      OP_E,      w_mode
 #define Ma      OP_E,      v_mode
@@ -266,35 +266,34 @@ bfd_byte *addr;
 #define RMCH  OP_REG, ch_reg
 #define RMDH  OP_REG, dh_reg
 #define RMBH  OP_REG, bh_reg
-#define RMAX  OP_REG, ax_reg
-#define RMDX  OP_REG, dx_reg
+/* #define RMAX  OP_REG, ax_reg */
+/* #define RMDX  OP_REG, dx_reg */
 
 #define eAX     OP_IMREG, eAX_reg
-#define eBX     OP_IMREG, eBX_reg
-#define eCX     OP_IMREG, eCX_reg
-#define eDX     OP_IMREG, eDX_reg
-#define eSP     OP_IMREG, eSP_reg
-#define eBP     OP_IMREG, eBP_reg
-#define eSI     OP_IMREG, eSI_reg
-#define eDI     OP_IMREG, eDI_reg
+/* #define eBX     OP_IMREG, eBX_reg */
+/* #define eCX     OP_IMREG, eCX_reg */
+/* #define eDX     OP_IMREG, eDX_reg */
+/* #define eSP     OP_IMREG, eSP_reg */
+/* #define eBP     OP_IMREG, eBP_reg */
+/* #define eSI     OP_IMREG, eSI_reg */
+/* #define eDI     OP_IMREG, eDI_reg */
+/* #define AX      OP_IMREG, ax_reg */
+/* #define DX      OP_IMREG, dx_reg */
+/* #define AH      OP_IMREG, ah_reg */
 #define AL      OP_IMREG, al_reg
-#define AL      OP_IMREG, al_reg
+/* #define BH      OP_IMREG, bh_reg */
+/* #define BL      OP_IMREG, bl_reg */
+/* #define CH      OP_IMREG, ch_reg */
 #define CL      OP_IMREG, cl_reg
-#define DL      OP_IMREG, dl_reg
-#define BL      OP_IMREG, bl_reg
-#define AH      OP_IMREG, ah_reg
-#define CH      OP_IMREG, ch_reg
-#define DH      OP_IMREG, dh_reg
-#define BH      OP_IMREG, bh_reg
-#define AX      OP_IMREG, ax_reg
-#define DX      OP_IMREG, dx_reg
+/* #define DH      OP_IMREG, dh_reg */
+/* #define DL      OP_IMREG, dl_reg */
 #define indirDX OP_IMREG, indir_dx_reg
 
 #define Sw   OP_SEG,   w_mode
 #define Ap   OP_DIR,   0
-#define Ob   OP_OFF,   b_mode
+/* #define Ob   OP_OFF,   b_mode */
 #define Ob64 OP_OFF64, b_mode
-#define Ov   OP_OFF,   v_mode
+/* #define Ov   OP_OFF,   v_mode */
 #define Ov64 OP_OFF64, v_mode
 #define Xb   OP_DSreg, eSI_reg
 #define Xv   OP_DSreg, eSI_reg
