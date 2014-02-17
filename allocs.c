@@ -50,27 +50,27 @@ void allocs_set_error_handler(allocs_error_handler_ftype handler)
     global_error_handler=handler;
 }
 
-inline void* original_malloc(const int size)
+void* original_malloc(const int size)
 {
     return malloc(size);
 }
 
-inline void* original_realloc(void *r, const int size)
+void* original_realloc(void *r, const int size)
 {
     return realloc(r, size);
 }
 
-inline void* original_strdup(const void *r)
+void* original_strdup(const void *r)
 {
     return strdup(r);
 }
 
-inline void original_free(void *r)
+void original_free(void *r)
 {
     return free(r);
 }
 
-inline void allocs_fatal(const char *msg)
+void allocs_fatal(const char *msg)
 {
     if (global_error_handler)
         global_error_handler(msg, 0);
@@ -111,7 +111,7 @@ void allocs_atexit(void)
     RSTree_destroy(allocs_tree);
 }
 
-inline void register_atexit(void)
+void register_atexit(void)
 {
     int registered=0;
 
@@ -123,7 +123,7 @@ inline void register_atexit(void)
 }
 #endif /* DEBUG */
 
-inline void* my_malloc(const int size)
+void* my_malloc(const int size)
 {
     void *ret;
     int siz;
@@ -145,7 +145,7 @@ inline void* my_malloc(const int size)
     return ret;
 }
 
-inline void* my_realloc(void *r,const int size)
+void* my_realloc(void *r,const int size)
 {
     void *ret;
     int oldsiz;
@@ -176,7 +176,7 @@ inline void* my_realloc(void *r,const int size)
     return ret;
 }
 
-inline void* my_strdup(const void *r)
+void* my_strdup(const void *r)
 {
     void *ret;
 
@@ -191,7 +191,7 @@ inline void* my_strdup(const void *r)
     return ret;
 }
 
-inline void my_free(void *r)
+void my_free(void *r)
 {
 #ifdef DEBUG
     register_atexit();

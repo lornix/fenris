@@ -67,7 +67,7 @@ int nro_phase;
 
 #define NRO doNRO()
 
-inline char* doNRO(void) {
+char* doNRO(void) {
     nro_phase++;
     if (nro_phase % 2 )
         return NRO_1;
@@ -117,7 +117,7 @@ void my_open(const char* name) {
     close(i);
 }
 
-inline void my_seek(unsigned int off) {
+void my_seek(unsigned int off) {
     if (my_file+off > my_end) my_ptr=my_end; else my_ptr=my_file+off;
 }
 
@@ -131,7 +131,7 @@ char* getname(char* what,int x) {
 
 char getsbuf[1026];
 
-inline char* my_gets(void) {
+char* my_gets(void) {
     char *x,*r=my_ptr;
     int add;
 
@@ -168,7 +168,7 @@ void test_file(void) {
     STDERRMSG("[+] Input file checks passed.\n");
 }
 
-inline int find_inrange(unsigned int st,unsigned int end) {
+int find_inrange(unsigned int st,unsigned int end) {
     int i;
 
     // if (st >= end) fatal("st >= end in find_inrange");
@@ -187,7 +187,7 @@ inline int find_inrange(unsigned int st,unsigned int end) {
 
 }
 
-inline int find_addr(unsigned int st) {
+int find_addr(unsigned int st) {
     int i;
 
     // for (i=0;i<breally;i++)
@@ -206,7 +206,7 @@ inline int find_addr(unsigned int st) {
 
 }
 
-inline int findbynum(int n) {
+int findbynum(int n) {
     return bynum[n];
 }
 

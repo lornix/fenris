@@ -39,10 +39,10 @@
 typedef void (*allocs_error_handler_ftype) (const char *err_msg, int err_code);
 void allocs_set_error_handler(allocs_error_handler_ftype handler);
 
-inline void* my_malloc(const int size);
-inline void* my_realloc(void *oldptr,const int size);
-inline void* my_strdup(const void *r);
-inline void my_free(void *r);
+void* my_malloc(const int size);
+void* my_realloc(void *oldptr,const int size);
+void* my_strdup(const void *r);
+void my_free(void *r);
 
 #ifndef USE_ORIGINAL_ALLOCS
 

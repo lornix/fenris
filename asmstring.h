@@ -57,7 +57,7 @@
 
 
 #define __HAVE_ARCH_STRCPY
-inline char * strcpy(char * dest,const char *src)
+char * strcpy(char * dest,const char *src)
 {
     return strcpy(dest,src);
     //FIXME: rewrite? or remove?
@@ -73,7 +73,7 @@ inline char * strcpy(char * dest,const char *src)
 }
 
 #define __HAVE_ARCH_STRNCPY
-inline char * strncpy(char * dest,const char *src,size_t count)
+char * strncpy(char * dest,const char *src,size_t count)
 {
     return strncpy(dest,src,count);
     //FIXME: rewrite? or remove?
@@ -94,7 +94,7 @@ inline char * strncpy(char * dest,const char *src,size_t count)
 }
 
 #define __HAVE_ARCH_STRCAT
-inline char * strcat(char * dest,const char * src)
+char * strcat(char * dest,const char * src)
 {
     return strcat(dest,src);
     //FIXME: rewrite? or remove?
@@ -113,7 +113,7 @@ inline char * strcat(char * dest,const char * src)
 }
 
 #define __HAVE_ARCH_STRNCAT
-inline char * strncat(char * dest,const char * src,size_t count)
+char * strncat(char * dest,const char * src,size_t count)
 {
     return strncat(dest,src,count);
     //FIXME: rewrite? or remove?
@@ -138,7 +138,7 @@ inline char * strncat(char * dest,const char * src,size_t count)
 }
 
 #define __HAVE_ARCH_STRCMP
-inline int strcmp(const char * cs,const char * ct)
+int strcmp(const char * cs,const char * ct)
 {
     return strcmp(cs,ct);
     //FIXME: rewrite? or remove?
@@ -161,7 +161,7 @@ inline int strcmp(const char * cs,const char * ct)
 }
 
 #define __HAVE_ARCH_STRNCMP
-inline int strncmp(const char * cs,const char * ct,size_t count)
+int strncmp(const char * cs,const char * ct,size_t count)
 {
     return strncmp(cs,ct,count);
     //FIXME: rewrite? or remove?
@@ -207,7 +207,7 @@ char * strchr(const char * s, int c)
 }
 
 #define __HAVE_ARCH_STRRCHR
-inline char * strrchr(const char * s, int c)
+char * strrchr(const char * s, int c)
 {
     return strrchr(s,c);
     //FIXME: rewrite? or remove?
@@ -226,7 +226,7 @@ inline char * strrchr(const char * s, int c)
 }
 
 #define __HAVE_ARCH_STRLEN
-inline size_t strlen(const char * s)
+size_t strlen(const char * s)
 {
     return strlen(s);
     //FIXME: rewrite? or remove?
@@ -241,7 +241,7 @@ inline size_t strlen(const char * s)
     // return __res;
 }
 
-inline void * __memcpy(void * to, const void * from, size_t n)
+void * __memcpy(void * to, const void * from, size_t n)
 {
     return memcpy(to,from,n);
     //FIXME: rewrite? or remove?
@@ -265,7 +265,7 @@ inline void * __memcpy(void * to, const void * from, size_t n)
  * This looks horribly ugly, but the compiler can optimize it totally,
  * as the count is constant.
  */
-inline void * __constant_memcpy(void * to, const void * from, size_t n)
+void * __constant_memcpy(void * to, const void * from, size_t n)
 {
     switch (n) {
         case 0:
@@ -347,7 +347,7 @@ extern void __struct_cpy_bug (void);
      })
 
 #define __HAVE_ARCH_MEMMOVE
-inline void * memmove(void * dest,const void * src, size_t n)
+void * memmove(void * dest,const void * src, size_t n)
 {
     int d0, d1, d2;
     if (dest<src)
@@ -391,7 +391,7 @@ void * memchr(const void * cs,int c,size_t count)
     return __res;
 }
 
-inline void * __memset_generic(void * s, char c,size_t count)
+void * __memset_generic(void * s, char c,size_t count)
 {
     //FIXME: rewrite? or remove?
     int d0, d1;
@@ -407,7 +407,7 @@ inline void * __memset_generic(void * s, char c,size_t count)
 /* we might want to write optimized versions of these later */
 #define __constant_count_memset(s,c,count) __memset_generic((s),(c),(count))
 
-inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
+void * __constant_c_memset(void * s, unsigned long c, size_t count)
 {
     //FIXME: rewrite? or remove?
     int d0, d1;
@@ -427,7 +427,7 @@ inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
 }
 
 #define __HAVE_ARCH_STRNLEN
-inline size_t strnlen(const char * s, size_t count)
+size_t strnlen(const char * s, size_t count)
 {
     //FIXME: rewrite? or remove?
     int d0;
@@ -449,7 +449,7 @@ inline size_t strnlen(const char * s, size_t count)
 /* end of additional stuff */
 
 #define __HAVE_ARCH_STRSTR
-inline char * strstr(const char * cs,const char * ct)
+char * strstr(const char * cs,const char * ct)
 {
     //FIXME: rewrite? or remove?
     int d0, d1;
@@ -483,7 +483,7 @@ inline char * strstr(const char * cs,const char * ct)
  * This looks horribly ugly, but the compiler can optimize it totally,
  * as we by now know that both pattern and count is constant..
  */
-inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
+void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
 {
     switch (count) {
         case 0:
@@ -542,7 +542,7 @@ inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, siz
  * find the first occurrence of byte 'c', or 1 past the area if none
  */
 #define __HAVE_ARCH_MEMSCAN
-inline void * memscan(void * addr, int c, size_t size)
+void * memscan(void * addr, int c, size_t size)
 {
     void* ptr=memchr(addr,c,size);
     if (ptr==NULL) {

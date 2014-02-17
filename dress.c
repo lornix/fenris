@@ -102,18 +102,18 @@ unsigned int ctop;
  * #define CODESEG (((unsigned int)calls) >> 24)
  */
 
-inline void found_fnprint_file(int count __attribute__((unused)), struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
+void found_fnprint_file(int count __attribute__((unused)), struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
 {
     add_signature(addr, cur->name);
 }
 
-inline void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
+void found_fnprint(int count, struct fenris_fndb *cur, unsigned int fprint __attribute__((unused)), unsigned int addr)
 {
     if (!count) printf("0x%08x: %s",addr,cur->name);
     else printf(", %s",cur->name);
 }
 
-inline void finish_fnprint(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
+void finish_fnprint(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
 {
     if (count) {
         found++;
@@ -121,7 +121,7 @@ inline void finish_fnprint(int count, unsigned int fprint __attribute__((unused)
     }
 }
 
-inline void finish_fnprint_file(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
+void finish_fnprint_file(int count, unsigned int fprint __attribute__((unused)), int unused __attribute__((unused)))
 {
     if (count) found++;
 }

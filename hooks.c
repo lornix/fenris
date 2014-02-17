@@ -409,7 +409,7 @@ extern unsigned int CODESEG;
 
 extern int lookup_fnname(char* name);
 extern char* get_addrdescr(const unsigned int q);
-extern inline char* get_fddescr(const int fd);
+extern char* get_fddescr(const int fd);
 extern char already_main;
 
 void break_messenger(void) {

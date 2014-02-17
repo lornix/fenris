@@ -123,6 +123,13 @@ if [ -f ${OUTFILE} ] && [ ${FORCE} -eq 0 ]; then
     exit 1
 fi
 
+# create it if it doesn't exist
+touch ${OUTFILE}
+# remove it in any case
+rm -f ${OUTFILE}
+# create a known zero-byte file
+touch ${OUTFILE}
+
 declare -i CURRENT_ARCHIVE=0
 declare -i ARCHIVE_COUNT=0
 declare -i FILE_COUNT=0
@@ -156,13 +163,17 @@ gcc -static ${TMPFILE}.c -o ${TMPFILE} >/dev/null 2>&1
 ${FPRINTS} --fancy ${TMPFILE} 2>/dev/null >>${OUTFILE}
 rm -f ${TMPFILE}.c ${TMPFILE}
 
-FUNC_COUNT=$(grep -c . ${OUTFILE})
+FUNC_COUNT=$(wc -l < ${OUTFILE})
+
+cp ${OUTFILE} ${OUTFILE}.cpy
 
 export ID="?"
 
 sed 's/ __/ /g;s/_IO_//g;s/ _/ /g' ${OUTFILE} | \
-    awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
-    sort | uniq | grep -vE 'free_mem|Letext' > ${TMPFILE}
+    awk '!/free_mem/ && !/Letext/ {print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
+    sort | uniq > ${TMPFILE}
+    # awk '{print "[" ENVIRON["ID"] "] " $2 " " $3}' | \
+    # grep -vE 'free_mem|Letext' | sort | uniq > ${TMPFILE}
 mv ${TMPFILE} ${OUTFILE}
 
 echo

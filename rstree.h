@@ -87,21 +87,21 @@ extern int RSTree_count(RSTree tr);
 extern int RSTree_empty(RSTree tr);
 
 extern RSNode RSTree_insert(RSTree tr, int key);
-extern RSNode RSTree_put(RSTree tr, int key);
-extern RSNode RSTree_get(RSTree tr, int key);
-extern int RSTree_remove(RSTree tr, int key);
+extern RSNode RSTree_put(RSTree    tr, int key);
+extern RSNode RSTree_get(RSTree    tr, int key);
+extern int    RSTree_remove(RSTree tr, int key);
 
 extern int RSNode_get_key(RSTree tr, RSNode nd);
 extern int RSNode_get_val(RSTree tr, RSNode nd);
-extern int RSNode_set_val(RSTree tr, RSNode nd, int val);
+extern int RSNode_set_val(RSTree tr, RSNode nd,  int val);
 
-extern int RSTree_insert_val(RSTree tr, int key, int val);
-extern int RSTree_put_val(RSTree tr, int key, int val);
-extern int RSTree_get_val(RSTree tr, int key);
+extern int RSTree_insert_val(RSTree tr, int key,  int val);
+extern int RSTree_put_val(RSTree    tr, int key,  int val);
+extern int RSTree_get_val(RSTree    tr, int key);
 
 extern RSNode RSTree_first(RSTree tr);
-extern RSNode RSTree_last(RSTree tr);
-extern RSNode RSTree_prev(RSTree tr, RSNode nd);
-extern RSNode RSTree_next(RSTree tr, RSNode nd);
+extern RSNode RSTree_last(RSTree  tr);
+extern RSNode RSTree_prev(RSTree  tr,  RSNode nd);
+extern RSNode RSTree_next(RSTree  tr,  RSNode nd);
 
 #endif /* not _HAVE_RSTREE_H */
