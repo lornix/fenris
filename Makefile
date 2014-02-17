@@ -100,32 +100,32 @@ ragnarok: ragnarok.c config.h html.h
 fprints: fprints.c config.h libfnprints.h libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-dress:   dress.c   config.h libfnprints.h libfnprints.o
+dress: dress.c config.h libfnprints.h libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-aegir:    aegir.c    config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libfnprints.o          libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+aegir: aegir.c config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
-nc-aegir: nc-aegir.c config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+nc-aegir: nc-aegir.c config.h fdebug.h rstree.h syscallnames.h libdisasm/opcodes2/opdis.h rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -lncurses -o $@ $< rstree.o libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
 # ===================== Libraries =========================
 
 allocs.o: allocs.c allocs.h rstree.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-hooks.o: hooks.c hooks.h fenris.h fdebug.h libfnprints.h
+hooks.o: hooks.c hooks.h config.h fenris.h fdebug.h libfnprints.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-libfnprints.o: libfnprints.c libfnprints.h
+libfnprints.o: libfnprints.c libfnprints.h config.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 rstree.o: rstree.c rstree.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-libdisasm/i386.o: libdisasm/i386.c libdisasm/i386.h
+libdisasm/i386.o: libdisasm/i386.c libdisasm/i386.h libdisasm/bastard.h libdisasm/extension.h libdisasm/i386-opcodes.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-libdisasm/libdis.o: libdisasm/libdis.c libdisasm/bastard.h libdisasm/extension.h libdisasm/libdis.h libdisasm/i386.h
+libdisasm/libdis.o: libdisasm/libdis.c libdisasm/bastard.h libdisasm/extension.h libdisasm/libdis.h libdisasm/i386.h libdisasm/i386-opcodes.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-libdisasm/opcodes2/i386-dis.o: libdisasm/opcodes2/i386-dis.c libdisasm/opcodes2/dis-asm.h
+libdisasm/opcodes2/i386-dis.o: libdisasm/opcodes2/i386-dis.c libdisasm/opcodes2/dis-asm.h libdisasm/opcodes2/bfd.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-libdisasm/opcodes2/opdis.o: libdisasm/opcodes2/opdis.c libdisasm/opcodes2/dis-asm.h libdisasm/opcodes2/opdis.h
+libdisasm/opcodes2/opdis.o: libdisasm/opcodes2/opdis.c libdisasm/opcodes2/dis-asm.h libdisasm/opcodes2/bfd.h libdisasm/opcodes2/opdis.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 fingerprints:
