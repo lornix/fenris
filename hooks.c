@@ -405,7 +405,7 @@ char* break_getname(unsigned int addr) {
     return getnamebuf;
 }
 
-extern int CODESEG;
+extern unsigned int CODESEG;
 
 extern int lookup_fnname(char* name);
 extern char* get_addrdescr(const unsigned int q);
