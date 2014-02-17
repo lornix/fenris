@@ -1,4 +1,4 @@
-/* 
+/*
    fenris - program execution path analysis tool
    ---------------------------------------------
 
@@ -16,7 +16,7 @@
    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
    more details.
 
-   You should have received a copy of the GNU General Public License along with 
+   You should have received a copy of the GNU General Public License along with
    this program; if not, write to the Free Software Foundation, Inc., 675 Mass
    Ave, Cambridge, MA 02139, USA.
 
@@ -29,9 +29,9 @@
 #include <stdlib.h>
 #include "libfnprints.h"
 
-struct fenris_fndb *fndb[256 * 256];   // Speed search table
+struct fenris_fndb *fndb[256*256];   // Speed search table
 
-int fnprint_count = 0;
+int fnprint_count=0;
 
 /******************************
  * Load fingerprints database *
@@ -39,69 +39,74 @@ int fnprint_count = 0;
 
 int load_fnbase(const char *x)
 {
-    char buf[500];
+    const int MAXBUF=500;
+    char buf[MAXBUF+1];
     FILE *f;
-    unsigned int a;
 
-    f = fopen(x, "r");
-
-    if (!f && !strchr(x, '/')) {
-        snprintf(buf, 200, "%s/.fenris/%s", getenv("HOME"), x);
-        f = fopen(buf, "r");
+    f=fopen(x,"r");
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,MAXBUF,"%s/.fenris/%s",getenv("HOME"),x);
+        f=fopen(buf,"r");
     }
-
-    if (!f && !strchr(x, '/')) {
-        snprintf(buf, 200, "/etc/%s", x);
-        f = fopen(buf, "r");
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,MAXBUF,"/etc/fenris/%s",x);
+        f=fopen(buf,"r");
     }
-
-    if (!f && !strchr(x, '/')) {
-        snprintf(buf, 200, "%s/%s", getenv("HOME"), x);
-        f = fopen(buf, "r");
+    if (!f && !strchr(x,'/')) {
+        snprintf(buf,MAXBUF,"%s/%s",getenv("HOME"),x);
+        f=fopen(buf,"r");
     }
-
-    if (!f)
+    if (!f) {
         return -1;
+    }
 
     // Now, this is going to be a bit awkward, but gives us great
     // benefit later, when searching. Use a table to lookup first two
     // bytes instantly, then compare two remaining bytes by searching
     // a linked list.
 
-    while (fgets(buf, sizeof(buf) - 1, f)) {
+    while (fgets(buf,MAXBUF,f)) {
         struct fenris_fndb ff;
-        char *x, *fname;
-        x = strchr(buf, ' ');
-        if (!x)
-            continue;                  // Doh?
-        fname = x + 1;
-        x = strchr(x + 1, ' ');
-        if (!x)
-            continue;                  // Doh?
-        *x = 0;
-        if (sscanf(x + 1, "%X", &a) != 1)
-            continue;                  // Doh?!
+        char *x,*funcname;
+        unsigned int a,hi_a;
+        /* look for a space separator */
+        x=strchr(buf,' ');
+        if (!x) {
+            continue; /* no spaces? skip entry */
+        }
+        *x=0; /* terminate first column (usually [?]) */
+        /* found function name (col 2) */
+        funcname=x+1;
+        /* look for second space separator */
+        x=strchr(x+1,' ');
+        if (!x) {
+            continue; /* not found? skip entry */
+        }
+        *x=0; /* terminate second column */
+        /* read value of 3rd column */
+        if (sscanf(x+1,"%X",&a) != 1) {
+            continue; /* bad? skip entry */
+        }
 
-        ff.a = a & 0xffff;
-        ff.name = strdup(fname);
-        ff.next = 0;
+        ff.a=a&0xffff;
+        ff.name=strdup(funcname);
+        ff.next=0;
 
-        if (!fndb[a >> 16]) {
-            fndb[a >> 16] = malloc(sizeof(struct fenris_fndb));
-            memcpy(fndb[a >> 16], &ff, sizeof(struct fenris_fndb));
+        hi_a=(a>>16);
+        if (!fndb[hi_a]) {
+            fndb[hi_a] = malloc(sizeof(struct fenris_fndb));
+            memcpy(fndb[hi_a],&ff,sizeof(struct fenris_fndb));
         } else {
-            struct fenris_fndb *dest = fndb[a >> 16];
+            struct fenris_fndb *dest = fndb[hi_a];
             while (dest->next)
                 dest = dest->next;
             dest->next = malloc(sizeof(struct fenris_fndb));
-            memcpy(dest->next, &ff, sizeof(struct fenris_fndb));
+            memcpy(dest->next,&ff,sizeof(struct fenris_fndb));
         }
 
         fnprint_count++;
     }
-
     fclose(f);
-
     return (0);
 }
 
@@ -110,42 +115,46 @@ int fnprints_count()
     return fnprint_count;
 }
 
-/* compute fingerprint for bytes given in sig codeseg is the code segment used
-   to detect relocations sig has to be at last SIGNATSIZE+4 bytes long */
+/* compute fingerprint for bytes given in sig
+ * codeseg is the code segment used to detect relocations
+ * sig has to be at last SIGNATSIZE+4 bytes long
+ */
 
-unsigned long fnprint_compute(unsigned char *sig, int codeseg)
+unsigned long fnprint_compute(unsigned char *sig,int codeseg)
 {
     unsigned int result[4];
     MD5_CTX kuku;
-    int i, tagme = 0;
+    int i;
 
-    for (i = 2; i < SIGNATSIZE; i++) {
+    for (i=2; i<SIGNATSIZE; ++i) {
         // Three NOPs? That ain't no stinkin' code!
-        if ((sig[i - 2] == 0x90) && (sig[i - 1] == 0x90) && (sig[i] == 0x90)) {
-            sig[i - 2] = sig[i - 1] = 0;
-            tagme = 1;
+        if ((sig[i-2]==0x90)&&(sig[i-1]==0x90)&&(sig[i]==0x90)) {
+            sig[i-2]=0;
+            sig[i-1]=0;
+            sig[i]=0;
         }
-
-        if (tagme)
-            sig[i] = 0;
     }
 
     // I suck. TODO: parse relocs in signatures. For now,
     // just carefully exterminate anything interesting ;)
-    for (i = 0; i < SIGNATSIZE; i++)
-        if (sig[i] == codeseg)
-            bzero(&sig[i - 3], 4);
+    for (i=0; i<SIGNATSIZE; ++i) {
+        //FIXME: rather dangerous, could kill good info
+        if (sig[i]==codeseg) {
+            bzero(&sig[i-3],4);
+        }
+    }
 
-    for (i = 0; i < SIGNATSIZE; i++)
-        if (sig[i] == 0xe8)
-            bzero(&sig[i + 1], 4);
+    //FIXME: still somewhat dangerous, no instr boundries given
+    for (i=0; i<SIGNATSIZE; ++i) {
+        if (sig[i]==0xe8) {
+            bzero(&sig[i+1],4);
+        }
+    }
 
     MD5_Init(&kuku);
-    MD5_Update(&kuku, sig, SIGNATSIZE);
-    MD5_Final((unsigned char *)result, &kuku);
-
-    result[0] ^= result[2];
-    result[1] ^= result[3];
-
-    return (result[0] ^ result[1]);
+    MD5_Update(&kuku,sig,SIGNATSIZE);
+    MD5_Final((unsigned char *)result,&kuku);
+    result[0]^=result[2];
+    result[1]^=result[3];
+    return (result[0]^result[1]);
 }

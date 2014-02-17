@@ -44,7 +44,7 @@ void usage(const char *program_name)
     fprintf(stderr, "%s extracts digital fingerprints from the given ELF object(s)\n", bname);
     fprintf(stderr, "\n");
     fprintf(stderr, "    -f | --fancy    Display fancy output (it's not, really)\n");
-    fprintf(stderr, "    -n | --nostrip  Don't remove leading _'s\n");
+    fprintf(stderr, "    -s | --strip    Remove leading _'s\n");
     fprintf(stderr, "    -h | --help     Display this usage info\n");
     exit(1);
 }
@@ -59,19 +59,19 @@ int main(int argc, char *argv[])
     unsigned int fingerprint;
     int num_funcs = 0;
     int fancy_output = 0;
-    int nostrip = 0;
+    int strip_names = 0;
     bfd *b;
     asymbol **syms;
     const int BUFSIZE = SIGNATSIZE + 4;
     unsigned char buf[BUFSIZE];
     char *nameptr;
 
-    const char *short_options = "fnh";
+    const char *short_options = "fsh";
     struct option long_options[] = {
         {"fancy", no_argument, NULL, 'f'},
-        {"nostrip", no_argument, NULL, 'n'},
-        {"help", no_argument, NULL, 'h'},
-        {0, no_argument, NULL, 0}
+        {"strip", no_argument, NULL, 's'},
+        {"help",  no_argument, NULL, 'h'},
+        {0,       no_argument, NULL, 0}
     };
 
     while ((i = getopt_long(argc, argv, short_options, long_options, NULL)) != EOF) {
@@ -79,8 +79,8 @@ int main(int argc, char *argv[])
             case 'f':
                 fancy_output = 1;
                 break;
-            case 'n':
-                nostrip = 1;
+            case 's':
+                strip_names = 1;
                 break;
             case 'h':
             case '?':
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         for (i = 0; i < symcnt; ++i) {
             if (syms[i]->flags & BSF_FUNCTION) {
                 nameptr = (char *)(bfd_asymbol_name(syms[i]));
-                if (nostrip == 0) {
+                if (strip_names!=0) {
                     while (*nameptr == '_') {
                         nameptr++;
                     }

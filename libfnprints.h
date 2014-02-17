@@ -60,23 +60,20 @@ struct fenris_fndb {
  */
 
 #define find_fnprints(_fnprint, found, finish, user) \
-    do {  \
+    do { \
         int count = 0; \
-        unsigned int __fnprint = (_fnprint);  \
+        unsigned int __fnprint = (_fnprint); \
         unsigned short sht = __fnprint & 0xffff; \
-        struct fenris_fndb *cur;  \
-        \
+        struct fenris_fndb *cur; \
         cur=fndb[__fnprint>>16]; \
-        \
         while (cur) { \
             if (cur->a == sht) {\
                 found(count, cur, __fnprint, user); \
                 count++; \
             } \
-            cur=cur->next;  \
+            cur=cur->next; \
         } \
-        \
-        finish(count, __fnprint, user);  \
+        finish(count, __fnprint, user); \
     } while(0)
 
 /* load the fingerprints database given in the argument */
