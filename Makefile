@@ -134,9 +134,9 @@ fingerprints:
 	@./getfprints --quiet --force
 	@echo "[*] Sorting fingerprints..."
 	@BEFORE=`wc -l < fnprints.dat`; \
-	       sort fnprints.dat NEW-fnprints.dat | uniq > .tmp; \
+	       sort fnprints.dat fnprints.new | uniq > .tmp; \
 	       mv .tmp fnprints.dat; \
-	       rm -f NEW-fnprints.dat; \
+	       rm -f fnprints.new; \
 	       AFTER=`wc -l < fnprints.dat`; \
 	       CHANGE=`expr $${AFTER} - $${BEFORE}`; \
 	       echo "You have $${AFTER} fingerprints, a change of $${CHANGE}"

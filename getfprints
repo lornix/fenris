@@ -42,7 +42,7 @@ TRYPATHS="
     /usr/lib/arm-linux-gnueabihf
 "
 
-OUTFILE=NEW-fnprints.dat
+OUTFILE=fnprints.new
 
 usage()
 {

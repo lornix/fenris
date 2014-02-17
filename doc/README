@@ -872,11 +872,11 @@
   Otherwise, only first file will be processed. Call it laziness on my
   end ;-)
 
-  Default output file for 'getfprints' is NEW-fnprints.dat in current
+  Default output file for 'getfprints' is fnprints.new in current
   directory. When integrating it with existing fnprints.dat, please make
   sure you eliminate dupes by issuing the following command:
 
-    cat NEW-fnprints.dat fnprints.dat | sort | uniq >clean-new.dat
+    cat fnprints.new fnprints.dat | sort | uniq >clean-new.dat
 
   This utility requires ./fprints to be in current directory or in your path.
 
