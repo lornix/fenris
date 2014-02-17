@@ -40,17 +40,17 @@ $sub_directory = ''; $hasil_opened = 0;
 $buffer = ''; $hasil = '';
 
 open(F,$file) or die "Cannot open file $file\n";
-while( <F> ){
+while( <F> ) {
 
 # track the remarked HTML TAG
 #  if( /^\s*%\s*mark\s+(.*?)\s*$/ ){
-if( /^\s*<!--\s*-\s+(.*?) --->\s*$/ ){
-my $baru = $1;
-&save_buffer($hasil);
-$buffer = '';
-$hasil = "$directory/$sub_directory/${baru}";
-$hasil =~ s{//}{/};
-next;
+if( /^\s*<!--\s*-\s+(.*?) --->\s*$/ ) {
+    my $baru = $1;
+    &save_buffer($hasil);
+    $buffer = '';
+    $hasil = "$directory/$sub_directory/${baru}";
+    $hasil =~ s{//}{/};
+    next;
 }
 # check the directory
 if( /^\s*%\s*dir\s+(.*?)\s*$/ ){

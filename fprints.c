@@ -36,16 +36,16 @@
 
 #include "config.h"
 
-void usage(const char* program_name)
+void usage(const char *program_name)
 {
-    char* bname=basename((char*)program_name);
-    fprintf(stderr,"Usage: %s [options] <elf_object>...\n", bname);
-    fprintf(stderr,"\n");
-    fprintf(stderr,"%s extracts digital fingerprints from the given ELF object(s)\n",bname);
-    fprintf(stderr,"\n");
-    fprintf(stderr,"    -f | --fancy    Display fancy output (it's not, really)\n");
-    fprintf(stderr,"    -n | --nostrip  Don't remove leading _'s\n");
-    fprintf(stderr,"    -h | --help     Display this usage info\n");
+    char *bname = basename((char *)program_name);
+    fprintf(stderr, "Usage: %s [options] <elf_object>...\n", bname);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "%s extracts digital fingerprints from the given ELF object(s)\n", bname);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    -f | --fancy    Display fancy output (it's not, really)\n");
+    fprintf(stderr, "    -n | --nostrip  Don't remove leading _'s\n");
+    fprintf(stderr, "    -h | --help     Display this usage info\n");
     exit(1);
 }
 
@@ -53,33 +53,34 @@ void usage(const char* program_name)
  * #define CODESEG (((unsigned int)buf) >> 24)
  */
 
-int main(int argc,char* argv[]) {
-    int i,f,size,symcnt,off;
+int main(int argc, char *argv[])
+{
+    int i, f, size, symcnt, off;
     unsigned int fingerprint;
-    int num_funcs=0;
-    int fancy_output=0;
-    int nostrip=0;
-    bfd* b;
-    asymbol** syms;
-    const int BUFSIZE=SIGNATSIZE+4;
+    int num_funcs = 0;
+    int fancy_output = 0;
+    int nostrip = 0;
+    bfd *b;
+    asymbol **syms;
+    const int BUFSIZE = SIGNATSIZE + 4;
     unsigned char buf[BUFSIZE];
     char *nameptr;
 
-    const char* short_options = "fnh";
+    const char *short_options = "fnh";
     struct option long_options[] = {
-        {"fancy",   no_argument, NULL, 'f'},
+        {"fancy", no_argument, NULL, 'f'},
         {"nostrip", no_argument, NULL, 'n'},
-        {"help",    no_argument, NULL, 'h'},
-        {0,         no_argument, NULL, 0}
+        {"help", no_argument, NULL, 'h'},
+        {0, no_argument, NULL, 0}
     };
 
-    while ((i=getopt_long(argc,argv,short_options,long_options,NULL))!=EOF) {
+    while ((i = getopt_long(argc, argv, short_options, long_options, NULL)) != EOF) {
         switch (i) {
             case 'f':
-                fancy_output=1;
+                fancy_output = 1;
                 break;
             case 'n':
-                nostrip=1;
+                nostrip = 1;
                 break;
             case 'h':
             case '?':
@@ -89,62 +90,62 @@ int main(int argc,char* argv[]) {
         }
     }
 
-    if (optind>=argc) {
+    if (optind >= argc) {
         usage(argv[0]); /* never returns */
         exit(1);
     }
 
-    while (optind<argc) {
-        b = bfd_openr(argv[optind++],0);
+    while (optind < argc) {
+        b = bfd_openr(argv[optind++], 0);
         if (!b) {
-            fprintf(stderr,"bfd_openr failed for '%s'\n",argv[optind-1]);
+            fprintf(stderr, "bfd_openr failed for '%s'\n", argv[optind - 1]);
             continue;
         }
 
-        bfd_check_format(b,bfd_archive);
-        bfd_check_format_matches(b,bfd_object,0);
+        bfd_check_format(b, bfd_archive);
+        bfd_check_format_matches(b, bfd_object, 0);
 
         if ((bfd_get_file_flags(b) & HAS_SYMS) == 0) {
-            fprintf(stderr,(fancy_output)?"EMPTY":"No symbols.\n");
+            fprintf(stderr, (fancy_output) ? "EMPTY" : "No symbols.\n");
             continue;
         }
 
-        size=bfd_get_symtab_upper_bound(b);
-        syms=(asymbol**)malloc(size);
-        symcnt=bfd_canonicalize_symtab(b,syms);
+        size = bfd_get_symtab_upper_bound(b);
+        syms = (asymbol **) malloc(size);
+        symcnt = bfd_canonicalize_symtab(b, syms);
 
-        for (i=0; i<symcnt; ++i) {
+        for (i = 0; i < symcnt; ++i) {
             if (syms[i]->flags & BSF_FUNCTION) {
-                nameptr=(char*)(bfd_asymbol_name(syms[i]));
-                if (nostrip==0) {
-                    while (*nameptr=='_') {
+                nameptr = (char *)(bfd_asymbol_name(syms[i]));
+                if (nostrip == 0) {
+                    while (*nameptr == '_') {
                         nameptr++;
                     }
                 }
-                off=syms[i]->value;
+                off = syms[i]->value;
                 if (syms[i]->section) {
-                    off+=syms[i]->section->filepos;
+                    off += syms[i]->section->filepos;
                 }
 
-                f=open(argv[optind-1],O_RDONLY);
-                lseek(f,off,SEEK_SET);
+                f = open(argv[optind - 1], O_RDONLY);
+                lseek(f, off, SEEK_SET);
                 num_funcs++;
-                bzero(buf,BUFSIZE);
-                read(f,buf,SIGNATSIZE);
-                fingerprint=fnprint_compute(buf,((long int)buf >> 24));
+                bzero(buf, BUFSIZE);
+                read(f, buf, SIGNATSIZE);
+                fingerprint = fnprint_compute(buf, ((long int)buf >> 24));
                 close(f);
 
                 // Ignore only NOPs
-                if (fingerprint!=0xA120AD5C) {
-                    printf("[%s+%d] %s %08X\n",argv[optind-1],off,nameptr,fingerprint);
+                if (fingerprint != 0xA120AD5C) {
+                    printf("[%s+%d] %s %08X\n", argv[optind - 1], off, nameptr, fingerprint);
                 }
             }
         }
 
         if (fancy_output) {
-            fprintf(stderr,"%d function%s",num_funcs,PLURAL(num_funcs,"s"));
+            fprintf(stderr, "%d function%s", num_funcs, PLURAL(num_funcs, "s"));
         } else {
-            fprintf(stderr,"[*] %s: (%d function%s)\n",argv[optind-1],num_funcs,PLURAL(num_funcs,"s"));
+            fprintf(stderr, "[*] %s: (%d function%s)\n", argv[optind - 1], num_funcs, PLURAL(num_funcs, "s"));
         }
     }
     return 0;

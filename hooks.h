@@ -30,16 +30,16 @@
 #define _HAVE_HOOKS_H 1
 
 // Operating modes:
-#define MODE_NONE       0       // Stop.
-#define MODE_SINGLE     1       // Do single step[s]
-#define MODE_RUN        2       // Run until break / exit
-#define MODE_LIBCALL    3       // Continue to next libcall
-#define MODE_CALL       4       // Continue to next local call
-#define MODE_SYSCALL    5       // Continue to next syscall
-#define MODE_NEST       6       // Continue to nest level change
-#define MODE_RET        7       // Continue to ret[s]
-#define MODE_LINE       8       // Continue to next line
-#define MODE_DYN        9       // Go to dynamic.
+#define MODE_NONE    0  // Stop.
+#define MODE_SINGLE  1  // Do single step[s]
+#define MODE_RUN     2  // Run until break / exit
+#define MODE_LIBCALL 3  // Continue to next libcall
+#define MODE_CALL    4  // Continue to next local call
+#define MODE_SYSCALL 5  // Continue to next syscall
+#define MODE_NEST    6  // Continue to nest level change
+#define MODE_RET     7  // Continue to ret[s]
+#define MODE_LINE    8  // Continue to next line
+#define MODE_DYN     9  // Go to dynamic.
 
 // Connectivity management:
 void break_listen(char* where,const char** argv);

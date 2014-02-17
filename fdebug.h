@@ -1,27 +1,27 @@
-/*
-    fenris - program execution path analysis tool
-    ---------------------------------------------
+/* 
+   fenris - program execution path analysis tool
+   ---------------------------------------------
 
-    Copyright (C) 2001, 2002 by Bindview Corporation
-    Portions copyright (C) 2001, 2002 by their respective contributors
-    Developed and maintained by Michal Zalewski <lcamtuf@coredump.cx>
+   Copyright (C) 2001, 2002 by Bindview Corporation Portions copyright (C)
+   2001, 2002 by their respective contributors Developed and maintained by
+   Michal Zalewski <lcamtuf@coredump.cx>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the Free
+   Software Foundation; either version 2 of the License, or (at your option)
+   any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+   more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   You should have received a copy of the GNU General Public License along with 
+   this program; if not, write to the Free Software Foundation, Inc., 675 Mass
+   Ave, Cambridge, MA 02139, USA.
 
-    Fenris debugger messages go here. Please refer to doc/debug-api.txt
-    for more information.
+   Fenris debugger messages go here. Please refer to doc/debug-api.txt for more 
+   information.
 
  */
 
@@ -34,17 +34,17 @@
 struct dmsg_header {
     unsigned int magic1;
     unsigned short type;
-    int code_running; // Only responses.
+    int code_running;                  // Only responses.
     unsigned int magic2;
 };
 
 // Fenris responses:
-#define DMSG_REPLY      1000    // Normal reply.
-#define DMSG_ASYNC      2000    // Async data line follows.
+#define DMSG_REPLY      1000           // Normal reply.
+#define DMSG_ASYNC      2000           // Async data line follows.
 
 // Debugger
 
-#define DMSG_NOMESSAGE   0  // Don't send, just check for ASYNC
+#define DMSG_NOMESSAGE   0             // Don't send, just check for ASYNC
 #define DMSG_GETMEM      2
 #define DMSG_GETNAME     3
 #define DMSG_GETADDR     4

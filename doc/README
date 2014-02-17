@@ -1,1922 +1,1846 @@
 
-  fenris - program execution path analysis tool
+fenris - program execution path analysis tool
 
-  Copyright (C) 2001, 2002 by Bindview Corporation
-  Portions copyright (C) 2001, 2002 by their respective contributors
-  Developed and maintained by Michal Zalewski <lcamtuf@bos.bindview.com>
-  ==========================================================================
+Copyright (C) 2001, 2002 by Bindview Corporation
+Portions copyright (C) 2001, 2002 by their respective contributors
+Developed and maintained by Michal Zalewski <lcamtuf@bos.bindview.com>
+==========================================================================
 
-  Sections in this document:
+Sections in this document:
 
-  [0x00] What is Fenris?                    [0x01] How does it work?
-  [0x02] How can I use it?                  [0x03] Project limitations
-  [0x04] Security issues / forensics        [0x05] Tracing mechanism
-  [0x06] Bug reporting and other feedback   [0x07] Known bugs / TODO
-  [0x08] Thanks and credits                 [0x09] Further reading
+[0x00] What is Fenris?                    [0x01] How does it work?
+[0x02] How can I use it?                  [0x03] Project limitations
+[0x04] Security issues / forensics        [0x05] Tracing mechanism
+[0x06] Bug reporting and other feedback   [0x07] Known bugs / TODO
+[0x08] Thanks and credits                 [0x09] Further reading
 
-  URL:     http://razor.bindview.com/tools/fenris/
-  Devel:   http://lcamtuf.coredump.cx/fenris/devel.shtml
-  Demo:    http://lcamtuf.coredump.cx/fenris/demos.shtml
+URL:     http://razor.bindview.com/tools/fenris/
+Devel:   http://lcamtuf.coredump.cx/fenris/devel.shtml
+Demo:    http://lcamtuf.coredump.cx/fenris/demos.shtml
 
-  Mailing list: echo subscribe fenris-devel | mail listar@7thguard.net
-                http://lists.7thguard.net/fenris-devel/
+Mailing list: echo subscribe fenris-devel | mail listar@7thguard.net
+            http://lists.7thguard.net/fenris-devel/
 
-  Portions of this program use code derived from libi386 library, a
-  part of project 'bastard', and from GNU binutils. See
-  libdisasm/00-READ_FIRST for more details. Portions of 'dress' utility
-  inspired by klog's code from Phrack 56.
+Portions of this program use code derived from libi386 library, a part of
+project 'bastard', and from GNU binutils. See libdisasm/00-READ_FIRST for more
+details. Portions of 'dress' utility inspired by klog's code from Phrack 56.
 
-  For alternative programs of this kind and other promising projects,
-  be sure to visit http://lcamtuf.coredump.cx/fenris/other.txt .
+For alternative programs of this kind and other promising projects, be sure to
+visit http://lcamtuf.coredump.cx/fenris/other.txt .
 
-  *************************************************************************
-  NOTE: It starts to be more and more difficult to describe this project in
-  few simple words. It started as something you'd call "not your typical
-  tracer", and quickly turned into a suite of several different tools for
-  binary analysis, visualization, debugging, forensics, and so on. You can
-  use some of its features and never know about others, but it is my duty
-  to document all of them right here - so be patient and skip parts that do
-  not seem very interesting to you :-) This document is long due for a
-  general rewrite.
-  *************************************************************************
+*************************************************************************
+NOTE: It starts to be more and more difficult to describe this project in few
+simple words. It started as something you'd call "not your typical tracer",
+and quickly turned into a suite of several different tools for binary
+analysis, visualization, debugging, forensics, and so on. You can use some of
+its features and never know about others, but it is my duty to document all of
+them right here - so be patient and skip parts that do not seem very
+interesting to you :-) This document is long due for a general rewrite.
+*************************************************************************
 
 [0x00] What is Fenris?
 ----------------------
 
-  First, I'd like to explain why I even decided to develop Fenris, and
-  what makes it different. It is a lengthy and often pathetic section, but
-  probably a good summary for those of you who wonder...
+First, I'd like to explain why I even decided to develop Fenris, and what
+makes it different. It is a lengthy and often pathetic section, but probably
+a good summary for those of you who wonder...
 
-  Code analysis is not limited to debugging, quality assurance or security
-  audits. Understanding and handling file formats or communication protocols
-  used by proprietary solutions, a problem that many corporations face when
-  they decide to change their base software platform from one, obsolete or
-  insufficient solution to another, perhaps more suitable, is a task that can
-  consume long months and millions of dollars, especially when any
-  misjudgment or misinterpretation is made. Because of that, accurate and
-  complete information about existing solutions has to be obtained and
-  evaluated in a timely manner. This project is an attempt to fill the gap
-  between currently used tools by providing a freely available program
-  analysis utility, suitable for black-box code audits, algorithm analysis,
-  rapid reconnaissance in open-source projects, tracking down bugs, evaluating
-  security subsystems, performing computer forensics, etc.
+Code analysis is not limited to debugging, quality assurance or security
+audits. Understanding and handling file formats or communication protocols
+used by proprietary solutions, a problem that many corporations face when they
+decide to change their base software platform from one, obsolete or
+insufficient solution to another, perhaps more suitable, is a task that can
+consume long months and millions of dollars, especially when any misjudgment
+or misinterpretation is made. Because of that, accurate and complete
+information about existing solutions has to be obtained and evaluated in
+a timely manner. This project is an attempt to fill the gap between currently
+used tools by providing a freely available program analysis utility, suitable
+for black-box code audits, algorithm analysis, rapid reconnaissance in
+open-source projects, tracking down bugs, evaluating security subsystems,
+performing computer forensics, etc.
 
-  This program does not automate the process of auditing, and does not favor
-  any particular use. Instead of that, it is intended to be a flexible and
-  universal application that will be a valuable solution for many
-  advanced users. While functional, it is probably not tested sufficiently,
-  there are many issues to fix, several known bugs, some portability problems.
-  It is being released primarily to get user feedback, comments, and, most
-  important, to request development support, as my resources are very
-  limited, both in terms of available time and development platforms.
-  This project is and will be distributed as a free software, regardless
-  of projected use, accompanied by complete sources, under the terms and
-  conditions of GPL. Why do you might need this code? Well, there are
-  few reasons...
+This program does not automate the process of auditing, and does not favor any
+particular use. Instead of that, it is intended to be a flexible and universal
+application that will be a valuable solution for many advanced users. While
+functional, it is probably not tested sufficiently, there are many issues to
+fix, several known bugs, some portability problems. It is being released
+primarily to get user feedback, comments, and, most important, to request
+development support, as my resources are very limited, both in terms of
+available time and development platforms. This project is and will be
+distributed as a free software, regardless of projected use, accompanied by
+complete sources, under the terms and conditions of GPL. Why do you might need
+this code? Well, there are few reasons...
 
-  Human beings are, so far, the best code analysts. Unlike computer
-  programs, they have imagination, ability to build synthetic abstract
-  models, and yet to observe and analyze smallest details at the same time.
-  Functionality is often being described as "doing what the program is
-  supposed to do", security as "doing what the program is supposed to do and
-  nothing more". While it might sound funny, that is the most general
-  and complete definition we have. In most real-life scenarios only humans
-  really know what are their expectations. Building strict formal models of
-  our expectations does not necessarily mean that models themselves are
-  flawless, and is very time-consuming. Then, even with such models,
-  validating the code is not always possible, due to its computational
-  complexity. That is why real, live programs (not including some critical
-  developments) do not have such models, do not follow any particular coding
-  guidelines, and cannot be formally examined without human judgment.
+Human beings are, so far, the best code analysts. Unlike computer programs,
+they have imagination, ability to build synthetic abstract models, and yet to
+observe and analyze smallest details at the same time. Functionality is often
+being described as "doing what the program is supposed to do", security as
+"doing what the program is supposed to do and nothing more". While it might
+sound funny, that is the most general and complete definition we have. In most
+real-life scenarios only humans really know what are their expectations.
+Building strict formal models of our expectations does not necessarily mean
+that models themselves are flawless, and is very time-consuming. Then, even
+with such models, validating the code is not always possible, due to its
+computational complexity. That is why real, live programs (not including some
+critical developments) do not have such models, do not follow any particular
+coding guidelines, and cannot be formally examined without human judgment.
 
-  Unfortunately, humans are also highly inaccurate and very expensive.
-  They work slowly, and better results can be achieved by hiring better
-  specialists and performing more careful audit. And after all, even the
-  best expert can overlook something in complex, hard to read code. It is
-  almost impossible for human to perform an accurate audit of a large,
-  complex, heterogeneous project written e.g. in C - like Sendmail, BIND,
-  Apache - and provide results in reasonable time. Things get even worse
-  when humans try to understand algorithms and protocols used by complex
-  closed-source black box solutions. They are simply too slow, and not always
-  able to make accurate guesses about dozens of complicated, conditional
-  parameter passes and function calls before final action is taken. While
-  it might sound surprising, human-driven code audit is very similar to
-  playing chess - it is a general analysis of possible states, way too
-  many to be implicitly projected by our conscience, a result of experience,
-  knowledge, some unparalleled capabilities of human brain, and luck. It is
-  also a subject to false moves and misjudgment. And there are maybe just a
-  few hundred excellent players.
+Unfortunately, humans are also highly inaccurate and very expensive. They work
+slowly, and better results can be achieved by hiring better specialists and
+performing more careful audit. And after all, even the best expert can
+overlook something in complex, hard to read code. It is almost impossible for
+human to perform an accurate audit of a large, complex, heterogeneous project
+written e.g. in C - like Sendmail, BIND, Apache - and provide results in
+reasonable time. Things get even worse when humans try to understand
+algorithms and protocols used by complex closed-source black box solutions.
+They are simply too slow, and not always able to make accurate guesses about
+dozens of complicated, conditional parameter passes and function calls before
+final action is taken. While it might sound surprising, human-driven code
+audit is very similar to playing chess - it is a general analysis of possible
+states, way too many to be implicitly projected by our conscience, a result of
+experience, knowledge, some unparalleled capabilities of human brain, and
+luck. It is also a subject to false moves and misjudgment. And there are maybe
+just a few hundred excellent players.
 
-  As for today, freely and commercially available audit tools both use
-  two opposite approaches. First approach tends to minimize human role by
-  automating the review of source code. Source code analysis methods are good
-  in spotting known, repeatable static errors in the code - such as format
-  string vulnerabilities. On the other hand, static tools are not able to
-  trace and analyze all possible execution paths of complex application by
-  simply looking at its source. The reason for inability to follow all
-  execution paths lies deeply in the foundations of modern computation theory,
-  and one of its aspects is known as "the halting problem". Speaking in more
-  general terms, in many cases (such as complex software, or even underlying
-  operating system), the amount of medium needed to store all possible states
-  of a complex program exceeds significantly the number of particles in the
-  universe; and the amount of time needed to generate and process them
-  sequentially is greater than the lifetime of our universe, even having
-  a machine that works with the speed of light. This might be changed by
-  the development of new computation models, such as quantum computing, or
-  by creating mathematical models that allow us to make such problems
-  non-polynomial - but for now, we are far from this point, and static
-  analysis is restrained in many very serious ways, even though many
-  software suppliers tend to market their products as the ultimate, 100%
-  solutions. Subtle, complex, conditional dynamic errors, such as
-  privilege dropping problems, input-dependent table overflows in C and
-  many other issues usually cannot be detected without generating a
-  completely unacceptable number of false positives. This kind of software is
-  highly dependent on coding style, and specific notation or development
-  practices might render them less efficient - for example, automated audit
-  utilities can usually detect problems like insecure call to strcpy()
-  function, but will very likely not notice insecure manual copy in do-while
-  loop. The truth is, for programs that do not have previously built formal
-  models, static auditing utilities look for known, common problems in known,
-  common types of code in a very limited scope.
+As for today, freely and commercially available audit tools both use two
+opposite approaches. First approach tends to minimize human role by automating
+the review of source code. Source code analysis methods are good in spotting
+known, repeatable static errors in the code - such as format string
+vulnerabilities. On the other hand, static tools are not able to trace and
+analyze all possible execution paths of complex application by simply looking
+at its source. The reason for inability to follow all execution paths lies
+deeply in the foundations of modern computation theory, and one of its aspects
+is known as "the halting problem". Speaking in more general terms, in many
+cases (such as complex software, or even underlying operating system), the
+amount of medium needed to store all possible states of a complex program
+exceeds significantly the number of particles in the universe; and the amount
+of time needed to generate and process them sequentially is greater than the
+lifetime of our universe, even having a machine that works with the speed of
+light. This might be changed by the development of new computation models,
+such as quantum computing, or by creating mathematical models that allow us to
+make such problems non-polynomial - but for now, we are far from this point,
+and static analysis is restrained in many very serious ways, even though many
+software suppliers tend to market their products as the ultimate, 100%
+solutions. Subtle, complex, conditional dynamic errors, such as privilege
+dropping problems, input-dependent table overflows in C and many other issues
+usually cannot be detected without generating a completely unacceptable number
+of false positives. This kind of software is highly dependent on coding style,
+and specific notation or development practices might render them less
+efficient - for example, automated audit utilities can usually detect problems
+like insecure call to strcpy() function, but will very likely not notice
+insecure manual copy in do-while loop. The truth is, for programs that do not
+have previously built formal models, static auditing utilities look for known,
+common problems in known, common types of code in a very limited scope.
 
-  Another issue is the applicability of this approach to algorithm analysis
-  tasks. In the domain of automated audit tools, this problem is "reduced"
-  to building a formal model of program behavior, or, more appropriately,
-  generating certain predictive statements about the code. While there are
-  very interesting developments in this direction, such as the work of
-  professor Patrick Cousot, it is very difficult to make any detailed,
-  accurate and abstract enough run-time predictions for complex source
-  code that has any immediate value in the analysis of unknown algorithm.
+Another issue is the applicability of this approach to algorithm analysis
+tasks. In the domain of automated audit tools, this problem is "reduced" to
+building a formal model of program behavior, or, more appropriately,
+generating certain predictive statements about the code. While there are very
+interesting developments in this direction, such as the work of professor
+Patrick Cousot, it is very difficult to make any detailed, accurate and
+abstract enough run-time predictions for complex source code that has any
+immediate value in the analysis of unknown algorithm.
 
-  Last but not least, static analysis of sources can be deployed only when the
-  source code is available, which does not have to be the case. This approach
-  is a subject to many shortcomings, tricky assertions, and is a technique of
-  strictly limited capabilities. This is, of course, not to dismiss this
-  method - but to demonstrate that this much favored approach is not
-  flawless and how much it needs to be accompanied with auxiliary methods.
+Last but not least, static analysis of sources can be deployed only when the
+source code is available, which does not have to be the case. This approach is
+a subject to many shortcomings, tricky assertions, and is a technique of
+strictly limited capabilities. This is, of course, not to dismiss this method
+- but to demonstrate that this much favored approach is not flawless and how
+much it needs to be accompanied with auxiliary methods.
 
-  The second approach to be discussed here is based on a dynamic run-time
-  program analysis. This method is usually used to provide the user with
-  information about actual program execution path, letting him make
-  decisions on which path to follow and giving him free will to draw
-  any conclusions and perform all the synthetic reasoning. This method is
-  applied to a live binary executed in real-time and is based on monitoring
-  syscalls (strace), libcalls (ltrace) or functions (xtrace); in certain
-  cases, breakpoint debuggers, such as gdb, can be used, however it is
-  usually not feasible to use them to perform anything more than in-depth
-  analysis of a very small portion of program functionality. Usually,
-  such analysis provides a very useful information on what is happening,
-  and this information is provided in uniform, reduced-output form.  A careful
-  auditor can analyze program behavior and find interesting or potentially
-  dangerous run-time conditions. By monitoring how a given application interacts
-  with external world, he (or she) can determine whether some other
-  conditions can be triggered and eventually explore them by examining sources
-  or re-running the program. Advantages are enormous, as such software enables
-  the auditor to spot very subtle errors in code that "looked good", to
-  observe actual execution, not to try to figure it out, and to find or trace
-  down not obvious or non-schematic vulnerabilities. Run-time trace tools
-  are primarily used for fast reconnaissance tasks and for tracing down
-  notorious errors that are not clearly visible in the source, significantly
-  reducing the time of such operations. There are, however, serious drawbacks
-  related to this method. First of all, known tracing tools do not provide
-  the complete information. They will detect strcpy() call, but won't report if
-  exactly the same functionality has been implemented from scratch by the
-  author of given program. And, in some cases, the amount of produced data
-  can be enormous, and because of its completely unstructured character,
-  it makes the observation of overall execution vector almost impossible.
-  Two most important problems are: correlating trace data with actual code,
-  and determining what occurred in the "dark matter" between two lines of
-  trace output.
+The second approach to be discussed here is based on a dynamic run-time
+program analysis. This method is usually used to provide the user with
+information about actual program execution path, letting him make decisions on
+which path to follow and giving him free will to draw any conclusions and
+perform all the synthetic reasoning. This method is applied to a live binary
+executed in real-time and is based on monitoring syscalls (strace), libcalls
+(ltrace) or functions (xtrace); in certain cases, breakpoint debuggers, such
+as gdb, can be used, however it is usually not feasible to use them to perform
+anything more than in-depth analysis of a very small portion of program
+functionality. Usually, such analysis provides a very useful information on
+what is happening, and this information is provided in uniform, reduced-output
+form.  A careful auditor can analyze program behavior and find interesting or
+potentially dangerous run-time conditions. By monitoring how a given
+application interacts with external world, he (or she) can determine whether
+some other conditions can be triggered and eventually explore them by
+examining sources or re-running the program. Advantages are enormous, as such
+software enables the auditor to spot very subtle errors in code that "looked
+good", to observe actual execution, not to try to figure it out, and to find
+or trace down not obvious or non-schematic vulnerabilities. Run-time trace
+tools are primarily used for fast reconnaissance tasks and for tracing down
+notorious errors that are not clearly visible in the source, significantly
+reducing the time of such operations. There are, however, serious drawbacks
+related to this method. First of all, known tracing tools do not provide the
+complete information. They will detect strcpy() call, but won't report if
+exactly the same functionality has been implemented from scratch by the author
+of given program. And, in some cases, the amount of produced data can be
+enormous, and because of its completely unstructured character, it makes the
+observation of overall execution vector almost impossible. Two most important
+problems are: correlating trace data with actual code, and determining what
+occurred in the "dark matter" between two lines of trace output.
 
-  There are some attempts to combine both approaches - run-time evaluation
-  and source code analysis - such as Purify or many other commercial
-  development support products. Unfortunately, they all feature a limited set
-  of capabilities that need development-side or compilation-time support and
-  are not really suitable for comprehending black box solutions or
-  performing a general analysis. Most of them are targeted for dynamic
-  memory debugging and code / memory profiling.
+There are some attempts to combine both approaches - run-time evaluation and
+source code analysis - such as Purify or many other commercial development
+support products. Unfortunately, they all feature a limited set of
+capabilities that need development-side or compilation-time support and are
+not really suitable for comprehending black box solutions or performing
+a general analysis. Most of them are targeted for dynamic memory debugging and
+code / memory profiling.
 
-  While not mentioned above, there is also another approach to black-box code
-  - high-level decompiler. However, the complexity of modern compilers makes
-  it very difficult to develop an effective C decompiler or similar utility,
-  and there are only a few (two?) projects available to accomplish it, all of
-  them not able to deal with too complex or optimized code. Finally, there is
-  no guarantee that generated output code will be any help in comprehending
-  the program. For now, this approach remains almost purely theoretical,
-  and I am not aware of any auditors using it extensively. Why? Well, here's
-  an example of decompiled, mildly optimized code *with* some symbolic
-  information: http://www.backerstreet.com/rec/ex386/hdgO.rec . One may argue
-  it is less readable than cross-referenced disassembly.
+While not mentioned above, there is also another approach to black-box code
+- high-level decompiler. However, the complexity of modern compilers makes it
+  very difficult to develop an effective C decompiler or similar utility, and
+there are only a few (two?) projects available to accomplish it, all of them
+not able to deal with too complex or optimized code. Finally, there is no
+guarantee that generated output code will be any help in comprehending the
+program. For now, this approach remains almost purely theoretical, and I am
+not aware of any auditors using it extensively. Why? Well, here's an example
+of decompiled, mildly optimized code *with* some symbolic information:
+http://www.backerstreet.com/rec/ex386/hdgO.rec . One may argue it is less
+readable than cross-referenced disassembly.
 
-  This project, Fenris, is named after the monstrous wolf, son of the Norse
-  god Loki. It is not the ultimate answer to all questions, not a solution for
-  all problems, and under no circumstances is intended to replace other
-  tools and techniques. On the other hand, it makes one step forward
-  compared to other tools, trying to support the auditor and to make his work
-  much more effective. This is accomplished by combining a number of techniques,
-  including partial run-time decompiler, stateful analysis, code
-  fingerprinting, I/O analysis, high-level visualization layer, traditional
-  interactive debugger features and run-time code modification capabilities.
-  The goal is to provide a very detailed trace information, and, at the same
-  time, to provide data suitable to build a model of program behavior more
-  quickly and in more convenient way.
+This project, Fenris, is named after the monstrous wolf, son of the Norse god
+Loki. It is not the ultimate answer to all questions, not a solution for all
+problems, and under no circumstances is intended to replace other tools and
+techniques. On the other hand, it makes one step forward compared to other
+tools, trying to support the auditor and to make his work much more effective.
+This is accomplished by combining a number of techniques, including partial
+run-time decompiler, stateful analysis, code fingerprinting, I/O analysis,
+high-level visualization layer, traditional interactive debugger features and
+run-time code modification capabilities. The goal is to provide a very
+detailed trace information, and, at the same time, to provide data suitable to
+build a model of program behavior more quickly and in more convenient way.
 
-  Fenris is not supposed to find vulnerabilities or bugs, or to guess
-  algorithms or describe protocols. It is supposed to report and analyze
-  the execution path - detect and describe functional blocks, monitor
-  data flow in the program, marking its lifetime, source, migration and
-  destination, analyze how functions work and what conditions are evaluated.
-  At the end, it can deliver you an execution model of traced program
-  (or arbitrarily chosen portion of it, if complete trace results in
-  too much noise or irrelevant information), and hint you how this model
-  can change in different conditions. Fenris does not need source codes of
-  analyzed application, but obviously does not keep the auditor from using
-  them.
+Fenris is not supposed to find vulnerabilities or bugs, or to guess algorithms
+or describe protocols. It is supposed to report and analyze the execution path
+- detect and describe functional blocks, monitor data flow in the program,
+marking its lifetime, source, migration and destination, analyze how functions
+work and what conditions are evaluated. At the end, it can deliver you an
+execution model of traced program (or arbitrarily chosen portion of it, if
+complete trace results in too much noise or irrelevant information), and hint
+you how this model can change in different conditions. Fenris does not need
+source codes of analyzed application, but obviously does not keep the auditor
+from using them.
 
-  For many users, Fenris might be a new tool or tools, for others - just a
-  command-line replacement or addition to strace, ltrace, gdb or similar
-  applications (there's a brief list of other nice tools in doc/other.txt).
-  And that's the idea - to build a tool that is simple, reusable, but also
-  precise and smart. It is supposed to have advantages over other tools, but
-  not to be an ultimate replacement or the final solution. Some users can
-  just use very specific features, such as automated function fingerprinting,
-  and use companion tools instead of the main program.
+For many users, Fenris might be a new tool or tools, for others - just
+a command-line replacement or addition to strace, ltrace, gdb or similar
+applications (there's a brief list of other nice tools in doc/other.txt). And
+that's the idea - to build a tool that is simple, reusable, but also precise
+and smart. It is supposed to have advantages over other tools, but not to be
+an ultimate replacement or the final solution. Some users can just use very
+specific features, such as automated function fingerprinting, and use
+companion tools instead of the main program.
 
-  The core component of Fenris works on real-time tracing level, analyzing
-  program structure and interaction with libc and OS, detecting and describing
-  parameters, tracing buffer sizes and such. First layer processing produces
-  text-format output stream, which can look like that:
+The core component of Fenris works on real-time tracing level, analyzing
+program structure and interaction with libc and OS, detecting and describing
+parameters, tracing buffer sizes and such. First layer processing produces
+text-format output stream, which can look like that:
 
-  8617:00 setuid (0)
-  8617:01  [L] SYS setuid (0) = 0
-  8617:00 ...return from libc = 0
-  8617:00 <0x80123456> cndt: conditional block +10 skipped
-  8617:00 local fnct_34 (bfffb01a "$something?" )
-  8617:00 + bfffb01a is bfffb01a:1000 <off 0> (created by create_buffer)
-  8617:00   last input: my_function:read from /etc/config.cfg
-  8617:01  __libc_open64 (l/bffff80d "onefile", 3)
-  8617:02   [L] SYS open (bffff80d "onefile", O_RDWR|O_CREAT) = 4
-  8617:02   + 0xbffff80d first seen in fnct_4:open, size 20
-  8617:02     last input: handle_net:recv <from 195.117.3.59:25>
-  8617:01  ...return from libc = 4
-  8617:00 ...return from fnct = <void>
-  8617:00 Function has written non-local memory:
-  8617:00 * local object irc_servers:123 (0x80654321)
-  8617:00 * unknown address 0x40123456
+8617:00 setuid (0)
+8617:01  [L] SYS setuid (0) = 0
+8617:00 ...return from libc = 0
+8617:00 <0x80123456> cndt: conditional block +10 skipped
+8617:00 local fnct_34 (bfffb01a "$something?" )
+8617:00 + bfffb01a is bfffb01a:1000 <off 0> (created by create_buffer)
+8617:00   last input: my_function:read from /etc/config.cfg
+8617:01  __libc_open64 (l/bffff80d "onefile", 3)
+8617:02   [L] SYS open (bffff80d "onefile", O_RDWR|O_CREAT) = 4
+8617:02   + 0xbffff80d first seen in fnct_4:open, size 20
+8617:02     last input: handle_net:recv <from 195.117.3.59:25>
+8617:01  ...return from libc = 4
+8617:00 ...return from fnct = <void>
+8617:00 Function has written non-local memory:
+8617:00 * local object irc_servers:123 (0x80654321)
+8617:00 * unknown address 0x40123456
 
-  This core code can be also used in conjunction with Aegir, a gdb-alike
-  assembly language level interactive debugger with some interesting
-  capabilities, such as very precise software break- and watchpoints, full
-  integration with Fenris and its high-level structures, code fingerprinting
-  and many other features. Or, if you prefer, nc-aegir, a SoftICE-alike
-  text-mode debugging GUI. So, Fenris can be used either as an advanced
-  version of *trace utilities, or as a command-line step-by-step debugger.
-  Because Fenris does not rely on BFD for any critical tasks, you should be
-  able to work with tweaked binaries, such as a binary coded with burneye,
-  with no problems:
+This core code can be also used in conjunction with Aegir, a gdb-alike
+assembly language level interactive debugger with some interesting
+capabilities, such as very precise software break- and watchpoints, full
+integration with Fenris and its high-level structures, code fingerprinting and
+many other features. Or, if you prefer, nc-aegir, a SoftICE-alike text-mode
+debugging GUI. So, Fenris can be used either as an advanced version of *trace
+utilities, or as a command-line step-by-step debugger. Because Fenris does not
+rely on BFD for any critical tasks, you should be able to work with tweaked
+binaries, such as a binary coded with burneye, with no problems:
 
-  $ gdb ./startwu
-  "./startwu": not in executable format: File format not recognized
+$ gdb ./startwu
+"./startwu": not in executable format: File format not recognized
 
-  $ objdump -d ./startwu
-  objdump: ./startwu: File format not recognized
+$ objdump -d ./startwu
+objdump: ./startwu: File format not recognized
 
-  $ ./fenris -W /tmp/aegir-sock -X 5 ./startwu &
-  $ aegir /tmp/aegir-sock
-  ...
-  [aegir] disas
-  05371035:       pushl  0x5371008
-  0537103b:       pushf
-  0537103c:       pusha
-  0537103d:       movl   0x5371000,%ecx
-  05371043:       jmp    $0x5371082
-  05371048:       popl   %esi
-  05371049:       movl   %esi,%edi
+$ ./fenris -W /tmp/aegir-sock -X 5 ./startwu &
+$ aegir /tmp/aegir-sock
+...
+[aegir] disas
+05371035:       pushl  0x5371008
+0537103b:       pushf
+0537103c:       pusha
+0537103d:       movl   0x5371000,%ecx
+05371043:       jmp    $0x5371082
+05371048:       popl   %esi
+05371049:       movl   %esi,%edi
 
-  For more information, plus an example of how to remove certain
-  debugging traps please refer to doc/be.txt.
+For more information, plus an example of how to remove certain
+debugging traps please refer to doc/be.txt.
 
-  For Aegir, there is some bare-bone API specification in doc/debug-api.txt,
-  and a description of all available commands in this README. The code is
-  mostly functional, but, as this is a newly introduced component, it
-  is reasonable to expect some bugs. Aegir session can look like this:
+For Aegir, there is some bare-bone API specification in doc/debug-api.txt, and
+a description of all available commands in this README. The code is mostly
+functional, but, as this is a newly introduced component, it is reasonable to
+expect some bugs. Aegir session can look like this:
 
-  Cur. time : Wed May 22 00:31:09 2002
-  Executable: ./a.out
-  Arguments : <NULL>
+Cur. time : Wed May 22 00:31:09 2002
+Executable: ./a.out
+Arguments : <NULL>
 
-  [aegir] step
-  >> Singlestep stop at 0x80483b0 [_start].
-  080483b0 [_start]:      xorl   %ebp,%ebp
-  [aegir] next
-  At 0x80483b0, continuing to next output line...
-  20394:00 L memset (8049660, 0, 100) = 8049660
-  20394:00 + g/8049660 = local buf
-  20394:00 + g/8049660 = local buf
-  20394:00 \ new buffer candidate: 8049660:100 (buf)
-  20394:00 \ buffer 8049660 modified.
-  20394:00 >> New line stop at 0x400a5b0c [memset+68].
-  080484bb [main+23]:     addl   $0x10,%esp
+[aegir] step
+>> Singlestep stop at 0x80483b0 [_start].
+080483b0 [_start]:      xorl   %ebp,%ebp
+[aegir] next
+At 0x80483b0, continuing to next output line...
+20394:00 L memset (8049660, 0, 100) = 8049660
+20394:00 + g/8049660 = local buf
+20394:00 + g/8049660 = local buf
+20394:00 \ new buffer candidate: 8049660:100 (buf)
+20394:00 \ buffer 8049660 modified.
+20394:00 >> New line stop at 0x400a5b0c [memset+68].
+080484bb [main+23]:     addl   $0x10,%esp
 
-  [aegir] info buf
-  Name 'buf' has address 0x08049660.
-  + 8049660 = 8049660:100 <off 0> (first seen in L main:memset)
-    last input: L main:memset
-  [aegir] fdinfo 0
-  + fd 0: "/dev/tty6", origin unknown
+[aegir] info buf
+Name 'buf' has address 0x08049660.
++ 8049660 = 8049660:100 <off 0> (first seen in L main:memset)
+last input: L main:memset
+[aegir] fdinfo 0
++ fd 0: "/dev/tty6", origin unknown
 
-  [aegir] wwatch 0x08049660 0x08049670
-  Breakpoint #0 added.
-  [aegir] list
-  00: stop on write 0x8049660-0x8049670.
+[aegir] wwatch 0x08049660 0x08049670
+Breakpoint #0 added.
+[aegir] list
+00: stop on write 0x8049660-0x8049670.
 
-  [aegir] fprint 0x080485a4
-  Matches for signature CC6E587C: printf, wprintf
+[aegir] fprint 0x080485a4
+Matches for signature CC6E587C: printf, wprintf
 
-  [aegir] call
-  At 0x80484bf, continuing to next local call...
-  08048492 [funkcjadwa+6]:        call   $0x804849c <funkcjasiedem>
-  21364:02   local funkcjasiedem ()
-  21364:02   + funkcjasiedem = 0x804849c
-  >> Local call to 0x804849c reached at 0x8048492 [funkcjadwa+6].
+[aegir] call
+At 0x80484bf, continuing to next local call...
+08048492 [funkcjadwa+6]:        call   $0x804849c <funkcjasiedem>
+21364:02   local funkcjasiedem ()
+21364:02   + funkcjasiedem = 0x804849c
+>> Local call to 0x804849c reached at 0x8048492 [funkcjadwa+6].
 
-  [aegir] back
-  Local function calls history (oldest to most recent calls):
-  From 80484bf [main+11]: fnct_1 [funkcjadwa] 804848c, stack bffffa64 -> ...
-  From 8048492 [funkcjadwa+6]: fnct_2 [funkcjasiedem] 804849c, stack bfff...
+[aegir] back
+Local function calls history (oldest to most recent calls):
+From 80484bf [main+11]: fnct_1 [funkcjadwa] 804848c, stack bffffa64 -> ...
+From 8048492 [funkcjadwa+6]: fnct_2 [funkcjasiedem] 804849c, stack bfff...
 
-  The GUI version of Aegir, nc-aegir, works basically the same way,
-  but provides an organized debugging screen with register, memory
-  and code views, integrated Fenris output view, and automatic
-  control over Fenris parameters. For a snapshot of nc-aegir layout,
-  please go to http://lcamtuf.coredump.cx/fenris/nc-aegir.gif :-)
+The GUI version of Aegir, nc-aegir, works basically the same way, but provides
+an organized debugging screen with register, memory and code views, integrated
+Fenris output view, and automatic control over Fenris parameters. For
+a snapshot of nc-aegir layout, please go to
+http://lcamtuf.coredump.cx/fenris/nc-aegir.gif :-)
 
-  Core output is a descriptive trace of program activity. For a larger
-  project, this trace might have many megabytes, and, to avoid problems
-  reading it, it should be either delimited to a relevant structural
-  portion of code that is being analyzed right now, or should be
-  transformed in a different model of execution path. One of such trivial
-  transform tools is called 'ragnarok'. It is able to convert first layer
-  output into a graphical html model that summarizes program structure,
-  marks data migration, I/O points, conditional points, and, on request,
-  provides detailed information about single functions. Ragnarok is hardly
-  an integral component of Fenris - it is merely a parser that transforms
-  text output into html. Any other presentation schemes or destination
-  formats can be easily achieved because of easily parsable output
-  generated by Fenris. We're looking towards making ragnarok more user
-  friendly, by using OpenDX or another interactive data browsing
-  mechanism instead of static contents, but as of today, Ragnarok output
-  consists of five sections, or views:
+Core output is a descriptive trace of program activity. For a larger project,
+this trace might have many megabytes, and, to avoid problems reading it, it
+should be either delimited to a relevant structural portion of code that is
+being analyzed right now, or should be transformed in a different model of
+execution path. One of such trivial transform tools is called 'ragnarok'. It
+is able to convert first layer output into a graphical html model that
+summarizes program structure, marks data migration, I/O points, conditional
+points, and, on request, provides detailed information about single functions.
+Ragnarok is hardly an integral component of Fenris - it is merely a parser
+that transforms text output into html. Any other presentation schemes or
+destination formats can be easily achieved because of easily parsable output
+generated by Fenris. We're looking towards making ragnarok more user friendly,
+by using OpenDX or another interactive data browsing mechanism instead of
+static contents, but as of today, Ragnarok output consists of five sections,
+or views:
 
-  a) "program flow": a table, or, in the future, a browsable graph
-     with horizontal lines (rows) representing functions and vertical lines
-     (columns) representing buffers and I/O sources (Y axis is time). When a
-     function uses one of the buffers or interacts with I/O source,
-     intersection of this object and function is marked in a way dependent
-     on the nature of this operation. Conditional expressions evaluated
-     during program execution are also marked. Data migration is marked.
-     Additional table section outlines interaction with data sources
-     (file descriptors).
+a) "program flow": a table, or, in the future, a browsable graph
+    with horizontal lines (rows) representing functions and vertical lines
+    (columns) representing buffers and I/O sources (Y axis is time). When a
+    function uses one of the buffers or interacts with I/O source,
+    intersection of this object and function is marked in a way dependent
+    on the nature of this operation. Conditional expressions evaluated
+    during program execution are also marked. Data migration is marked.
+    Additional table section outlines interaction with data sources
+    (file descriptors).
 
-  b) "function view": a description of a single function call: current
-     parameters, modified memory, return code, inside-function conditions,
-     function trace, etc - everything intended and providing some
-     useful shortcuts to follow nested calls.
+b) "function view": a description of a single function call: current
+    parameters, modified memory, return code, inside-function conditions,
+    function trace, etc - everything intended and providing some
+    useful shortcuts to follow nested calls.
 
-  c) "function summary": a summary of all calls of this particular function,
-     useful for determining the purpose and range of accepted parameters
-     of given function.
+c) "function summary": a summary of all calls of this particular function,
+    useful for determining the purpose and range of accepted parameters
+    of given function.
 
-  d) "buffer view": a history of all modifications and I/O ops applied
-     to a single buffer.
+d) "buffer view": a history of all modifications and I/O ops applied
+    to a single buffer.
 
-  e) "I/O view": a history of all I/O operations performed on a single
-     file descriptor.
+e) "I/O view": a history of all I/O operations performed on a single
+    file descriptor.
 
-  The main idea of Ragnarok, as you probably can imagine, is to provide five
-  different views of program activity, each of them can be used separately
-  for different purposes. For example, buffer view can be very useful for
-  vulnerability research, and function summary view will be an invaluable
-  source of reverse engineering information. Ragnarok basically consists of
-  five different and loosely connected parts.
+The main idea of Ragnarok, as you probably can imagine, is to provide five
+different views of program activity, each of them can be used separately for
+different purposes. For example, buffer view can be very useful for
+vulnerability research, and function summary view will be an invaluable source
+of reverse engineering information. Ragnarok basically consists of five
+different and loosely connected parts.
 
-  Ragnarok is text-browser friendly, but until OpenDX or a similar solution
-  is deployed, be warned that reading outputs for complex programs might be
-  rather unpleasant. As HTML is not necessarily the most useful way of
-  presenting huge amounts of formatted data, be prepared to get few megs of
-  html for less than one meg of trace output (still, -R option is a neat
-  workaround; thanks to negative, we also provide 'split' utility to
-  convert Ragnarok output file into several separate html pieces).
+Ragnarok is text-browser friendly, but until OpenDX or a similar solution is
+deployed, be warned that reading outputs for complex programs might be rather
+unpleasant. As HTML is not necessarily the most useful way of presenting huge
+amounts of formatted data, be prepared to get few megs of html for less than
+one meg of trace output (still, -R option is a neat workaround; thanks to
+negative, we also provide 'split' utility to convert Ragnarok output file into
+several separate html pieces).
 
-  Fenris components provide some other interesting features, as well. For
-  example, it is able to manage a database of MD5 fingerprints of functions.
-  With a companion utility provided with Fenris, you can even recover symbol
-  tables for stripped static binaries and then use your favorite debugger:
+Fenris components provide some other interesting features, as well. For
+example, it is able to manage a database of MD5 fingerprints of functions.
+With a companion utility provided with Fenris, you can even recover symbol
+tables for stripped static binaries and then use your favorite debugger:
 
-  Before:
-    0x804811c:      call   0x8054ad4
-  After:
-    0x804811c:      call   0x8054ad4 <libc_start_main / xdrrec_create>
+Before:
+0x804811c:      call   0x8054ad4
+After:
+0x804811c:      call   0x8054ad4 <libc_start_main / xdrrec_create>
 
-  By default, only libc functions are placed in the database, but it is
-  fairly easy to archive user's own functions there. For the core
-  tracer, if any unknown function is found (e.g. in static binary with no
-  symbols), quick matching is performed and all possible guesses are
-  reported back. This makes work much easier, knowing that fnct_123 is
-  actually fprintf, and fnct_124 - vfprintf:
+By default, only libc functions are placed in the database, but it is fairly
+easy to archive user's own functions there. For the core tracer, if any
+unknown function is found (e.g. in static binary with no symbols), quick
+matching is performed and all possible guesses are reported back. This makes
+work much easier, knowing that fnct_123 is actually fprintf, and fnct_124
+- vfprintf:
 
-  25281:02   local fnct_12 (0, 0, 0)
-  25281:02   + fnct_12 = 0x804c868
-  25281:02   # Matches for signature 42BA3CA4: libc_init_secure
+25281:02   local fnct_12 (0, 0, 0)
+25281:02   + fnct_12 = 0x804c868
+25281:02   # Matches for signature 42BA3CA4: libc_init_secure
 
-  I must say I'm pretty disappointed to find out that IDA disassembler
-  for Windows features somewhat similar mechanism for function
-  fingerprinting =) On the other hand, IDA is something completely
-  different, plus I believe my implementation is simply more straight
-  and accurate :) And they don't have symtab recovery!;P But enough
-  ranting.
+I must say I'm pretty disappointed to find out that IDA disassembler for
+Windows features somewhat similar mechanism for function fingerprinting =) On
+the other hand, IDA is something completely different, plus I believe my
+implementation is simply more straight and accurate :) And they don't have
+symtab recovery!;P But enough ranting.
 
-  Other interesting features include text buffer auto-detection,
-  buffer size and modification tracking and such. Core tracer provides
-  some limited code modification capabilities, so that you can, for
-  example, NOP-out debugger detection code, checksum verification, or some
-  fork() you don't want to happen. You can also achieve much more advanced
-  control with the companion debugger.
+Other interesting features include text buffer auto-detection, buffer size and
+modification tracking and such. Core tracer provides some limited code
+modification capabilities, so that you can, for example, NOP-out debugger
+detection code, checksum verification, or some fork() you don't want to
+happen. You can also achieve much more advanced control with the companion
+debugger.
 
-  (On a side note:) This is very advisable to eliminate fork()s and trace
-  one execution branch at once, as Linux does not provide a reliable mechanism
-  for attaching to the forked child immediately. There are some tricks to do
-  it (such as manually inserted jmp-to-self loop that is restored later when
-  the process is attached), but it is not implemented in Fenris at this moment.
-  I'm one of guys who believe that ptrace() should be taken out and shot,
-  and who loves projects like the-dude [http://the-dude.sourceforge.net],
-  but as for today, Fenris sticks with the default Linux tracing facility,
-  which, by the way, affects its performance.
+(On a side note:) This is very advisable to eliminate fork()s and trace one
+execution branch at once, as Linux does not provide a reliable mechanism for
+attaching to the forked child immediately. There are some tricks to do it
+(such as manually inserted jmp-to-self loop that is restored later when the
+process is attached), but it is not implemented in Fenris at this moment. I'm
+one of guys who believe that ptrace() should be taken out and shot, and who
+loves projects like the-dude [http://the-dude.sourceforge.net], but as for
+today, Fenris sticks with the default Linux tracing facility, which, by the
+way, affects its performance.
 
-  Ok, that was a quick introduction. The reasons why you might want this
-  project are exactly the same as the reasons you might find it useless :-)
-  It is very verbose, built around the idea of automated low-level analysis,
-  and not all people will find it useful. But even if you hate it so far, I
-  encourage you to research alternative you might have never heard of and
-  support other promising developments - please read doc/other.txt for more
-  information.
+Ok, that was a quick introduction. The reasons why you might want this project
+are exactly the same as the reasons you might find it useless :-) It is very
+verbose, built around the idea of automated low-level analysis, and not all
+people will find it useful. But even if you hate it so far, I encourage you to
+research alternative you might have never heard of and support other promising
+developments - please read doc/other.txt for more information.
 
-  So let's dive into more technical aspects. This README is not intended to
-  describe all features of this project or to provide complete documentation,
-  at least not for now, but it should provide a reasonable level of detail.
-  I believe the project is rather intuitive once you get the idea :-)
+So let's dive into more technical aspects. This README is not intended to
+describe all features of this project or to provide complete documentation, at
+least not for now, but it should provide a reasonable level of detail.
+I believe the project is rather intuitive once you get the idea :-)
 
 [0x01] How does it work?
 ------------------------
 
-  Fenris is far from being complex. The key to its simplicity is the fact it
-  traces one execution path instead of trying to predict all possibilities.
-  It is all about detecting, reporting and analyzing low-level assembly
-  language constructions that are known to represent specific operations.
-  Current version of Fenris is developed to work fine with i386 executables
-  on Linux, and to understand code generated by GNU C compiler, or other
-  compilers that use GCC framework - GNU C++, GNU Ada Translator, GNU Prolog,
-  possibly GNU Fortran. On the other hand, there is no reason why it cannot be
-  ported to support other high-level languages, compiler frameworks or
-  architectures - and one of main reasons for releasing the code is having
-  this process of porting started.
+Fenris is far from being complex. The key to its simplicity is the fact it
+traces one execution path instead of trying to predict all possibilities. It
+is all about detecting, reporting and analyzing low-level assembly language
+constructions that are known to represent specific operations. Current version
+of Fenris is developed to work fine with i386 executables on Linux, and to
+understand code generated by GNU C compiler, or other compilers that use GCC
+framework - GNU C++, GNU Ada Translator, GNU Prolog, possibly GNU Fortran. On
+the other hand, there is no reason why it cannot be ported to support other
+high-level languages, compiler frameworks or architectures - and one of main
+reasons for releasing the code is having this process of porting started.
 
-  The most significant drawback of using universal real-time tracers such as
-  ltrace or strace is a lack of abilities to observe internal program
-  structure, function calls, conditional execution, etc - "black matter"
-  mentioned earlier. Unfortunately, for many programs, this black matter, not
-  I/O manifestations, is critical for understanding algorithms. I/O activity
-  is just a shadow of something that cannot be seen. There are certain
-  programs, such as xtrace, that are capable of providing this additional
-  information, but their applications are very limited - they are
-  not suitable for black-box code, and provide a very basic, unstructured
-  information. Another issue is that even such a basic analysis as what
-  strace gives you - just describing known parameters of known syscalls -
-  is not really integrated with any interactive tools, so when you work with
-  gdb, you're forced to figure out every single mindless detail that could
-  easily be parsed for you, and it takes much longer to get the idea of
-  what is going on.
+The most significant drawback of using universal real-time tracers such as
+ltrace or strace is a lack of abilities to observe internal program structure,
+function calls, conditional execution, etc - "black matter" mentioned earlier.
+Unfortunately, for many programs, this black matter, not I/O manifestations,
+is critical for understanding algorithms. I/O activity is just a shadow of
+something that cannot be seen. There are certain programs, such as xtrace,
+that are capable of providing this additional information, but their
+applications are very limited - they are not suitable for black-box code, and
+provide a very basic, unstructured information. Another issue is that even
+such a basic analysis as what strace gives you - just describing known
+parameters of known syscalls - is not really integrated with any interactive
+tools, so when you work with gdb, you're forced to figure out every single
+mindless detail that could easily be parsed for you, and it takes much longer
+to get the idea of what is going on.
 
-  Fenris tries to change this situation in many ways. Others than
-  mentioned earlier (ragnarok, partial tracing):
+Fenris tries to change this situation in many ways. Others than mentioned
+earlier (ragnarok, partial tracing):
 
-   a) recognizing internal function calls and assigning unique names to them
-      even if original name cannot be determined,
+a) recognizing internal function calls and assigning unique names to them
+    even if original name cannot be determined,
 
-   b) automatically counting the number of passed parameters and recognizing
-      them appropriately, so the purpose of given function and its domain can
-      be determined easily; used mechanism can handle such a complex
-      expressions as "myfunction(otherfunction(7*sin(1))*2,17*i,val?10:0)" and
-      handle parameters properly, even in the code generated with high
-      optimization settings; parameter detection includes automatic
-      search for text entities and displaying them properly,
+b) automatically counting the number of passed parameters and recognizing
+    them appropriately, so the purpose of given function and its domain can
+    be determined easily; used mechanism can handle such a complex
+    expressions as "myfunction(otherfunction(7*sin(1))*2,17*i,val?10:0)" and
+    handle parameters properly, even in the code generated with high
+    optimization settings; parameter detection includes automatic
+    search for text entities and displaying them properly,
 
-   c) providing appropriate information about function nesting (both using
-      visual indentation and numbers), so the structure of program is clearly
-      visible and certain layer of processing can be extracted and separated
-      easily,
+c) providing appropriate information about function nesting (both using
+    visual indentation and numbers), so the structure of program is clearly
+    visible and certain layer of processing can be extracted and separated
+    easily,
 
-   d) detecting shared code by comparing MD5 fingerprints for functions in
-      statically linked binaries; this way, in many black-box solutions,
-      unique functions can be distinguished from common library functions
-      in a quick way; it also enables the auditor to maintain a database
-      of already identified functions and have their names displayed every
-      time given code is called,
+d) detecting shared code by comparing MD5 fingerprints for functions in
+    statically linked binaries; this way, in many black-box solutions,
+    unique functions can be distinguished from common library functions
+    in a quick way; it also enables the auditor to maintain a database
+    of already identified functions and have their names displayed every
+    time given code is called,
 
-   e) stateful tracing; Fenris maintains an internal map of used memory,
-      opened files, etc. Whenever a file descriptor or a buffer is
-      involved in any operation, its current state, information about its
-      origins, etc, is provided.
+e) stateful tracing; Fenris maintains an internal map of used memory,
+    opened files, etc. Whenever a file descriptor or a buffer is
+    involved in any operation, its current state, information about its
+    origins, etc, is provided.
 
-   f) buffer detection and tracing; buffer sizes and contents is being
-      traced; both modifications performed by known library functions and
-      syscalls, and manual access performed by unknown functions is
-      reported (assembly-language level analysis is used); additional memory
-      analysis is deployed to keep tracks of buffer lifetime and location
-      (this includes local buffers passed to nested functions, too),
+f) buffer detection and tracing; buffer sizes and contents is being
+    traced; both modifications performed by known library functions and
+    syscalls, and manual access performed by unknown functions is
+    reported (assembly-language level analysis is used); additional memory
+    analysis is deployed to keep tracks of buffer lifetime and location
+    (this includes local buffers passed to nested functions, too),
 
-   g) certain known library and system calls are handled and used to
-      keep track of abstract operations such as data migration,
+g) certain known library and system calls are handled and used to
+    keep track of abstract operations such as data migration,
 
-   h) conditional expressions, grouped in several classes that represent
-      certain high-level constructions, are detected and reported,
+h) conditional expressions, grouped in several classes that represent
+    certain high-level constructions, are detected and reported,
 
-   i) providing run-time code modification capability to bypass
-      checks, anti-debugging code, simulate different run-time conditions,
-      etc,
+i) providing run-time code modification capability to bypass
+    checks, anti-debugging code, simulate different run-time conditions,
+    etc,
 
-   j) providing an advanced step-by-step debugger that is fully integrated
-      with Fenris and provides modular capabilities - so if you want to
-      implement your own, very complex conditional breakpoint, all you have
-      to do is to load your module.
+j) providing an advanced step-by-step debugger that is fully integrated
+    with Fenris and provides modular capabilities - so if you want to
+    implement your own, very complex conditional breakpoint, all you have
+    to do is to load your module.
 
-  For recognized structures and calls, please refer chapter 0x05 (tracing
-  mechanism). Now, let's talk about front-end.
+For recognized structures and calls, please refer chapter 0x05 (tracing
+mechanism). Now, let's talk about front-end.
 
 [0x02] How can I use it?
 ------------------------
 
-  Fenris is distributed under terms and conditions of the GNU public
-  license. It means you are free to use, distribute and modify this
-  program. You can use it in any way you want - to debug your own code,
-  find bugs in third-party software, understand and reverse-engineer protocols
-  and algorithms, and such. If you want to use this code in your own
-  software, please let me know.
-
-  On compilation time, you can choose what variant of Fenris you want
-  to build. Some of more useful options:
-
-     make all      - typical compilation; highly optimized, but build
-                     process is time and memory consuming
-
-     make debug    - debugging version; this enables memory tracing,
-                     debugging symbols, disables all optimizations
-                     and such; not recommended for everyday use.
-
-     make heavy    - heavy debugging of calling conventions; produces
-                     tons of useless info; suitable for debugging, but
-                     works fine with dynamic binaries w/symbols only.
-
-  Invoking main Fenris is pretty simple, and does not really require any
-  documentation for anyone who ever used 'strace' or similar application.
-  Called without any parameters, it will display short help. The main
-  program is invoked the following way:
-
-  fenris [ -E PAR=VAL ] [ -u user ] [ -o file ] [ -L dbase ] [ -R a:b ]
-         [ -t nnn ] [ -P ip:off:val ] [ -sdyiCSfFmGxpAeq ] program
-         [ params... ]
-
-  Mandatory parameter is program name, eventually followed by program
-  parameters. If, for some reason, program name has to start with '-',
-  it should be preceded with '--' parameter. Before program name, you
-  can place one or more optional parameters, such as:
-
-   -o filename
-
-    This options writes results to file instead of stderr. It is faster
-    and recommended in all cases.
-
-  -E PAR=VAL
-
-    Puts PAR in the environment. This is especially useful if you want
-    to trace a program with unusual LD_PRELOAD or other settings that
-    would affect the functionality of 'fenris' itself if modified earlier.
-    Multiple -E options are allowed.
-
-  -u user
-
-    Run as user. This option is available for root (see section 0x04,
-    security issues), and will cause program to effectively run with
-    uids, gids and supplementary groups of given user.
+Fenris is distributed under terms and conditions of the GNU public license. It
+means you are free to use, distribute and modify this program. You can use it
+in any way you want - to debug your own code, find bugs in third-party
+software, understand and reverse-engineer protocols and algorithms, and such.
+If you want to use this code in your own software, please let me know.
+
+On compilation time, you can choose what variant of Fenris you want to build.
+Some of more useful options:
+
+    make all      - typical compilation; highly optimized, but build
+                    process is time and memory consuming
+
+    make debug    - debugging version; this enables memory tracing,
+                    debugging symbols, disables all optimizations
+                    and such; not recommended for everyday use.
+
+    make heavy    - heavy debugging of calling conventions; produces
+                    tons of useless info; suitable for debugging, but
+                    works fine with dynamic binaries w/symbols only.
+
+Invoking main Fenris is pretty simple, and does not really require any
+documentation for anyone who ever used 'strace' or similar application. Called
+without any parameters, it will display short help. The main program is
+invoked the following way:
+
+fenris [ -E PAR=VAL ] [ -u user ] [ -o file ] [ -L dbase ] [ -R a:b ]
+        [ -t nnn ] [ -P ip:off:val ] [ -sdyiCSfFmGxpAeq ] program
+        [ params... ]
 
-  -R a:b
+Mandatory parameter is program name, eventually followed by program
+parameters. If, for some reason, program name has to start with '-', it should
+be preceded with '--' parameter. Before program name, you can place one or
+more optional parameters, such as:
 
-    This option traces code from the moment when eip reaches point a to the
-    moment when it reaches b. Incomplete range can be provided - for
-    example, -R :0x12345678 will trace code from the beginning to eip
-    0x12345678, and -R 0x12345678: will start tracing at 0x12345678 and
-    continue as long as possible. NOTE: think of it as trigger points,
-    not a continuous range. For example, if you use -R 0x12345678:, but
-    eip 0x12345678 is never reached, even if 0x23456789 is being
-    executed, trace will never start.
+-o filename
 
-    This option is wonderful for starting trace at certain nest level
-    and continuing it until this execution level is exited.
+This options writes results to file instead of stderr. It is faster and
+recommended in all cases.
 
-  -L dbase
+-E PAR=VAL
 
-    Load additional (supplementary) fingerprints database. Multiple
-    -L options allowed. If filename does not contain slashes, Fenris will
-    look for it in directories described later in this section.
+Puts PAR in the environment. This is especially useful if you want to trace
+a program with unusual LD_PRELOAD or other settings that would affect the
+functionality of 'fenris' itself if modified earlier. Multiple -E options are
+allowed.
 
-  -t nnn
+-u user
 
-    Main function is nnn rets from _do_global_ctors_aux. By default,
-    this is set to 2, and does not have to be changed unless something
-    is really wrong. You should use this option if you see that trace
-    ends with '...return from main' almost immediately at the beginning
-    (try increasing -t parameter) or somewhere in the middle or does
-    not reach main at all (try decreasing). However, this should not
-    happen, in general. The only case I'm aware of are HMM 3 binaries
-    (patchlevel 1.3.1a, does not affect 1.3), they require -t 3 instead.
+Run as user. This option is available for root (see section 0x04, security
+issues), and will cause program to effectively run with uids, gids and
+supplementary groups of given user.
 
-  -X seg
+-R a:b
 
-    Use this segment prefix instead of the default (determined for a typical
-    binary on your system) as a code segment. Code segment is the segment
-    Fenris actively traces. Some ELF binaries can be altered to start in
-    a different segment - a good example is a burneye ELF crypting tool.
-    Code segment address is used by Fenris for some operations, such as
-    describing parameters, handling signal handlers, function fingerprinting.
-    While not absolutely necessary, it is wise to pass this parameter when
-    suitable. Pass the most significant byte of code segment starting address
-    as this parameter (for example, if your code segment starts at 0x050a0000,
-    use 0x05).
+This option traces code from the moment when eip reaches point a to the moment
+when it reaches b. Incomplete range can be provided - for example, -R
+:0x12345678 will trace code from the beginning to eip 0x12345678, and -R
+0x12345678: will start tracing at 0x12345678 and continue as long as possible.
+NOTE: think of it as trigger points, not a continuous range. For example, if
+you use -R 0x12345678:, but eip 0x12345678 is never reached, even if
+0x23456789 is being executed, trace will never start.
 
-  -P ip:off:val
+This option is wonderful for starting trace at certain nest level and
+continuing it until this execution level is exited.
 
-    This directive means: change a byte at address 'off' to 'val' when
-    eip reaches 'ip'. If 'ip' is omitted or zero, this rule will be
-    applied immediately to the freshly mapped binary (keep in mind that
-    some memory regions mapped later may be not available at this moment).
-    Read-only flag is generally overridden, and for files mapped into
-    memory in read-only mode, a local copy of the modified page is spawned.
-    All values passed to this parameter can be in decimal or in hex if
-    preceded with 0x, and multiple options are possible. Non-IP entries will
-    be applied only once, at the beginning. All others will be applied
-    every time a given IP is reached.
+-L dbase
 
-    There are some additional considerations to be aware of when used in
-    conjunction with tracing across execve()s - see -e option description
-    for details.
+Load additional (supplementary) fingerprints database. Multiple -L options
+allowed. If filename does not contain slashes, Fenris will look for it in
+directories described later in this section.
 
-  -s
+-t nnn
 
-    This option disables automatic prolog detection. It is not recommended,
-    as it makes ./fenris trace whole linking process and libc initialization.
-    However, in rare cases when binary is compiled on odd, not supported
-    system, this might be a solution. For long-term operations, however,
-    it is recommended to contact the author providing his with this binary
-    (or parts of it), so he'll be able to add support for this specific
-    construction.
+Main function is nnn rets from _do_global_ctors_aux. By default, this is set
+to 2, and does not have to be changed unless something is really wrong. You
+should use this option if you see that trace ends with '...return from main'
+almost immediately at the beginning (try increasing -t parameter) or somewhere
+in the middle or does not reach main at all (try decreasing). However, this
+should not happen, in general. The only case I'm aware of are HMM 3 binaries
+(patchlevel 1.3.1a, does not affect 1.3), they require -t 3 instead.
 
-  -y
+-X seg
 
-    Reports memory writes and reads immediately (without -y, memory
-    access is reported per function on return).
+Use this segment prefix instead of the default (determined for a typical
+binary on your system) as a code segment. Code segment is the segment Fenris
+actively traces. Some ELF binaries can be altered to start in a different
+segment - a good example is a burneye ELF crypting tool. Code segment address
+is used by Fenris for some operations, such as describing parameters, handling
+signal handlers, function fingerprinting. While not absolutely necessary, it
+is wise to pass this parameter when suitable. Pass the most significant byte
+of code segment starting address as this parameter (for example, if your code
+segment starts at 0x050a0000, use 0x05).
 
-  -C
+-P ip:off:val
 
-    Inhibits tracing conditional expressions. This option is useful if
-    output will be read by human, as it might decrease amount of
-    reported information.
+This directive means: change a byte at address 'off' to 'val' when eip reaches
+'ip'. If 'ip' is omitted or zero, this rule will be applied immediately to the
+freshly mapped binary (keep in mind that some memory regions mapped later may
+be not available at this moment). Read-only flag is generally overridden, and
+for files mapped into memory in read-only mode, a local copy of the modified
+page is spawned. All values passed to this parameter can be in decimal or in
+hex if preceded with 0x, and multiple options are possible. Non-IP entries
+will be applied only once, at the beginning. All others will be applied every
+time a given IP is reached.
 
-  -S
+There are some additional considerations to be aware of when used in
+conjunction with tracing across execve()s - see -e option description for
+details.
 
-    Inhibits resolving library functions. This might effect in some
-    speed improvement, but is generally not recommended without a good
-    reason.
+-s
 
-  -f
-
-    Trace child processes after fork() or vfork(). Might be useful for
-    tracing daemons and such (however it might cause some problems due
-    to signal delivery semantics changes, see 0x07, known bugs)
-
-  -d
-
-    Do not describe function parameters. Reduces amount of generated
-    output.
-
-  -F
-
-    Do not fingerprint functions. This option is effective for static
-    binaries only, and will disable loading and displaying fingerprints.
-    This is not really recommended - for stripped binaries, it makes
-    your life more difficult, for binaries with symbols has almost no
-    effect. However it might reduce memory usage and improve speed.
-
-  -m
-
-    Do not trace memory writes. This option reduces amount of generated
-    output.
-
-  -i
-
-    This option disables indenting, reporting of pid and nesting level.
-    It makes output non-structural, non-standard, but shorter. This will
-    also break compatibility with ragnarok.
-
-  -x
-
-    This option causes Fenris to ignore 'return from main' and to
-    continue tracing, returning to nest level 0. Generally speaking, this
-    is not recommended at any time. If you have problems with 'return from
-    main' appearing too early in the trace, try re-adjusting -t parameter
-    instead. If this do not help, apparently one or more of calling
-    or return conventions used by traced application are not supported,
-    and you shouldn't rely on results anyway.
-
-  -p
-
-    Prefix every message with eip. Some commands report eip, some not,
-    this might be useful for debugging, and is a must if you want to modify
-    the code later with -P option. This option is compatible with
-    ragnarok. Note that information is not displayed in some uniform
-    way. For example, syscalls are displayed after return, local functions
-    are displayed before call - so it takes some time to get the idea.
-
-  -A
-
-    Assume that all functions return some value, regardless of all
-    other conditions. This will trigger some meaningless return values
-    reported, but is useful if the binary is very optimized.
-
-  -q
-
-    Do not report last line of output to the debugger. This is meaningful
-    only with -W, and makes sense when you use a multi-window debugger
-    shell that already reports Fenris output (we're working on such a
-    shell right now).
-
-  -G
-
-    "Go away" option. Can be used only in conjunction with -W, and it
-    basically turns of all analysis capabilities of Fenris - from tracing
-    nesting level, detecting function / library / system calls, thru many
-    other capabilities. It is useful for troublesome non-C code. Fenris
-    output will be practically completely disabled, and only some debugging
-    messages will be supported (such as single-step, getmem, address
-    breakpoint, etc).
-
-  -e
-
-    Trace new code loaded by execve(). This option might be convenient in
-    some cases, but should be used with caution. Also, be warned that -P
-    option will be global and apply to both old and new image in memory,
-    except for no-IP entries that would be applied only once.
-
-  For more information on computer forensics applications, you may
-  want to visit http://lcamtuf.coredump.cx/fenris/reverse.txt, where
-  I tried to give few hints on approaching May 2002 reverse engineering
-  challenge from Project Honeynet.
-
-  Managing fingerprints database is relatively simple. First of all,
-  Fenris looks for a database in the following places:
-
-     ./fnprints.dat
-     $HOME/.fenris/fnprints.dat
-     /etc/fnprints.dat
-     $HOME/fnprints.dat
-
-  Additionally, custom fingerprints database can be specified by -L
-  option (multiple databases allowed). Same search logic applies to
-  -L parameters, unless they contain path components ('/'). This is
-  reasonable to maintain separate fingerprint databases, as it allows
-  you to be selective. For example, if you are about to trace 'sash',
-  you can be pretty sure it won't use libX* libraries, so first, you
-  can make lookups faster, and then, you minimize eventual false positives
-  or confusion caused by identifying some functions incorrectly.
-  As an example, I provide fingerprints for pretty old, but still used
-  glibc 2.0.7 in support/fn-2.0.7.dat, and fingerprints for libc5
-  (support/fn-libc5.dat). Note that, as for today, Fenris will probably not
-  work on libc5 systems (I have to port it), but this can be used against
-  statically linked binaries taken from such systems.
-
-  The main database shipped with Fenris right now is a composite database
-  for all major libraries for x86 libc 2.1.x and 2.2.x generated by gcc
-  2.9x to 3.1. It is pretty huge, but also versatile. If you believe it
-  makes sense to maintain smaller libraries, feel free to do it and send
-  me your selection!
-
-  Fingerprints database is a plain text file in the following format:
-
-  [debug info] function_name MD5_SIGN
-
-  Where 'debug info' is used by 'fprints' utility to indicate the source
-  (filename+offset) of given symbol, function_name is self-explanatory,
-  and MD5_SIGN is 8-digit hexadecimal MD5 shortcut for given function (see
-  section 0x05, tracing mechanism for more details on hashing algorithm).
-
-  'fprints' utility accepts any ELF file (executable, shared library or
-  relocatable .o file / .a archive) as a parameter and generates signatures
-  for all functions. It does not really make any sense to grab signatures from
-  shared libraries, as they are not used to build static binaries, so you
-  should target .o files instead. However, it is possible and sometimes
-  reasonable to gather signatures from ELF executables. It allows you to
-  fingerprint some frequently used functions (e.g. __non_dynamic_init
-  or some custom common code used by others; let's say Loki uses some
-  common engine for all their games, you can easily index functions in
-  this engine once and benefit from automated recognition later). Typical
-  output looks like that:
-
-  [printf.o+52] printf CC6E587C
-  [printf.o+52] _IO_printf CC6E587C
-  --> printf.o: done (2 functions)
-
-  As you see, one of entries is just an alias.
-
-  Selected 'fprints' results can be appended to fnprints.dat file of
-  your choice. It is important to mention that many libraries have
-  multiple entries for the same function, so 'fprints' shouldn't be really
-  used to gather fingerprints for large .a archives, like libc. This task
-  can be accomplished by invoking 'getfprints' utility, which is a shell
-  script wrapper around fprints. It can process whole .a archive or
-  even multiple archives at once, eliminate dupes, and such. Please note
-  that it is perfectly possible to copy .a files from a system that is
-  not directly supported by Fenris, for example, libc5 box, and extract
-  signatures on a different system.
-
-  When invoked with no parameters, 'getfprints' will extract default set
-  of symbols from:
-
-    /usr/lib/libc.a
-    /usr/lib/libm.a
-    /usr/lib/libdl.a
-    /usr/lib/libresolv.a
-    /usr/lib/libreadline.a
-    /usr/lib/libtermcap.a
-    /usr/lib/libssl.a
-    /usr/lib/libBrokenLocale.a
-    /usr/lib/libcrypt.a
-    (one static binary)
-
-  This is the way it is invoked by the Makefile  script, and can be used at
-  any time to restore defaults or to update signatures (for new libc
-  version, for example). If invoked with one parameter, 'getfprints' will
-  go thru this .a file or set of .a files. An example would be:
-
-    ./getfprints "/usr/lib/libcrypto.a /usr/lib/libmd5.a"
-
-  It is important to quote the list so it effectively makes one parameter.
-  Otherwise, only first file will be processed. Call it laziness on my
-  end ;-)
-
-  Default output file for 'getfprints' is fnprints.new in current
-  directory. When integrating it with existing fnprints.dat, please make
-  sure you eliminate dupes by issuing the following command:
-
-    cat fnprints.new fnprints.dat | sort | uniq >clean-new.dat
-
-  This utility requires ./fprints to be in current directory or in your path.
-
-  Another tool provided with the project is called 'dress', roughly an
-  opposite to 'strip'. It will accept a stripped static ELF binary as
-  a parameter, and will try to detect library functions. Detected names
-  will be placed in the symbol table and a new ELF file will be generated.
-  Usage is rather simple:
-
-     ./dress input_elf            - this will dump symbols to stdout
-     ./dress input_elf output_elf - this will create a new ELF with symbols
-
-  Additional options:
-
-     -F nnn             - use this file for fingerprint database
-     -S xxx             - use this name as a code section (override .text)
-
-  Note that symbols generated are not GDB debugging info. In other words,
-  you can view them with nm, objdump, they will be shown in gdb disassembly,
-  but you might have problems setting an explicit breakpoint such as
-  "break printf". Blame GDB. As a workaround, you can run dress without
-  a second parameter once again, and grab interesting addresses from the
-  output. Enjoy.
-
-  Note that 'dress' has nothing to do with 'unstrip', which is used to,
-  quote, "replace the symbol table in dynamically linked executables".
-
-  The last component discussed here is Aegir, the interactive debugger.
-  For information for programmers, please refer to doc/debug-api.txt.
-  This brief write-up should help you with developing modules for Aegir
-  or even replacing it with your own debugging shell in easy way.
-
-  Whole interactive debugging functionality in Fenris is designed to
-  provide instruction-by-instruction, breakpoint-to-breakpoint and
-  watchpoint-to-watchpoint capabilities within the local code. This
-  means that while it is possible to set up a breakpoint in library
-  code, it is not really possible to walk thru library functions
-  instruction by instruction. This is done for your own good, I doubt
-  you really want to debug libc with Fenris. Fenris does not trace
-  nesting level, function calls and so on within libc, so your
-  possibilities are very limited anyway. Keep in mind that Fenris is
-  an executable tracker, not a library debugger, and will treat
-  library space pretty much like kernel space - a black hole. We
-  are not trying to understand library functions, they are documented
-  and predictable (note: this, obviously, won't be true for suspected
-  code loaded as a shared library; Fenris will support such code in
-  the future).
-
-  Right now, I'm going to focus on front-end functionality. Running Aegir
-  is very straightforward, as all parameters are controlled by whatever
-  you passed to Fenris, and the only parameter you have to pass is
-  the path you gave to Fenris using -W option earlier. Fenris MUST be already
-  running with -W option to launch Aegir. Aegir will shut down as soon
-  as Fenris exits. Aegir provides some basic gdb-alike functionality,
-  but also several more interesting features. In its current version, it
-  also lacks several features, such as support for symbolic names in many
-  functions, which can be a minor annoyance and should be fixed in 0.07.
-
-  The GUI version of Aegir, nc-aegir, works basically the same way,
-  but provides an organized debugging screen with register, memory
-  and code views, integrated Fenris output view, and automatic
-  control over Fenris parameters. nc-aegir integrates Fenris session with
-  the debugger, and it uses either 'screen' utility (when running on a text
-  terminal) or xterm session (when running under X Window system) to provide
-  comfortable multi-view debugging environment. The GUI is documented by
-  a self-explanatory help available after pressing Alt-H, so I will not
-  cover it extensively here.
-
-  Please note that there is a fundamental difference between how Aegir
-  / nc-aegir and gdb handle interruptions. If you hit Ctrl+C in Aegir or
-  nc-aegir, or issue a "stop" command, it will not stop immediately if the
-  process is in the middle of a blocking call. It will schedule stop for as
-  soon as the control returns to userspace. This is to avoid problems with
-  interrupted syscalls, gdb style. To terminate the program immediately,
-  hit Ctrl+C again, or use "halt" command. You will be then instructed
-  whether the syscall will resume upon continuation or not, and what to
-  do to avoid problems.
-
-  Once Aegir is running, you should have access to its internal help,
-  and all messages are rather user-friendly. The following list of commands
-  is provided for more detailed reference:
-
-  - dynamic
-
-    This is probably the first command to issue for a standard dynamically
-    linked binary. Fenris stops at first instruction, which, for dynamic
-    executables, would be the linker. To skip whole linking process and
-    libc prolog, simply type "dyn" and wait a while. Of course, nothing
-    stops you from walking thru the linking process and libc entry,
-    but in most standard applications, it is pointless. On the other
-    hand, it can happen that ELF is tweaked to hide some code in
-    this phase, before "main" is reached, so this feature is not
-    automatic in interactive debugging mode.
-
-    On some system, execution will stop at the very end of libc intro,
-    and additional "ret" might be necessary.
-
-  - disass [ x [ len ] ]
-
-    Called without parameters, will provide a disassembly of the instruction
-    at current eip. Called with one parameter, will disassemble one
-    instruction at any given address. With two parameters, will disassemble
-    "len" bytes starting at address x. Disassembly uses something that should
-    match AT&T assembler notation, and all direct addresses are associated
-    with their symbolic names, if any found. Note that "disass", like most
-    other commands, does not understand symbolic names passed instead of
-    'x'. In other words, you can't just type "disass function_foo", this is a
-    limitation of current Aegir implementation. On the other hand, you can
-    use "info" directive to look up an address for a given name.
-
-    Note that this command called with a single parameter in nc-aegir
-    will change the view in code window instead of disassembling to the
-    console.
-
-  - regs
-
-    Shows general purpose registers. Note that Fenris does not really
-    support floating point commands in any way (thanks to its internal
-    disassembler), and I decided not to include fp registers in Aegir for
-    now. Most of registers are displayed in hex and decimal; eflags are
-    displayed as hex and octal.
-
-  - back
-
-    Displays stack backtrace - calls history. Note that what happens in
-    libc is not covered here. If you set up a breakpoint on syscall
-    "nanosleep", and this syscall is called from a library function
-    called from another library function, all you'll see in stack
-    backtrace will lead to the point where first library function was
-    called. Backtrace includes stack address range that belongs to
-    this function and other information, such as from where was it
-    called. This capability is not affected by -fomit-frame-pointer,
-    or any other options that can confuse gdb.
-
-  - cur
-
-    Displays last output from Fenris. "Last output" stands for
-    last "output entity", which typically means last sequence of
-    output caused by some code construction. One instruction, such as RET,
-    can result in multiple lines being written by Fenris. All of them are
-    considered a single entity. But if next instruction generates another
-    line, this line is considered a new entity.
-
-    Fenris generally reports back to Aegir the last entity produced before
-    a running process reached a breakpoint. "Cur" will return this entity
-    until the process is continued and stopped once again, and any
-    message from Fenris was generated in between. This mechanism is a bit
-    complex, but works pretty well. You probably don't want to get all
-    lines from Fenris on your debugging console, but perhaps would appreciate
-    knowing where you stopped.
-
-  - info x
-
-    Displays the information associated with name or address x. First,
-    if x is non-numeric, the address associated with 'x' is resolved, then,
-    additional information about this address is obtained. This additional
-    information is what Fenris knows about the address - associated name,
-    first sight, last modification, size.
-
-  - fdinfo x
-
-    Displays what Fenris knows about file descriptor x. This typically
-    includes associated file / socket, and first sight record.
-
-  - break x
-
-    Sets a breakpoint at address x.
-
-    Note: breakpoints are ignored inside libc, except for ones being set
-    at the beginning of a libcall. This way, you can breakpoint at 'printf',
-    but it is generally pointless to set a breakpoint at, say, printf+10.
-    In this situation, "step" will continue until library code is left, all
-    other commands will affect the code that called this library function, not
-    the function itself (so "down" would continue until underlying local
-    function returns, and so on). If you can avoid it, don't set breakpoints
-    inside libc :-) If you do, try to do little more than "step" to get back
-    to where it was called.
-
-  - sbreak x
-
-    Sets a breakpoint on syscall x (x can be either numeric value or symbolic
-    name). Breakpoint trap will be generated when this particular syscall
-    is called. If this breakpoint trap is generated within libc, special
-    rules mentioned above (for "break") apply.
-
-    The best use for this type of breakpoint is to hook clone, vfork,
-    and fork, so you can always react on them before they are being
-    executed. Aegir, in its current form, is capable of tracing only
-    one process at once, so you probably want to overwrite fork()s
-    and move a desired value to %eax to choose one branch or another.
-
-  - ibreak x
-
-    Sets a breakpoint on signal x (x can be either numeric value or
-    symbolic name). Breakpoint trap will be generated when this particular
-    signal is delivered. Note that default action for Fenris is not to
-    stop on any signals unless you want to, which is different from gdb.
-    Signals can be delivered anywhere, and special rules for libc code
-    apply.
-
-  - rwatch start end
-
-    Sets a watchpoint on read access to the memory area start-end.
-    Breakpoint trap will be generated if any known syscall, known
-    library function or any local code is trying to access the memory.
-    Fenris does not trace inside libcalls, so unknown libcalls accessing
-    memory will be not reported (if the pointer is passed as a parameter
-    and is auto-detected, it will be considered "read" anyway).
-
-    This, generally speaking, can be a problem. There's only one
-    reasonable way to solve it, that is, implementing more libcalls in
-    Fenris.
-
-    Another important issue is that when a parameter is passed to some
-    library function, this is reported as a read of first four bytes
-    of the parameter. Please consider library read and write reporting
-    only a hint - Fenris does not physically trace this code, and makes
-    certain assumptions. For many functions, it is impossible to determine
-    how much data will be actually read or written (think "scanf", for
-    example), and Fenris does not try to make up numbers.
-
-  - wwatch start end
-
-    Sets a watchpoint on write access to the memory area start-end.
-    Breakpoint trap will be generated if any known syscall, known
-    library function or any local code is trying to write the memory.
-    Fenris does not trace inside libcalls, so unknown libcalls writing
-    memory will be not reported (unless, for example, it is modified
-    directly by a syscall called from this libcall or such).
-
-    This, generally speaking, can be a problem. There's only one
-    reasonable way to solve it, that is, implementing more libcalls in
-    Fenris.
-
-    Another important issue is that when a parameter is passed to some
-    library function, this is reported as a write of first four bytes
-    of the parameter. Please consider library read and write reporting
-    only a hint - Fenris does not physically trace this code, and makes
-    certain assumptions. For many functions, it is impossible to determine
-    how much data will be actually read or written (think "scanf", for
-    example), and Fenris does not try to make up numbers.
-
-  - step [ x ]
-
-    Make one or x single steps over the code; note that libcall functions
-    are considered a single step. See notes for "break".
-
-  - ret [ x ]
-
-    Continue to next or x-th RET in the code. Note that this command
-    will ignore library code.
-
-  - libc
-
-    Continue to next libcall. Note that libcalls called from libcalls
-    are ignored by Fenris.
-
-  - sys
-
-    Continue to next syscall. You can end up in library code, see notes
-    for "break".
-
-  - call
-
-    Continue to next local function call.
-
-  - down
-
-    Continue until the code leaves the current function. This is different
-    from "ret", as ret can occur in a function called from current function
-    before current function itself reaches RET. This command uses Fenris
-    nest level tracing capabilities to stop the program.
-
-  - next
-
-    Continue to next output entity from Fenris. This is useful for
-    line-by-line debugging, and is different from "step".
+This option disables automatic prolog detection. It is not recommended, as it
+makes ./fenris trace whole linking process and libc initialization. However,
+in rare cases when binary is compiled on odd, not supported system, this might
+be a solution. For long-term operations, however, it is recommended to contact
+the author providing his with this binary (or parts of it), so he'll be able
+to add support for this specific construction.
 
-  - run
+-y
 
-    Continue execution until next breakpoint (or until the program exits).
-    Once again, keep in mind that signals do not interrupt the program
-    unless you used "ibreak".
-
-  - stop
-
-    Stop program as soon as possible. This is typically done as soon
-    as control returns to userspace ("stop" will not abort blocking
-    syscalls).
-
-  - halt
-
-    Stop program NOW. This will return from blocking syscalls aborting
-    them (and can cause problems, just like Ctrl-C in gdb).
-
-  - fprint x
-
-    Fingerprint code at address x. Fenris returns a signature and
-    matching names for the function at this address. This is done
-    on Fenris side so it is matched against currently loaded fingerprint
-    database, ensuring that results are coherent with automatic
-    fingerprinting.
-
-  - x y [ z ]
-
-    Displays memory at address 'y' as a hexdump. If no third parameter
-    is given, first 16 bytes are displayed, otherwise, z is used to
-    specify length. The format is pretty simple: address, 16 bytes
-    as hex, and 16 printable characters per line.
-
-    Note that this command called with a single parameter in nc-aegir
-    will change the view in data window instead of displaying on the
-    console.
-
-  - y x
-
-    Displays a string (more precisely, its first 128 bytes), from address x.
-
-  - setreg nnn y
-
-    Sets general purpose register 'nnn' to value y. Not all registers can
-    be set with ptrace().
-
-  - setmem x y
-
-    Sets memory byte at address x to value y.
-
-  - list
-
-    Lists all watchpoints and breakpoints, and their ID numbers.
-
-  - del x
-
-    Deletes a breakpoint or watchpoint with ID x.
-
-  - memmap [not implemented in 0.04b]
-
-    Displays memory map - all objects that are known, along with the
-    information about them.
-
-  - fdmap [not implemented in 0.04b]
-
-    Displays all known file descriptors with short descriptions.
-
-  - fnmap [not implemented in 0.04b]
-
-    Displays all known local functions.
-
-  - signals
-
-    Displays handlers for all signals.
-
-  - load xxx
-
-    Loads a module "xxx". Modules can be used to implement custom
-    functionality in Aegir, see doc/debug-api.txt for more information.
-
-  - exec xxx
-
-    Execute a shell command 'xxx'.
-
-  - log [ x ]
-
-    A command available only in nc-aegir. Because Fenris output is
-    tunneled directly to one of nc-aegir windows, if you want to
-    create a copy of this data, you have to use this command. To
-    start logging to a new file, type "log /path/to/log". To stop
-    logging, type "log" with no parameters.
-
-  - help
-
-    Get help.
-
-  - quit yes
-
-    Terminate the session (can be abbreviated as 'q y' for convenience).
-
-  All commands can be abbreviated as long as they are not ambiguous.
-  There is no step by step introduction to using Aegir, because it is
-  assumed that its users will have some background with gdb, assembly
-  language, and debugging in general, and I believe that the above
-  command reference and a sample "demo session" discussed earlier are
-  more than enough to get started.
+Reports memory writes and reads immediately (without -y, memory access is
+reported per function on return).
+
+-C
+
+Inhibits tracing conditional expressions. This option is useful if output will
+be read by human, as it might decrease amount of reported information.
+
+-S
+
+Inhibits resolving library functions. This might effect in some speed
+improvement, but is generally not recommended without a good reason.
+
+-f
+
+Trace child processes after fork() or vfork(). Might be useful for tracing
+daemons and such (however it might cause some problems due to signal delivery
+semantics changes, see 0x07, known bugs)
+
+-d
+
+Do not describe function parameters. Reduces amount of generated output.
+
+-F
+
+Do not fingerprint functions. This option is effective for static binaries
+only, and will disable loading and displaying fingerprints. This is not really
+recommended - for stripped binaries, it makes your life more difficult, for
+binaries with symbols has almost no effect. However it might reduce memory
+usage and improve speed.
+
+-m
+
+Do not trace memory writes. This option reduces amount of generated output.
+
+-i
+
+This option disables indenting, reporting of pid and nesting level. It makes
+output non-structural, non-standard, but shorter. This will also break
+compatibility with ragnarok.
+
+-x
+
+This option causes Fenris to ignore 'return from main' and to continue
+tracing, returning to nest level 0. Generally speaking, this is not
+recommended at any time. If you have problems with 'return from main'
+appearing too early in the trace, try re-adjusting -t parameter instead. If
+this do not help, apparently one or more of calling or return conventions used
+by traced application are not supported, and you shouldn't rely on results
+anyway.
+
+-p
+
+Prefix every message with eip. Some commands report eip, some not, this might
+be useful for debugging, and is a must if you want to modify the code later
+with -P option. This option is compatible with ragnarok. Note that information
+is not displayed in some uniform way. For example, syscalls are displayed
+after return, local functions are displayed before call - so it takes some
+time to get the idea.
+
+-A
+
+Assume that all functions return some value, regardless of all other
+conditions. This will trigger some meaningless return values reported, but is
+useful if the binary is very optimized.
+
+-q
+
+Do not report last line of output to the debugger. This is meaningful only
+with -W, and makes sense when you use a multi-window debugger shell that
+already reports Fenris output (we're working on such a shell right now).
+
+-G
+
+"Go away" option. Can be used only in conjunction with -W, and it basically
+turns of all analysis capabilities of Fenris - from tracing nesting level,
+detecting function / library / system calls, thru many other capabilities. It
+is useful for troublesome non-C code. Fenris output will be practically
+completely disabled, and only some debugging messages will be supported (such
+as single-step, getmem, address breakpoint, etc).
+
+-e
+
+Trace new code loaded by execve(). This option might be convenient in some
+cases, but should be used with caution. Also, be warned that -P option will be
+global and apply to both old and new image in memory, except for no-IP entries
+that would be applied only once.
+
+For more information on computer forensics applications, you may want to visit
+http://lcamtuf.coredump.cx/fenris/reverse.txt, where I tried to give few hints
+on approaching May 2002 reverse engineering challenge from Project Honeynet.
+
+Managing fingerprints database is relatively simple. First of all, Fenris
+looks for a database in the following places:
+
+    ./fnprints.dat
+    $HOME/.fenris/fnprints.dat
+    $HOME/fnprints.dat
+    /etc/fenris/fnprints.dat
+    /usr/local/etc/fenris/fnprints.dat
+
+Additionally, custom fingerprints database can be specified by -L option
+(multiple databases allowed). Same search logic applies to -L parameters,
+unless they contain path components ('/'). This is reasonable to maintain
+separate fingerprint databases, as it allows you to be selective. For example,
+if you are about to trace 'sash', you can be pretty sure it won't use libX*
+libraries, so first, you can make lookups faster, and then, you minimize
+eventual false positives or confusion caused by identifying some functions
+incorrectly. As an example, I provide fingerprints for pretty old, but still
+used glibc 2.0.7 in support/fn-2.0.7.dat, and fingerprints for libc5
+(support/fn-libc5.dat). Note that, as for today, Fenris will probably not work
+on libc5 systems (I have to port it), but this can be used against statically
+linked binaries taken from such systems.
+
+The main database shipped with Fenris right now is a composite database for
+all major libraries for x86 libc 2.1.x and 2.2.x generated by gcc 2.9x to 3.1.
+It is pretty huge, but also versatile. If you believe it makes sense to
+maintain smaller libraries, feel free to do it and send me your selection!
+
+Fingerprints database is a plain text file in the following format:
+
+[debug info] function_name MD5_SIGN
+
+Where 'debug info' is used by 'fprints' utility to indicate the source
+(filename+offset) of given symbol, function_name is self-explanatory, and
+MD5_SIGN is 8-digit hexadecimal MD5 shortcut for given function (see section
+0x05, tracing mechanism for more details on hashing algorithm).
+
+'fprints' utility accepts any ELF file (executable, shared library or
+relocatable .o file / .a archive) as a parameter and generates signatures for
+all functions. It does not really make any sense to grab signatures from
+shared libraries, as they are not used to build static binaries, so you should
+target .o files instead. However, it is possible and sometimes reasonable to
+gather signatures from ELF executables. It allows you to fingerprint some
+frequently used functions (e.g. __non_dynamic_init or some custom common code
+used by others; let's say Loki uses some common engine for all their games,
+you can easily index functions in this engine once and benefit from automated
+recognition later). Typical output looks like that:
+
+[printf.o+52] printf CC6E587C
+[printf.o+52] _IO_printf CC6E587C
+--> printf.o: done (2 functions)
+
+As you see, one of entries is just an alias.
+
+Selected 'fprints' results can be appended to fnprints.dat file of your
+choice. It is important to mention that many libraries have multiple entries
+for the same function, so 'fprints' shouldn't be really used to gather
+fingerprints for large .a archives, like libc. This task can be accomplished
+by invoking 'getfprints' utility, which is a shell script wrapper around
+fprints. It can process whole .a archive or even multiple archives at once,
+eliminate dupes, and such. Please note that it is perfectly possible to copy
+.a files from a system that is not directly supported by Fenris, for example,
+libc5 box, and extract signatures on a different system.
+
+When invoked with no parameters, 'getfprints' will extract default set of
+symbols from:
+
+/usr/lib/libc.a
+/usr/lib/libm.a
+/usr/lib/libdl.a
+/usr/lib/libresolv.a
+/usr/lib/libreadline.a
+/usr/lib/libtermcap.a
+/usr/lib/libssl.a
+/usr/lib/libBrokenLocale.a
+/usr/lib/libcrypt.a
+(one static binary)
+
+This is the way it is invoked by the Makefile  script, and can be used at any
+time to restore defaults or to update signatures (for new libc version, for
+example). If invoked with one parameter, 'getfprints' will go thru this .a
+file or set of .a files. An example would be:
+
+./getfprints "/usr/lib/libcrypto.a /usr/lib/libmd5.a"
+
+It is important to quote the list so it effectively makes one parameter.
+Otherwise, only first file will be processed. Call it laziness on my end ;-)
+
+Default output file for 'getfprints' is fnprints.new in current directory.
+When integrating it with existing fnprints.dat, please make sure you eliminate
+dupes by issuing the following command:
+
+cat fnprints.new fnprints.dat | sort | uniq >clean-new.dat
+
+This utility requires ./fprints to be in current directory or in your path.
+
+Another tool provided with the project is called 'dress', roughly an opposite
+to 'strip'. It will accept a stripped static ELF binary as a parameter, and
+will try to detect library functions. Detected names will be placed in the
+symbol table and a new ELF file will be generated. Usage is rather simple:
+
+    ./dress input_elf            - this will dump symbols to stdout
+    ./dress input_elf output_elf - this will create a new ELF with symbols
+
+Additional options:
+
+    -F nnn             - use this file for fingerprint database
+    -S xxx             - use this name as a code section (override .text)
+
+Note that symbols generated are not GDB debugging info. In other words, you
+can view them with nm, objdump, they will be shown in gdb disassembly, but you
+might have problems setting an explicit breakpoint such as "break printf".
+Blame GDB. As a workaround, you can run dress without a second parameter once
+again, and grab interesting addresses from the output. Enjoy.
+
+Note that 'dress' has nothing to do with 'unstrip', which is used to, quote,
+"replace the symbol table in dynamically linked executables".
+
+The last component discussed here is Aegir, the interactive debugger. For
+information for programmers, please refer to doc/debug-api.txt. This brief
+write-up should help you with developing modules for Aegir or even replacing
+it with your own debugging shell in easy way.
+
+Whole interactive debugging functionality in Fenris is designed to provide
+instruction-by-instruction, breakpoint-to-breakpoint and
+watchpoint-to-watchpoint capabilities within the local code. This means that
+while it is possible to set up a breakpoint in library code, it is not really
+possible to walk thru library functions instruction by instruction. This is
+done for your own good, I doubt you really want to debug libc with Fenris.
+Fenris does not trace nesting level, function calls and so on within libc, so
+your possibilities are very limited anyway. Keep in mind that Fenris is an
+executable tracker, not a library debugger, and will treat library space
+pretty much like kernel space - a black hole. We are not trying to understand
+library functions, they are documented and predictable (note: this, obviously,
+won't be true for suspected code loaded as a shared library; Fenris will
+support such code in the future).
+
+Right now, I'm going to focus on front-end functionality. Running Aegir is
+very straightforward, as all parameters are controlled by whatever you passed
+to Fenris, and the only parameter you have to pass is the path you gave to
+Fenris using -W option earlier. Fenris MUST be already running with -W option
+to launch Aegir. Aegir will shut down as soon as Fenris exits. Aegir provides
+some basic gdb-alike functionality, but also several more interesting
+features. In its current version, it also lacks several features, such as
+support for symbolic names in many functions, which can be a minor annoyance
+and should be fixed in 0.07.
+
+The GUI version of Aegir, nc-aegir, works basically the same way, but provides
+an organized debugging screen with register, memory and code views, integrated
+Fenris output view, and automatic control over Fenris parameters. nc-aegir
+integrates Fenris session with the debugger, and it uses either 'screen'
+utility (when running on a text terminal) or xterm session (when running under
+X Window system) to provide comfortable multi-view debugging environment. The
+GUI is documented by a self-explanatory help available after pressing Alt-H,
+so I will not cover it extensively here.
+
+Please note that there is a fundamental difference between how Aegir
+/ nc-aegir and gdb handle interruptions. If you hit Ctrl+C in Aegir or
+nc-aegir, or issue a "stop" command, it will not stop immediately if the
+process is in the middle of a blocking call. It will schedule stop for as soon
+as the control returns to userspace. This is to avoid problems with
+interrupted syscalls, gdb style. To terminate the program immediately, hit
+Ctrl+C again, or use "halt" command. You will be then instructed whether the
+syscall will resume upon continuation or not, and what to do to avoid
+problems.
+
+Once Aegir is running, you should have access to its internal help, and all
+messages are rather user-friendly. The following list of commands is provided
+for more detailed reference:
+
+- dynamic
+
+This is probably the first command to issue for a standard dynamically linked
+binary. Fenris stops at first instruction, which, for dynamic executables,
+would be the linker. To skip whole linking process and libc prolog, simply
+type "dyn" and wait a while. Of course, nothing stops you from walking thru
+the linking process and libc entry, but in most standard applications, it is
+pointless. On the other hand, it can happen that ELF is tweaked to hide some
+code in this phase, before "main" is reached, so this feature is not automatic
+in interactive debugging mode.
+
+On some system, execution will stop at the very end of libc intro, and
+additional "ret" might be necessary.
+
+- disass [ x [ len ] ]
+
+Called without parameters, will provide a disassembly of the instruction at
+current eip. Called with one parameter, will disassemble one instruction at
+any given address. With two parameters, will disassemble "len" bytes starting
+at address x. Disassembly uses something that should match AT&T assembler
+notation, and all direct addresses are associated with their symbolic names,
+if any found. Note that "disass", like most other commands, does not
+understand symbolic names passed instead of 'x'. In other words, you can't
+just type "disass function_foo", this is a limitation of current Aegir
+implementation. On the other hand, you can use "info" directive to look up an
+address for a given name.
+
+Note that this command called with a single parameter in nc-aegir will change
+the view in code window instead of disassembling to the console.
+
+- regs
+
+Shows general purpose registers. Note that Fenris does not really support
+floating point commands in any way (thanks to its internal disassembler), and
+I decided not to include fp registers in Aegir for now. Most of registers are
+displayed in hex and decimal; eflags are displayed as hex and octal.
+
+- back
+
+Displays stack backtrace - calls history. Note that what happens in libc is
+not covered here. If you set up a breakpoint on syscall "nanosleep", and this
+syscall is called from a library function called from another library
+function, all you'll see in stack backtrace will lead to the point where first
+library function was called. Backtrace includes stack address range that
+belongs to this function and other information, such as from where was it
+called. This capability is not affected by -fomit-frame-pointer, or any other
+options that can confuse gdb.
+
+- cur
+
+Displays last output from Fenris. "Last output" stands for last "output
+entity", which typically means last sequence of output caused by some code
+construction. One instruction, such as RET, can result in multiple lines being
+written by Fenris. All of them are considered a single entity. But if next
+instruction generates another line, this line is considered a new entity.
+
+Fenris generally reports back to Aegir the last entity produced before
+a running process reached a breakpoint. "Cur" will return this entity until
+the process is continued and stopped once again, and any message from Fenris
+was generated in between. This mechanism is a bit complex, but works pretty
+well. You probably don't want to get all lines from Fenris on your debugging
+console, but perhaps would appreciate knowing where you stopped.
+
+- info x
+
+Displays the information associated with name or address x. First, if x is
+non-numeric, the address associated with 'x' is resolved, then, additional
+information about this address is obtained. This additional information is
+what Fenris knows about the address - associated name, first sight, last
+modification, size.
+
+- fdinfo x
+
+Displays what Fenris knows about file descriptor x. This typically includes
+associated file / socket, and first sight record.
+
+- break x
+
+Sets a breakpoint at address x.
+
+Note: breakpoints are ignored inside libc, except for ones being set at the
+beginning of a libcall. This way, you can breakpoint at 'printf', but it is
+generally pointless to set a breakpoint at, say, printf+10. In this situation,
+"step" will continue until library code is left, all other commands will
+affect the code that called this library function, not the function itself (so
+"down" would continue until underlying local function returns, and so on). If
+you can avoid it, don't set breakpoints inside libc :-) If you do, try to do
+little more than "step" to get back to where it was called.
+
+- sbreak x
+
+Sets a breakpoint on syscall x (x can be either numeric value or symbolic
+name). Breakpoint trap will be generated when this particular syscall is
+called. If this breakpoint trap is generated within libc, special rules
+mentioned above (for "break") apply.
+
+The best use for this type of breakpoint is to hook clone, vfork, and fork, so
+you can always react on them before they are being executed. Aegir, in its
+current form, is capable of tracing only one process at once, so you probably
+want to overwrite fork()s and move a desired value to %eax to choose one
+branch or another.
+
+- ibreak x
+
+Sets a breakpoint on signal x (x can be either numeric value or symbolic
+name). Breakpoint trap will be generated when this particular signal is
+delivered. Note that default action for Fenris is not to stop on any signals
+unless you want to, which is different from gdb. Signals can be delivered
+anywhere, and special rules for libc code apply.
+
+- rwatch start end
+
+Sets a watchpoint on read access to the memory area start-end. Breakpoint trap
+will be generated if any known syscall, known library function or any local
+code is trying to access the memory. Fenris does not trace inside libcalls, so
+unknown libcalls accessing memory will be not reported (if the pointer is
+passed as a parameter and is auto-detected, it will be considered "read"
+anyway).
+
+This, generally speaking, can be a problem. There's only one reasonable way to
+solve it, that is, implementing more libcalls in Fenris.
+
+Another important issue is that when a parameter is passed to some library
+function, this is reported as a read of first four bytes of the parameter.
+Please consider library read and write reporting only a hint - Fenris does not
+physically trace this code, and makes certain assumptions. For many functions,
+it is impossible to determine how much data will be actually read or written
+(think "scanf", for example), and Fenris does not try to make up numbers.
+
+- wwatch start end
+
+Sets a watchpoint on write access to the memory area start-end. Breakpoint
+trap will be generated if any known syscall, known library function or any
+local code is trying to write the memory. Fenris does not trace inside
+libcalls, so unknown libcalls writing memory will be not reported (unless, for
+example, it is modified directly by a syscall called from this libcall or
+such).
+
+This, generally speaking, can be a problem. There's only one reasonable way to
+solve it, that is, implementing more libcalls in Fenris.
+
+Another important issue is that when a parameter is passed to some library
+function, this is reported as a write of first four bytes of the parameter.
+Please consider library read and write reporting only a hint - Fenris does not
+physically trace this code, and makes certain assumptions. For many functions,
+it is impossible to determine how much data will be actually read or written
+(think "scanf", for example), and Fenris does not try to make up numbers.
+
+- step [ x ]
+
+Make one or x single steps over the code; note that libcall functions are
+considered a single step. See notes for "break".
+
+- ret [ x ]
+
+Continue to next or x-th RET in the code. Note that this command will ignore
+library code.
+
+- libc
+
+Continue to next libcall. Note that libcalls called from libcalls are ignored
+by Fenris.
+
+- sys
+
+Continue to next syscall. You can end up in library code, see notes for
+"break".
+
+- call
+
+Continue to next local function call.
+
+- down
+
+Continue until the code leaves the current function. This is different from
+"ret", as ret can occur in a function called from current function before
+current function itself reaches RET. This command uses Fenris nest level
+tracing capabilities to stop the program.
+
+- next
+
+Continue to next output entity from Fenris. This is useful for line-by-line
+debugging, and is different from "step".
+
+- run
+
+Continue execution until next breakpoint (or until the program exits). Once
+again, keep in mind that signals do not interrupt the program unless you used
+"ibreak".
+
+- stop
+
+Stop program as soon as possible. This is typically done as soon as control
+returns to userspace ("stop" will not abort blocking syscalls).
+
+- halt
+
+Stop program NOW. This will return from blocking syscalls aborting them (and
+can cause problems, just like Ctrl-C in gdb).
+
+- fprint x
+
+Fingerprint code at address x. Fenris returns a signature and matching names
+for the function at this address. This is done on Fenris side so it is matched
+against currently loaded fingerprint database, ensuring that results are
+coherent with automatic fingerprinting.
+
+- x y [ z ]
+
+Displays memory at address 'y' as a hexdump. If no third parameter is given,
+first 16 bytes are displayed, otherwise, z is used to specify length. The
+format is pretty simple: address, 16 bytes as hex, and 16 printable characters
+per line.
+
+Note that this command called with a single parameter in nc-aegir will change
+the view in data window instead of displaying on the console.
+
+- y x
+
+Displays a string (more precisely, its first 128 bytes), from address x.
+
+- setreg nnn y
+
+Sets general purpose register 'nnn' to value y. Not all registers can be set
+with ptrace().
+
+- setmem x y
+
+Sets memory byte at address x to value y.
+
+- list
+
+Lists all watchpoints and breakpoints, and their ID numbers.
+
+- del x
+
+Deletes a breakpoint or watchpoint with ID x.
+
+- memmap [not implemented in 0.04b]
+
+Displays memory map - all objects that are known, along with the information
+about them.
+
+- fdmap [not implemented in 0.04b]
+
+Displays all known file descriptors with short descriptions.
+
+- fnmap [not implemented in 0.04b]
+
+Displays all known local functions.
+
+- signals
+
+Displays handlers for all signals.
+
+- load xxx
+
+Loads a module "xxx". Modules can be used to implement custom functionality in
+Aegir, see doc/debug-api.txt for more information.
+
+- exec xxx
+
+Execute a shell command 'xxx'.
+
+- log [ x ]
+
+A command available only in nc-aegir. Because Fenris output is tunneled
+directly to one of nc-aegir windows, if you want to create a copy of this
+data, you have to use this command. To start logging to a new file, type "log
+/path/to/log". To stop logging, type "log" with no parameters.
+
+- help
+
+Get help.
+
+- quit yes
+
+Terminate the session (can be abbreviated as 'q y' for convenience).
+
+All commands can be abbreviated as long as they are not ambiguous. There is no
+step by step introduction to using Aegir, because it is assumed that its users
+will have some background with gdb, assembly language, and debugging in
+general, and I believe that the above command reference and a sample "demo
+session" discussed earlier are more than enough to get started.
 
 [0x03] Project limitations
 --------------------------
 
-  There are several limitations, yes. First of all, as discussed above, it
-  is hard to talk about portability, but this will hopefully change soon.
-  For now, Fenris has been tested and confirmed to work fine on most popular
-  Linux 2.0 to 2.4 with and without OpenWall, glibc from 2.0.x to 2.2.x,
-  with gcc from 2.8.x to 3.x - all, of course, only on x86 processors.
-  It is NOT supposed to work on libc5 and earlier systems, at least for now,
-  and the build process requires decent versions of some basic utilities
-  (file, grep, awk, gdb, etc).
+There are several limitations, yes. First of all, as discussed above, it is
+hard to talk about portability, but this will hopefully change soon. For now,
+Fenris has been tested and confirmed to work fine on most popular Linux 2.0 to
+2.4 with and without OpenWall, glibc from 2.0.x to 2.2.x, with gcc from 2.8.x
+to 3.x - all, of course, only on x86 processors. It is NOT supposed to work on
+libc5 and earlier systems, at least for now, and the build process requires
+decent versions of some basic utilities (file, grep, awk, gdb, etc).
 
-  Other than that, Fenris is dependent on assembly language code
-  "readability". It will very likely produce not too useful nor reliable
-  results if traced program uses large portions of inlined complex
-  assembly code. In other words, you'd have to use Aegir, gdb, objdump or a
-  similar tool to understand what's going on there, Fenris will be of no help.
-  Fortunately, typical programs don't use such tricks.
+Other than that, Fenris is dependent on assembly language code "readability".
+It will very likely produce not too useful nor reliable results if traced
+program uses large portions of inlined complex assembly code. In other words,
+you'd have to use Aegir, gdb, objdump or a similar tool to understand what's
+going on there, Fenris will be of no help. Fortunately, typical programs don't
+use such tricks.
 
-  Fenris will also have some problems understanding code generated with high
-  optimization flags, like -O9. "Some problems" mean failure to predict
-  whether function returns a value or not, and, from time to time, failure to
-  detect the presence of function call at all for functions that are inlined
-  and with no physical call to their code. As calling conventions are not
-  always clean and fixed with high -O flags, in some rare cases, Fenris might
-  fail to predict number of parameters passed to unknown function (this
-  problem can be fixed, but would require some heavy modifications and delayed
-  reporting, turning it from realtime tracer into post-execution reporting
-  tool, which isn't probably a good idea, especially in this stage of
-  development). Generally speaking, parameter detection should be 75% to 100%
-  successful in typical code, and this ratio is being reported at the end of
-  each run. But the word "some" in "some problems" is there to tell you it
-  will be possible and still reasonable to use this tracer =) Here's an
-  example of Fenris tracing... itself, compiled with almost all possible
-  optimization flags. Note that functions fprintf and getopt were renamed to
-  avoid special handling (and because of that, they are handled like generic
-  unknown functions):
+Fenris will also have some problems understanding code generated with high
+optimization flags, like -O9. "Some problems" mean failure to predict whether
+function returns a value or not, and, from time to time, failure to detect the
+presence of function call at all for functions that are inlined and with no
+physical call to their code. As calling conventions are not always clean and
+fixed with high -O flags, in some rare cases, Fenris might fail to predict
+number of parameters passed to unknown function (this problem can be fixed,
+but would require some heavy modifications and delayed reporting, turning it
+from realtime tracer into post-execution reporting tool, which isn't probably
+a good idea, especially in this stage of development). Generally speaking,
+parameter detection should be 75% to 100% successful in typical code, and this
+ratio is being reported at the end of each run. But the word "some" in "some
+problems" is there to tell you it will be possible and still reasonable to use
+this tracer =) Here's an example of Fenris tracing... itself, compiled with
+almost all possible optimization flags. Note that functions fprintf and getopt
+were renamed to avoid special handling (and because of that, they are handled
+like generic unknown functions):
 
-  5858:00 lame_fprintf (s/4024e9c0, g/8064000 "fenris %s (%d, %d) - program...", 5556)
-  5858:00 + s/4024e9c0 = _IO_2_1_stderr_
-  5858:01  [L] SYS write (2, bfffd320 "fenris 0.01b (1197, 5556) - pro"..., 125) = 125
-  5858:01  \ new buffer candidate: bfffd320:125
-  5858:00 ...return from libc = <void>
-  5858:00 lame_getopt (2, l/bffffab4, g/806407c)
-  5858:00 ...return from libc = <void>
-  5858:00 <805c63a> cndt: on-match block -440 exited
-  5858:00 <805c648> cndt: if-above block (signed) +34 executed
-  5858:00 <805c673> cndt: on-match block +16 executed
+5858:00 lame_fprintf (s/4024e9c0, g/8064000 "fenris %s (%d, %d) - program...", 5556)
+5858:00 + s/4024e9c0 = _IO_2_1_stderr_
+5858:01  [L] SYS write (2, bfffd320 "fenris 0.01b (1197, 5556) - pro"..., 125) = 125
+5858:01  \ new buffer candidate: bfffd320:125
+5858:00 ...return from libc = <void>
+5858:00 lame_getopt (2, l/bffffab4, g/806407c)
+5858:00 ...return from libc = <void>
+5858:00 <805c63a> cndt: on-match block -440 exited
+5858:00 <805c648> cndt: if-above block (signed) +34 executed
+5858:00 <805c673> cndt: on-match block +16 executed
 
-  As you see, the output is still readable and neat, both for fixed
-  and variable parameters functions, however return codes are not reported,
-  and minor glitches might pop-up from time to time:
+As you see, the output is still readable and neat, both for fixed and variable
+parameters functions, however return codes are not reported, and minor
+glitches might pop-up from time to time:
 
-  5879:00 lame_geteuid (s/400375ac)
+5879:00 lame_geteuid (s/400375ac)
 
-  It is generally better to recompile programs without optimization flags,
-  if possible. If not, expect minor annoyances, but don't despair. Fenris
-  will try to detect and report "too optimized" code, so you can be more
-  careful when reading results. Please add -A option on all codes of this
-  kind.
+It is generally better to recompile programs without optimization flags, if
+possible. If not, expect minor annoyances, but don't despair. Fenris will try
+to detect and report "too optimized" code, so you can be more careful when
+reading results. Please add -A option on all codes of this kind.
 
-  Fenris will be able to name local functions in dynamic code if the binary is
-  not stripped - however, for stripped binaries, it will work fine assigning
-  some unique names to functions (e.g. fnct_123). Worth mentioning,
-  Fenris works fine with programs compiled with -fomit-frame-pointer,
-  -fPIC or similar flags designed to make life harder.
+Fenris will be able to name local functions in dynamic code if the binary is
+not stripped - however, for stripped binaries, it will work fine assigning
+some unique names to functions (e.g. fnct_123). Worth mentioning, Fenris works
+fine with programs compiled with -fomit-frame-pointer, -fPIC or similar flags
+designed to make life harder.
 
 [0x04] Security issues / forensics
 ----------------------------------
 
-  I hardly believe there are any security issues related to using
-  'fenris'. One thing you have to remember is that Fenris, like all
-  live code tracers or debuggers (gdb, strace, ltrace and such), is
-  not supposed to protect you from malicious code. That's it, there
-  is no way of ensuring that malicious code you are tracing won't try
-  to interact with your system or to modify / fool tracing application
-  to mislead you as to its purpose. I described some most obvious ways
-  to fool Fenris in doc/anti-fenris.txt - take a look if you are interested.
-  Fenris is supposed to trace legitimate applications coming from less or
-  more trusted sources. If you have suspiciously looking code, don't even
-  think of it (or run it in the lab or inside VMWare).
+I hardly believe there are any security issues related to using 'fenris'. One
+thing you have to remember is that Fenris, like all live code tracers or
+debuggers (gdb, strace, ltrace and such), is not supposed to protect you from
+malicious code. That's it, there is no way of ensuring that malicious code you
+are tracing won't try to interact with your system or to modify / fool tracing
+application to mislead you as to its purpose. I described some most obvious
+ways to fool Fenris in doc/anti-fenris.txt - take a look if you are
+interested. Fenris is supposed to trace legitimate applications coming from
+less or more trusted sources. If you have suspiciously looking code, don't
+even think of it (or run it in the lab or inside VMWare).
 
-  It is impossible to ensure accuracy of real-time trace results and
-  security of your system while tracing application written specifically
-  to mislead or trick you, at least without having suitable VM or
-  isolated environment that can be accurately probed. It should be a bit
-  better with Aegir, but be careful.
+It is impossible to ensure accuracy of real-time trace results and security of
+your system while tracing application written specifically to mislead or trick
+you, at least without having suitable VM or isolated environment that can be
+accurately probed. It should be a bit better with Aegir, but be careful.
 
-  That said, it does not mean you can't use Fenris for computer forensics,
-  just like it does not mean you can't use strace or ltrace. Au contraire
-  - Fenris+Aegir is probably much better for the analysis of rootkits and
+That said, it does not mean you can't use Fenris for computer forensics, just
+like it does not mean you can't use strace or ltrace. Au contraire
+- Fenris+Aegir is probably much better for the analysis of rootkits and
   exploits than any other tool, and because of its run-time code modification
-  capabilities, it can be used to simulate specific conditions - for
-  example, the code being run as root, while, in fact, it isn't - or can
-  be used to bypass anti-debugging checks, system configuration checks,
-  and so on. But, as with every other tool, use common sense. Perform forensics
-  using many different tools, as the author might have added some code to
-  fool the tool you are using primarily. Always do it on the machine with no
-  direct Internet connectivity, using a test account with very limited write
-  privileges on a reasonably secure system that does not serve any purpose
-  other than a test environment. It is always good to look at the software
-  carefully before trying to actually run it - but, of course, most of
-  the time it is easier to simply test the program. It is not advisable to
-  run any untrusted code with superuser privileges, as it can even cause
-  irreversible damage to your hardware (for example, by wiping out
-  fixed mount flashROM chips) and has excessive control over your environment.
-  Try to run all dangerous programs with no extra privileges. If they demand
-  them, try to fool them by modifying geteuid() call. If the code needs
-  root privileges to bind to, say, RAW socket, make this an UDP socket
-  instead. It should be enough, and you'd have better control over what
-  the program receives and sends. Also, keep in mind that "su" is by no
-  means a secure way to drop privileges. A malicious program can kill
-  your su session but keep access to your terminal and use TIOCSTI ioctl to
-  inject malicious commands as root. Log in directly to your test account,
-  and if you use local console, make sure to get rid of enhancements such
-  as pam_console.
+capabilities, it can be used to simulate specific conditions - for example,
+the code being run as root, while, in fact, it isn't - or can be used to
+bypass anti-debugging checks, system configuration checks, and so on. But, as
+with every other tool, use common sense. Perform forensics using many
+different tools, as the author might have added some code to fool the tool you
+are using primarily. Always do it on the machine with no direct Internet
+connectivity, using a test account with very limited write privileges on
+a reasonably secure system that does not serve any purpose other than a test
+environment. It is always good to look at the software carefully before trying
+to actually run it - but, of course, most of the time it is easier to simply
+test the program. It is not advisable to run any untrusted code with superuser
+privileges, as it can even cause irreversible damage to your hardware (for
+example, by wiping out fixed mount flashROM chips) and has excessive control
+over your environment. Try to run all dangerous programs with no extra
+privileges. If they demand them, try to fool them by modifying geteuid() call.
+If the code needs root privileges to bind to, say, RAW socket, make this an
+UDP socket instead. It should be enough, and you'd have better control over
+what the program receives and sends. Also, keep in mind that "su" is by no
+means a secure way to drop privileges. A malicious program can kill your su
+session but keep access to your terminal and use TIOCSTI ioctl to inject
+malicious commands as root. Log in directly to your test account, and if you
+use local console, make sure to get rid of enhancements such as pam_console.
 
-  Other than that, as I said, I wouldn't expect security issues related
-  to using Fenris. It runs unprivileged and does not interact with
-  untrusted environment (like /tmp) in most cases. I didn't really
-  pay attention to buffer size checking, truncating names and such -
-  current code should not have problems handling normal code, but will
-  probably crash sooner or later is you stress-test it. Feel free
-  to report any bugs like that, or, better, just fix them.
+Other than that, as I said, I wouldn't expect security issues related to using
+Fenris. It runs unprivileged and does not interact with untrusted environment
+(like /tmp) in most cases. I didn't really pay attention to buffer size
+checking, truncating names and such - current code should not have problems
+handling normal code, but will probably crash sooner or later is you
+stress-test it. Feel free to report any bugs like that, or, better, just fix
+them.
 
-  Perhaps the only thing you should be aware is that last entry on
-  the search path for fingerprints database is $HOME/fnprints.dat.
-  It will be used ONLY if you do not have fnprints.dat in any other
-  standard location, but - of course - if you, for example, run IRC
-  client with DCC auto-get and with working directory set to your
-  home, and at the same time you do not have fnprints.dat in any other
-  location, you might want to comment out this line. But you have a
-  security problem anyway ;)
+Perhaps the only thing you should be aware is that last entry on the search
+path for fingerprints database is $HOME/fnprints.dat. It will be used ONLY if
+you do not have fnprints.dat in any other standard location, but - of course
+- if you, for example, run IRC client with DCC auto-get and with working
+  directory set to your home, and at the same time you do not have
+fnprints.dat in any other location, you might want to comment out this line.
+But you have a security problem anyway ;)
 
 [0x05] Tracing mechanism
 ------------------------
 
-  Function fingerprinting:
+Function fingerprinting:
 
-    Function fingerprinting takes first 24 bytes of each function,
-    replace relocs with zeros, eventually trims it and pads with
-    zeros after three subsequent NOPs. This buffer is then passed
-    to MD5 algorithm to generate 128-bit shortcut. Finally, subsequent
-    dwords of generated shortcut are XORed with each other to generate
-    32-bit signature.
+Function fingerprinting takes first 24 bytes of each function, replace relocs
+with zeros, eventually trims it and pads with zeros after three subsequent
+NOPs. This buffer is then passed to MD5 algorithm to generate 128-bit
+shortcut. Finally, subsequent dwords of generated shortcut are XORed with each
+other to generate 32-bit signature.
 
-    Properties of MD5 transformation ensure us that this 32-bit space
-    is uniformly used and that all properties of initial 192-bit buffer
-    are used to construct the signature, giving 2^32 possibilities.
-    In other words, we do not have to worry that many functions have
-    almost similar beginnings and thus will generate identical shortcuts.
-    The number of fingerprints shipped with Fenris is not supposed to
-    exceed 100,000 any time soon, which gives something 0.025% coverage
-    of the possible signature space, and should not trigger too many
-    false positives. But, of course, when we get dangerously close, it'd
-    be reasonable to extend the fingerprint size and to maintain a
-    separate signature database for every platform.
+Properties of MD5 transformation ensure us that this 32-bit space is uniformly
+used and that all properties of initial 192-bit buffer are used to construct
+the signature, giving 2^32 possibilities. In other words, we do not have to
+worry that many functions have almost similar beginnings and thus will
+generate identical shortcuts. The number of fingerprints shipped with Fenris
+is not supposed to exceed 100,000 any time soon, which gives something 0.025%
+coverage of the possible signature space, and should not trigger too many
+false positives. But, of course, when we get dangerously close, it'd be
+reasonable to extend the fingerprint size and to maintain a separate signature
+database for every platform.
 
-    Signatures are matched for all not resolved local symbols in static
-    binaries.
+Signatures are matched for all not resolved local symbols in static binaries.
 
-  Function tracing
+Function tracing
 
-    Local functions, library calls and system calls are traced by Fenris.
-    Fenris is capable of performing numerous operations on non-specific
-    functions, such as parameter enumeration, parameter describing, memory
-    access reporting, conditional conditions reporting, etc, but it also tries
-    to handle most of system calls and large number of library calls
-    in a specific way. The criteria for choosing traced library calls
-    is relatively simple: it has to be relatively popular and preferably
-    documented, and at least one of the following:
+Local functions, library calls and system calls are traced by Fenris. Fenris
+is capable of performing numerous operations on non-specific functions, such
+as parameter enumeration, parameter describing, memory access reporting,
+conditional conditions reporting, etc, but it also tries to handle most of
+system calls and large number of library calls in a specific way. The criteria
+for choosing traced library calls is relatively simple: it has to be
+relatively popular and preferably documented, and at least one of the
+following:
 
-      * perform an operation not immediately correlated with a syscall
-        or not self-explanatory (example: printf, getpwent),
+    * perform an operation not immediately correlated with a syscall
+    or not self-explanatory (example: printf, getpwent),
 
-      * manipulate special meta-objects, such as memory buffers (example:
-        malloc, free, strdup),
+    * manipulate special meta-objects, such as memory buffers (example:
+    malloc, free, strdup),
 
-      * automate memory manipulations (e.g. strcpy).
+    * automate memory manipulations (e.g. strcpy).
 
-  Recognized syscalls:
+Recognized syscalls:
 
-      exit, fork, execve, clone, read, write, waitpid, open, mknod,
-      oldstat, stat, fstat, oldfstat, chmod, creat, link, unlink,
-      chdir, fchdir, lseek, lchown, fchown, chown, time, close,
-      getpid, getgid, getuid, geteuid, getegid, mmap, munmap,
-      mount, setuid, stime, ptrace, alarm, pause, utime, access,
-      nice, sync, rename, mkdir, rmdir, dup, dup2, pipe, signal, brk,
-      times, acct, umount2, ioctl, setpgid, umask, chroot, getppid,
-      setsid, fcntl, getpgrp, setreuid, setregid, symlink, clone,
-      sigaction, rt_sigaction, sgetmask, ssetmask,  chown
-      sigsuspend, sigpending, rt_sigsuspend, rt_sigpending,
-      sethostname, gethostname [*], setrlimit, getrlimit, getrusage,
-      gettimeofday, settimeofday, lstat, oldlstat, uselib, swapon,
-      swapoff, truncate, ftruncate, fchmod, stat, lstat, readlink,
-      reboot, readdir, getpriority, setpriority, statfs, fstatfs,
-      socket, bind, connect, listen, accept, recv, send, shutdown,
-      socketpair, syslog, iopl, ioperm, idle, vhangup, vm86, vm86old,
-      fsync, getpgid, sigreturn, personality, setfsuid, setfsgid, flock,
-      msync, getsid, fdatasync, mlock, munlock, mlockall, munlockall,
-      rt_sigreturn
+    exit, fork, execve, clone, read, write, waitpid, open, mknod,
+    oldstat, stat, fstat, oldfstat, chmod, creat, link, unlink,
+    chdir, fchdir, lseek, lchown, fchown, chown, time, close,
+    getpid, getgid, getuid, geteuid, getegid, mmap, munmap,
+    mount, setuid, stime, ptrace, alarm, pause, utime, access,
+    nice, sync, rename, mkdir, rmdir, dup, dup2, pipe, signal, brk,
+    times, acct, umount2, ioctl, setpgid, umask, chroot, getppid,
+    setsid, fcntl, getpgrp, setreuid, setregid, symlink, clone,
+    sigaction, rt_sigaction, sgetmask, ssetmask,  chown
+    sigsuspend, sigpending, rt_sigsuspend, rt_sigpending,
+    sethostname, gethostname [*], setrlimit, getrlimit, getrusage,
+    gettimeofday, settimeofday, lstat, oldlstat, uselib, swapon,
+    swapoff, truncate, ftruncate, fchmod, stat, lstat, readlink,
+    reboot, readdir, getpriority, setpriority, statfs, fstatfs,
+    socket, bind, connect, listen, accept, recv, send, shutdown,
+    socketpair, syslog, iopl, ioperm, idle, vhangup, vm86, vm86old,
+    fsync, getpgid, sigreturn, personality, setfsuid, setfsgid, flock,
+    msync, getsid, fdatasync, mlock, munlock, mlockall, munlockall,
+    rt_sigreturn
 
-  Unimplemented syscalls:
+Unimplemented syscalls:
 
-      break, stty, gtty, kill, prof, ftime, lock, mpx, oldolduname,
-      ulimit, ustat, profil
+    break, stty, gtty, kill, prof, ftime, lock, mpx, oldolduname,
+    ulimit, ustat, profil
 
-  To do:
+To do:
 
-      setitimer, getitimer,  olduname, wait4, sysinfo, ipc, setdomainname,
-      uname, modify_ldt, adjtimex, mprotect, sigprocmask, create_module,
-      init_module, delete_module, get_kernel_syms, quotactl, bdflush, sysfs,
-      afs_syscall, _llseek, getdents, _newselect, readv, writev, _sysctl,
-      sched_setparam, sched_getparam, sched_setscheduler, sched_getscheduler,
-      sched_yield, sched_get_priority_max, sched_get_priority_min,
-      sched_rr_get_interval, nanosleep, mremap, setresuid, getresuid,
-      query_module, poll, nfsservctl, setresgid, getresgid, prctl,
-      rt_sigprocmask, rt_sigtimedwait, rt_sigqueueinfo, pread, pwrite, getcwd,
-      capget, capset, sigaltstack, sendfile, getpmsg, putpmsg, ugetrlimit,
-      mmap2, truncate64, ftruncate64, stat64, lstat64, fstat64, lchown32,
-      getuid32, getgid32, geteuid32, getegid32, setreuid32, setregid32,
-      getgroups32, setgroups32, fchown32, setresuid32, getresuid32,
-      setresgid32, getresgid32, chown32, setuid32, setgid32, setfsuid32,
-      setfsgid32, pivot_root, mincore, madvise, madvise1, getdents64,
-      fcntl64, getgroups, setgroups, sendto, recvfrom, setsockopt, getsockopt,
-      sendmsg, recvmsg
+    setitimer, getitimer,  olduname, wait4, sysinfo, ipc, setdomainname,
+    uname, modify_ldt, adjtimex, mprotect, sigprocmask, create_module,
+    init_module, delete_module, get_kernel_syms, quotactl, bdflush, sysfs,
+    afs_syscall, _llseek, getdents, _newselect, readv, writev, _sysctl,
+    sched_setparam, sched_getparam, sched_setscheduler, sched_getscheduler,
+    sched_yield, sched_get_priority_max, sched_get_priority_min,
+    sched_rr_get_interval, nanosleep, mremap, setresuid, getresuid,
+    query_module, poll, nfsservctl, setresgid, getresgid, prctl,
+    rt_sigprocmask, rt_sigtimedwait, rt_sigqueueinfo, pread, pwrite, getcwd,
+    capget, capset, sigaltstack, sendfile, getpmsg, putpmsg, ugetrlimit,
+    mmap2, truncate64, ftruncate64, stat64, lstat64, fstat64, lchown32,
+    getuid32, getgid32, geteuid32, getegid32, setreuid32, setregid32,
+    getgroups32, setgroups32, fchown32, setresuid32, getresuid32,
+    setresgid32, getresgid32, chown32, setuid32, setgid32, setfsuid32,
+    setfsgid32, pivot_root, mincore, madvise, madvise1, getdents64,
+    fcntl64, getgroups, setgroups, sendto, recvfrom, setsockopt, getsockopt,
+    sendmsg, recvmsg
 
-  Recognized library calls:
+Recognized library calls:
 
-      strlen, malloc, strdup, calloc, realloc, free, getenv, atexit, strcpy,
-      memcpy, memset, bzero, bcopy, memcmp, getc, strcmp, strncmp, strncpy
+    strlen, malloc, strdup, calloc, realloc, free, getenv, atexit, strcpy,
+    memcpy, memset, bzero, bcopy, memcmp, getc, strcmp, strncmp, strncpy
 
-  Libcalls to do:
+Libcalls to do:
 
-     fopen, fclose, perror, printf, vprintf, sprintf, snprintf, vsnprintf,
-     fprintf, vfprintf, vfnprintf, fnprintf, vsprintf, *put*, exec*,
-     fclose, *scanf*, fread, fwrite, fflush, alloca...
+    fopen, fclose, perror, printf, vprintf, sprintf, snprintf, vsnprintf,
+    fprintf, vfprintf, vfnprintf, fnprintf, vsprintf, *put*, exec*,
+    fclose, *scanf*, fread, fwrite, fflush, alloca...
 
-  Recognized assembly language constructions (all handled cases):
+Recognized assembly language constructions (all handled cases):
 
-    NOTE: Erm, this list is a bit outdated.
+NOTE: Erm, this list is a bit outdated.
 
-    .----------------+--------------------------------------------.
-    | E8             | library call / function call entry         |
-    | E8 00 00 00 00 | PIC trampoline (ignored)                   |
-    | FF 25          | PLT libc entry                             |
-    | E9 r           | alternative libc entry                     |
-    | FF D0          | code-from-libc invocation                  |
-    | FF D1          | code-from-libc invocation                  |
-    | FF D2          | code-from-libc invocation                  |
-    | FF D3          | code-from-libc invocation                  |
-    | FF D6          | code-from-libc invocation                  |
-    | FF D7          | code-from-libc invocation                  |
-    | C3             | libc and function return                   |
-    | C2             | libc return-to-function                    |
-    | FF A2          | call to function                           |
-    | FF 15          | function absolute ptr call                 |
-    | 89 C0          | return value indicator (without -O9)       |
-    | B8             | imm. return value indicator (without -O9)  |
-    | CD 80          | syscall entry point                        |
-    | 83 EC          | function params: level up                  |
-    | 81 EC          | function params: level up                  |
-    | 83 E4          | function params: adjust count              |
-    | 81 E4          | function params: adjust count              |
-    | 89 E5          | function params: reset                     |
-    | 8D 45          | function params: adjust count              |
-    | 83 C4          | function params: reset                     |
-    | 50             | parameter push                             |
-    | 51             | parameter push                             |
-    | 52             | parameter push                             |
-    | 53             | parameter push                             |
-    | 54             | parameter push                             |
-    | 55             | parameter push                             |
-    | 56             | parameter push                             |
-    | 57             | parameter push                             |
-    | 68             | parameter push                             |
-    | 6A             | parameter push                             |
-    | FF 30          | parameter push                             |
-    | FF 33          | parameter push                             |
-    | FF 35          | parameter push                             |
-    | FF 70          | parameter push                             |
-    | FF 74          | parameter push                             |
-    | FF 75          | parameter push                             |
-    | FF B4          | parameter push                             |
-    | FF B5          | parameter push                             |
-    | 89 04 24       | parameter push                             |
-    | C7 04 24       | parameter push                             |
-    | 89 1C 24       | parameter push                             |
-    | 58             | parameter counter reset                    |
-    | 59             | parameter counter reset                    |
-    | 5A             | parameter counter reset                    |
-    | 5B             | parameter counter reset                    |
-    | 5D             | parameter counter reset                    |
-    | 5E             | parameter counter reset                    |
-    | 5F             | parameter counter reset                    |
-    | 89 E5 53 82    | ctors signature                            |
-    | EC 04 83 F8    |                                            |
-    | 8B 5D F8 89    | ctors signature                            |
-    | EC 5D C3 89    |                                            |
-    | 74 0C 8B 38    | ctors signature                            |
-    | FF D0 83 C3    |                                            |
-    | 83 E8 04 89    | ctors signature                            |
-    | 45 FC 8D 76    |                                            |
-    | 75             | conditional                                |
-    | 74             | conditional                                |
-    | 76             | conditional                                |
-    | 7E             | conditional                                |
-    | 7F             | conditional                                |
-    | 77             | conditional                                |
-    | 0F 85          | conditional                                |
-    | 0F 84          | conditional                                |
-    | 0F 8E          | conditional                                |
-    | 0F 86          | conditional                                |
-    | 0F 8F          | conditional                                |
-    | 0F 87          | conditional                                |
-    | 5A 59 87 04    | resolv signature                           |
-    | 24 C2 08 00    |                                            |
-    | CC             | int3: report to base                       |
-    `----------------+--------------------------------------------'
+.----------------+--------------------------------------------.
+| E8             | library call / function call entry         |
+| E8 00 00 00 00 | PIC trampoline (ignored)                   |
+| FF 25          | PLT libc entry                             |
+| E9 r           | alternative libc entry                     |
+| FF D0          | code-from-libc invocation                  |
+| FF D1          | code-from-libc invocation                  |
+| FF D2          | code-from-libc invocation                  |
+| FF D3          | code-from-libc invocation                  |
+| FF D6          | code-from-libc invocation                  |
+| FF D7          | code-from-libc invocation                  |
+| C3             | libc and function return                   |
+| C2             | libc return-to-function                    |
+| FF A2          | call to function                           |
+| FF 15          | function absolute ptr call                 |
+| 89 C0          | return value indicator (without -O9)       |
+| B8             | imm. return value indicator (without -O9)  |
+| CD 80          | syscall entry point                        |
+| 83 EC          | function params: level up                  |
+| 81 EC          | function params: level up                  |
+| 83 E4          | function params: adjust count              |
+| 81 E4          | function params: adjust count              |
+| 89 E5          | function params: reset                     |
+| 8D 45          | function params: adjust count              |
+| 83 C4          | function params: reset                     |
+| 50             | parameter push                             |
+| 51             | parameter push                             |
+| 52             | parameter push                             |
+| 53             | parameter push                             |
+| 54             | parameter push                             |
+| 55             | parameter push                             |
+| 56             | parameter push                             |
+| 57             | parameter push                             |
+| 68             | parameter push                             |
+| 6A             | parameter push                             |
+| FF 30          | parameter push                             |
+| FF 33          | parameter push                             |
+| FF 35          | parameter push                             |
+| FF 70          | parameter push                             |
+| FF 74          | parameter push                             |
+| FF 75          | parameter push                             |
+| FF B4          | parameter push                             |
+| FF B5          | parameter push                             |
+| 89 04 24       | parameter push                             |
+| C7 04 24       | parameter push                             |
+| 89 1C 24       | parameter push                             |
+| 58             | parameter counter reset                    |
+| 59             | parameter counter reset                    |
+| 5A             | parameter counter reset                    |
+| 5B             | parameter counter reset                    |
+| 5D             | parameter counter reset                    |
+| 5E             | parameter counter reset                    |
+| 5F             | parameter counter reset                    |
+| 89 E5 53 82    | ctors signature                            |
+| EC 04 83 F8    |                                            |
+| 8B 5D F8 89    | ctors signature                            |
+| EC 5D C3 89    |                                            |
+| 74 0C 8B 38    | ctors signature                            |
+| FF D0 83 C3    |                                            |
+| 83 E8 04 89    | ctors signature                            |
+| 45 FC 8D 76    |                                            |
+| 75             | conditional                                |
+| 74             | conditional                                |
+| 76             | conditional                                |
+| 7E             | conditional                                |
+| 7F             | conditional                                |
+| 77             | conditional                                |
+| 0F 85          | conditional                                |
+| 0F 84          | conditional                                |
+| 0F 8E          | conditional                                |
+| 0F 86          | conditional                                |
+| 0F 8F          | conditional                                |
+| 0F 87          | conditional                                |
+| 5A 59 87 04    | resolv signature                           |
+| 24 C2 08 00    |                                            |
+| CC             | int3: report to base                       |
+`----------------+--------------------------------------------'
 
-    Additionally, all memory write constructions (few hundred
-    separate opcodes) are recognized and handled by libdisasm code.
-    Specific situations (e.g. cross-segment eip change) are detected
-    even if no known instruction triggered them.
+Additionally, all memory write constructions (few hundred separate opcodes)
+are recognized and handled by libdisasm code. Specific situations (e.g.
+cross-segment eip change) are detected even if no known instruction triggered
+them.
 
-  Output format:
+Output format:
 
-    If you wish to develop or already developed an alternative to
-    ragnarok, please let me know. If you are just planning, the
-    following information might be useful:
+If you wish to develop or already developed an alternative to ragnarok, please
+let me know. If you are just planning, the following information might be
+useful:
 
-    Output file header: <<-- fenris [TYPE] VERSION -->>, where TYPE
-    is STD (STD stands for standard settings, CSTM for suboptimal
-    command-line options).
+Output file header: <<-- fenris [TYPE] VERSION -->>, where TYPE is STD (STD
+stands for standard settings, CSTM for suboptimal command-line options).
 
-    Normal line: starts with 'pid:ind' where ind is nesting level
-    ('--' for events on top level or before / after main function).
-    This sequence is followed by one or more spaces. If -i option is
-    used, this pid:ind+spaces prefix is skipped. Then, optional '[L]'
-    modifier is added if even occurs inside library segment.
+Normal line: starts with 'pid:ind' where ind is nesting level ('--' for events
+on top level or before / after main function). This sequence is followed by
+one or more spaces. If -i option is used, this pid:ind+spaces prefix is
+skipped. Then, optional '[L]' modifier is added if even occurs inside library
+segment.
 
-    Errors / exit messages: lines starting with '>>'
+Errors / exit messages: lines starting with '>>'
 
-    Task status messages: lines starting with '+++'
+Task status messages: lines starting with '+++'
 
-    Warnings and information: lines starting with '*'
+Warnings and information: lines starting with '*'
 
-    Normal line format (after pid:ind):
+Normal line format (after pid:ind):
 
-      Lines starting with '#' specify signature database matches.
+    Lines starting with '#' specify signature database matches.
 
-      Lines starting with '-' specify odd conditions in memory tracing
-      module or other modules.
+    Lines starting with '-' specify odd conditions in memory tracing
+    module or other modules.
 
-      Lines with '+' describe parameters. Some of them might be followed
-      with additional info line starting with 'last input:' string.
+    Lines with '+' describe parameters. Some of them might be followed
+    with additional info line starting with 'last input:' string.
 
-      Lines starting with @ mean operations on file descriptors, such
-      as open, dup, close.
+    Lines starting with @ mean operations on file descriptors, such
+    as open, dup, close.
 
-      Lines starting with '\' describe buffer discards, modification,
-      buffer creation, data flow, merges and similar usual conditions.
-      "UNEXPECTED" modifier denotes unexpected resizes, e.g. strcpy
-      into too small malloc'd buffer, or such.
+    Lines starting with '\' describe buffer discards, modification,
+    buffer creation, data flow, merges and similar usual conditions.
+    "UNEXPECTED" modifier denotes unexpected resizes, e.g. strcpy
+    into too small malloc'd buffer, or such.
 
-      Lines starting with '//' mean information provided for readability
-      and can be safely ignored.
+    Lines starting with '//' mean information provided for readability
+    and can be safely ignored.
 
-      Lines starting with '<eip> cndt:' are conditional expressions.
+    Lines starting with '<eip> cndt:' are conditional expressions.
 
-      Lines starting with '*' list modified memory.
+    Lines starting with '*' list modified memory.
 
-      Lines starting with '...' are function returns.
+    Lines starting with '...' are function returns.
 
-      Lines starting with 'SIGNAL' report signal delivery.
+    Lines starting with 'SIGNAL' report signal delivery.
 
-      Lines starting with modifier 'local' are local functions.
+    Lines starting with modifier 'local' are local functions.
 
-      Lines starting with 'signal handler' modifier are signal handlers.
+    Lines starting with 'signal handler' modifier are signal handlers.
 
-      Lines starting with U are non-specific library calls, lines
-      starting with L are separately handled library calls.
+    Lines starting with U are non-specific library calls, lines
+    starting with L are separately handled library calls.
 
-      Parameters are presented in function-dependent format.
+    Parameters are presented in function-dependent format.
 
-      Note: buffer detection and such is performed for assembly-level
-      statements as well as for function calls. However, buffers first
-      spotted on assembly level are not reported immediately to keep
-      things clean (e.g. a function that walks thru 100 characters in
-      a table effectively causes detection of one 100-byte buffer,
-      but it is pointless to report every time single opcode changes
-      buffer size: 2, 3, 4, 5, ..., 100). Thus, some buffers might be
-      mentioned post-factum, with no implicit 'new buffer' line (but
-      with appropriate size description and such).
+    Note: buffer detection and such is performed for assembly-level
+    statements as well as for function calls. However, buffers first
+    spotted on assembly level are not reported immediately to keep
+    things clean (e.g. a function that walks thru 100 characters in
+    a table effectively causes detection of one 100-byte buffer,
+    but it is pointless to report every time single opcode changes
+    buffer size: 2, 3, 4, 5, ..., 100). Thus, some buffers might be
+    mentioned post-factum, with no implicit 'new buffer' line (but
+    with appropriate size description and such).
 
 [0x06] Bug reporting and other feedback
 ---------------------------------------
 
-  If Fenris refuses to compile or crashes, please use ./fenris-bug
-  reporting utility. To suggest some enhancements or new features,
-  e-mail me at <lcamtuf@bos.bindview.com>. If you want to report problems
-  directly to me, use <lcamtuf@bos.bindview.com>, but follow suggestions
-  given by 'fenris-bug' to make things easier :) If you have already fixed
-  any bugs or interoperability issues, or added any features, please send
-  diffs to me.
+If Fenris refuses to compile or crashes, please use ./fenris-bug reporting
+utility. To suggest some enhancements or new features, e-mail me at
+<lcamtuf@bos.bindview.com>. If you want to report problems directly to me, use
+<lcamtuf@bos.bindview.com>, but follow suggestions given by 'fenris-bug' to
+make things easier :) If you have already fixed any bugs or interoperability
+issues, or added any features, please send diffs to me.
 
-  Please, before sending patches, test them carefully. It does not hurt
-  to run modified code against some code you've compiled, few standard
-  tools in C (ps, id, ls) and C++ (wget) plus something from other system
-  or provided as a binary (netscape?) - and saves you, me and other
-  time and efforts...
+Please, before sending patches, test them carefully. It does not hurt to run
+modified code against some code you've compiled, few standard tools in C (ps,
+id, ls) and C++ (wget) plus something from other system or provided as
+a binary (netscape?) - and saves you, me and other time and efforts...
 
-  Not much basic troubleshooting can be performed by an average user,
-  maybe except poking with -t option and eventually using -s mode.
+Not much basic troubleshooting can be performed by an average user, maybe
+except poking with -t option and eventually using -s mode.
 
 [0x07] Known bugs / TODO
 ------------------------
 
-  First of all, some functions (libcalls and syscalls) mentioned in
-  doc/TODO should be added. Then, more abstract problems:
+First of all, some functions (libcalls and syscalls) mentioned in doc/TODO
+should be added. Then, more abstract problems:
 
-  - Data flow graph is not really readable for complex projects, and
-    it might be more suitable to use OpenDX here. This is probably
-    the first major thing to be done now.
+- Data flow graph is not really readable for complex projects, and it might be
+  more suitable to use OpenDX here. This is probably the first major thing to
+be done now.
 
-  - libbfd is far from being predictable; many distributions ship
-    ancient or broken versions, libbfd with missing external symbols,
-    or have other problems; and if you mix .h and .so / .a files from two
-    different versions of libbfd, you can expect big trouble, they seem to
-    change the structures rather mindlessly just to break all backward
-    compatibility every time ;-) Please report all situations like
-    compilation errors or runtime SEGVs, but also be polite, I didn't write
-    GNU binutils :-)
+- libbfd is far from being predictable; many distributions ship ancient or
+  broken versions, libbfd with missing external symbols, or have other
+problems; and if you mix .h and .so / .a files from two different versions of
+libbfd, you can expect big trouble, they seem to change the structures rather
+mindlessly just to break all backward compatibility every time ;-) Please
+report all situations like compilation errors or runtime SEGVs, but also be
+polite, I didn't write GNU binutils :-)
 
-  - Well, this isn't really a bug in Fenris, but the way I fixed this
-    problem might have some side effects, so be careful...  Linux kernels
-    have a bug that causes PTRACE_SINGLESTEP to skip (execute in one cycle)
-    whole signal handlers, no matter how complex. We fix it with hackish code
-    that inserts int3 traps into (or, more precisely, before) signal handlers,
-    but it is ugly and relies on presence of at least one leading NOP, RET,
-    or gcc -O9 LEA... which is typically the case. If not, if the code before
-    is reached, you're most likely screwed up. Alan and Linus responded that
-    they do not really know why it works this way, and apparently were not very
-    enthusiastic about touching ptrace() code at all.
+- Well, this isn't really a bug in Fenris, but the way I fixed this problem
+  might have some side effects, so be careful...  Linux kernels have a bug
+that causes PTRACE_SINGLESTEP to skip (execute in one cycle) whole signal
+handlers, no matter how complex. We fix it with hackish code that inserts int3
+traps into (or, more precisely, before) signal handlers, but it is ugly and
+relies on presence of at least one leading NOP, RET, or gcc -O9 LEA... which
+is typically the case. If not, if the code before is reached, you're most
+likely screwed up. Alan and Linus responded that they do not really know why
+it works this way, and apparently were not very enthusiastic about touching
+ptrace() code at all.
 
-  - I am very tired... or there is a bug in lynx SortaSGML parser, which,
-    in certain cases, gets into irreversible <pre> mode; does not happen
-    with TagSoup parser (-tagsoup), links, Netscape, MSIE. Investigate it
-    later - for now, please view reports with -tagsoup option or press
-    Ctrl+V.
+- I am very tired... or there is a bug in lynx SortaSGML parser, which, in
+  certain cases, gets into irreversible <pre> mode; does not happen with
+TagSoup parser (-tagsoup), links, Netscape, MSIE. Investigate it later - for
+now, please view reports with -tagsoup option or press Ctrl+V.
 
-  - binary output for faster operations and easier parsing should be
-    supported... But it is a low priority item for now.
+- binary output for faster operations and easier parsing should be
+  supported... But it is a low priority item for now.
 
-  - lookup functions should be cached, and number of calls to them
-    minimized to speed up everything.
+- lookup functions should be cached, and number of calls to them minimized to
+  speed up everything.
 
-  - reloc tables in .o files should be parsed (for function signatures);
-    right now, we cheat in really lame way ;) Well, with current
-    signaturebase, it might be difficult to go back... But so far, it
-    works amazingly well.
+- reloc tables in .o files should be parsed (for function signatures); right
+  now, we cheat in really lame way ;) Well, with current signaturebase, it
+  might be difficult to go back... But so far, it works amazingly well.
 
-  - some problems in libdisasm are present due to broken opcode tables
-    logic; I fixed some common problems, but if you see any
-    "strange write!" or "strange read!" debug messages, please let me know.
+- some problems in libdisasm are present due to broken opcode tables logic;
+  I fixed some common problems, but if you see any "strange write!" or
+  "strange read!" debug messages, please let me know.
 
-  - OpenWall stack segment matching causes small integers to be reported
-    as stack addresses,
+- OpenWall stack segment matching causes small integers to be reported as
+  stack addresses,
 
-  - Architecture-dependent code is not separated in any way; future
-    versions should have GCC and x86 code modularized (read: in separate .h
-    file) to make porting to new platforms or new compilers easier.
-    Volunteers to do that needed.
+- Architecture-dependent code is not separated in any way; future versions
+  should have GCC and x86 code modularized (read: in separate .h file) to make
+  porting to new platforms or new compilers easier. Volunteers to do that
+  needed.
 
-  - Fenris does not support clone()d threads. This can be fixed, but
-    requires some hacking around process tables and many other routines -
-    and a good synchronization of logs.
+- Fenris does not support clone()d threads. This can be fixed, but requires
+  some hacking around process tables and many other routines - and a good
+  synchronization of logs.
 
-  - Syscalls are reported AFTER a syscall is completed, except for some cases
-    that are known not to return (execve, exit). It would require major
-    code rewrite to change it, and it won't happen in first release.
-    Side effects:
+- Syscalls are reported AFTER a syscall is completed, except for some cases
+  that are known not to return (execve, exit). It would require major code
+  rewrite to change it, and it won't happen in first release.
+  Side effects:
 
-      - if given syscall is blocking, possibly forever, it will be not
-        reported until something happens. You probably want to use strace
-        or Aegir to diagnose such conditions.
+    - if given syscall is blocking, possibly forever, it will be not
+    reported until something happens. You probably want to use strace
+    or Aegir to diagnose such conditions.
 
-      - action is taken before syscall is displayed; if Fenris is reporting
-        to stderr and traced program writes to console, write() output
-        will be shown before write() itself is reported. This might be
-        confusing a bit, but strace can put output in the middle of
-        a syscall description, so... ;-)
+    - action is taken before syscall is displayed; if Fenris is reporting
+    to stderr and traced program writes to console, write() output
+    will be shown before write() itself is reported. This might be
+    confusing a bit, but strace can put output in the middle of
+    a syscall description, so... ;-)
 
-      - if something bad happens to process before syscall returns (e.g.
-        kernel oops, or process being violently killed for some other
-        reason), currently called syscall parameters won't be reported.
+    - if something bad happens to process before syscall returns (e.g.
+    kernel oops, or process being violently killed for some other
+    reason), currently called syscall parameters won't be reported.
 
-    As side effects are not really that painful, while rewriting major
-    portions of code is... well, it remains this way.
+As side effects are not really that painful, while rewriting major portions of
+code is... well, it remains this way.
 
-  - Parameter detection for local functions called back from libc (from
-    functions like bsort, scandir and such) will be not accurate. This
-    won't be fixed soon, I'm afraid.
+- Parameter detection for local functions called back from libc (from
+  functions like bsort, scandir and such) will be not accurate. This won't be
+  fixed soon, I'm afraid.
 
-  - Without -s option, if main() in traced applications is terminated
-    by return or such (not by invoking exit()), atexit() handler, if
-    declared, will be not traced properly. Use -s if there's anything
-    particularly interesting going on in atexit() handler, at least for
-    now.
+- Without -s option, if main() in traced applications is terminated by return
+  or such (not by invoking exit()), atexit() handler, if declared, will be not
+  traced properly. Use -s if there's anything particularly interesting going
+  on in atexit() handler, at least for now.
 
-  - As stated in ptrace() documentation, attaching to child processes
-    causes changes in child-to-parent signal delivery semantics; thus,
-    tracing certain program with -f option might be difficult (Midnight
-    Commander is a good example). This is a common problem present in
-    strace and ltrace as well. PTRACE AUTHORS SHOULD BE REALLY
-    HURT:@@%%&&^!... err... ummm... pills... take pills... uhm. better.
+- As stated in ptrace() documentation, attaching to child processes causes
+  changes in child-to-parent signal delivery semantics; thus, tracing certain
+  program with -f option might be difficult (Midnight Commander is a good
+  example). This is a common problem present in strace and ltrace as well.
+  PTRACE AUTHORS SHOULD BE REALLY HURT:@@%%&&^!... err... ummm... pills...
+  take pills... uhm. better.
 
-  - Fenris does not deal too well with non-gcc generated code that do
-    strange things with stack, calling conventions - I mean results
-    are completely inaccurate and application stability is at risk ;)
-    If you spot something like this, report it, but don't be surprised.
+- Fenris does not deal too well with non-gcc generated code that do strange
+  things with stack, calling conventions - I mean results are completely
+  inaccurate and application stability is at risk ;) If you spot something
+  like this, report it, but don't be surprised.
 
-  - Time sharing between multiple processes is nothing like round-robin;
-    this shouldn't be a problem in real life, but if you have two
-    processes doing exactly the same, one of them might be 'favorized'
-    and other might have to wait until first one enters blocking syscall
-    or such.
+- Time sharing between multiple processes is nothing like round-robin; this
+  shouldn't be a problem in real life, but if you have two processes doing
+  exactly the same, one of them might be 'favorized' and other might have to
+  wait until first one enters blocking syscall or such.
 
-  - context saving (longjmp) is not yet supported. This will change as
-    soon as longjmp is implemented. For now, for programs using this
-    function (like bash), nest level might be artificially high.
+- context saving (longjmp) is not yet supported. This will change as soon as
+  longjmp is implemented. For now, for programs using this function (like
+  bash), nest level might be artificially high.
 
-  - C++ function name demangling support would be nice.
+- C++ function name demangling support would be nice.
 
-  - if a local function is called from within a libcall (good example: qsort
-    in 'ls') with a text parameter that is recognized as a string and
-    auto-added, and this parameter points to a memory temporarily allocated
-    by qsort, which is later freed (but both malloc and free are not traced
-    inside qsort, of course), this might cause a nasty interference (
-    already-have in malloc). No clue how to fix it for now.
+- if a local function is called from within a libcall (good example: qsort in
+  'ls') with a text parameter that is recognized as a string and auto-added,
+  and this parameter points to a memory temporarily allocated by qsort, which
+  is later freed (but both malloc and free are not traced inside qsort, of
+  course), this might cause a nasty interference ( already-have in malloc). No
+  clue how to fix it for now.
 
-  - Ragnarok does not necessarily link functions in the table too precisely:
+- Ragnarok does not necessarily link functions in the table too precisely:
 
-    010  1439:00 local innafunkcja (g/8049758)
-    011  1439:00 + innafunkcja = 0x804852c
-    012  1439:00 + 8049758 = 8049758:100 <off 0> (first seen in L main:malloc)
-    013  1439:00   last input: L main:bzero
-    014  1439:01  L strcpy (8049758, 8048614 "this is just a test") = 8049758
+010  1439:00 local innafunkcja (g/8049758)
+011  1439:00 + innafunkcja = 0x804852c
+012  1439:00 + 8049758 = 8049758:100 <off 0> (first seen in L main:malloc)
+013  1439:00   last input: L main:bzero
+014  1439:01  L strcpy (8049758, 8048614 "this is just a test") = 8049758
 
-    ...in this example, 'innafunkcja' call will be reported as happening
-    in line 013, not 010. The problem is that ragnarok reports LAST line
-    of each call. This can be easily fixed.
+...in this example, 'innafunkcja' call will be reported as happening in line
+013, not 010. The problem is that ragnarok reports LAST line of each call.
+This can be easily fixed.
 
-  - Note that Ragnarok does "phone home" if you use a graphical browser.
-    More precisely, it downloads Fenris logo from my webpage. I don't see
-    any other way to implement it, as not all people who run ragnarok
-    or view ragnarok results actually have it installed. If it bugs you,
-    get rid of it, or suggest a better solution. This "call" is rather
-    worthless, most browsers would not disclose the local path of the
-    file you were viewing in the Referrer: header, so... To get rid of
-    it, go to html.h, look for "http://lcamtuf.coredump.cx/fenris/fenris-s.jpg"
-    and remove this string.
+- Note that Ragnarok does "phone home" if you use a graphical browser. More
+  precisely, it downloads Fenris logo from my webpage. I don't see any other
+  way to implement it, as not all people who run ragnarok or view ragnarok
+  results actually have it installed. If it bugs you, get rid of it, or
+  suggest a better solution. This "call" is rather worthless, most browsers
+  would not disclose the local path of the file you were viewing in the
+  Referrer: header, so... To get rid of it, go to html.h, look for
+  "http://lcamtuf.coredump.cx/fenris/fenris-s.jpg" and remove this string.
 
-  - Organize whole syscall and libcall handling into some description
-    file with simplified syntax instead of painfully identical C code
-    sequences repeated over and over again.
+- Organize whole syscall and libcall handling into some description file with
+  simplified syntax instead of painfully identical C code sequences repeated
+  over and over again.
 
-  - There is no option to "trace libc" yet. This is because of some
-    constructions that has to be handled in libc prolog that cause nest
-    level to skyrocket and Fenris to quit.
+- There is no option to "trace libc" yet. This is because of some
+  constructions that has to be handled in libc prolog that cause nest level to
+  skyrocket and Fenris to quit.
 
 [0x08] Thanks and credits
 -------------------------
 
-  This project started somewhere in October 2001, and, for a long time,
-  the development crawled slowly in the very little free time I had those
-  days. For the first development snapshot I've found on my disk, go to
-  http://lcamtuf.coredump.cx/fenris/vintage.tgz - it is pretty amusing.
-  Since then, many people provided invaluable information, suggestions,
-  feedback and other support to this project and made it possible.
-  I try to keep the following list pretty accurate, but if you feel you
-  should be here, do not hesitate to tell me. Our contributors are:
+This project started somewhere in October 2001, and, for a long time, the
+development crawled slowly in the very little free time I had those days. For
+the first development snapshot I've found on my disk, go to
+http://lcamtuf.coredump.cx/fenris/vintage.tgz - it is pretty amusing. Since
+then, many people provided invaluable information, suggestions, feedback and
+other support to this project and made it possible. I try to keep the
+following list pretty accurate, but if you feel you should be here, do not
+hesitate to tell me. Our contributors are:
 
-    Rafal Wojtczuk (Nergal)             Mariusz Woloszyn (kil3r)
-    Slawomir Krawczyk (Nises)           Wojtek Kaniewski (wojtekka)
-    Bulba                               bighawk
-    none                                dvorak
-    charise                             entropyd
-    Solar Designer                      Wojtek Walczak (gminick)
-    Martin Kluge                        Lluis Mora Hidalgo
-    Robert W. Jaroszuk                  Joe Van Andel
-    Neil Jerram                         Hubert Lubaczewski
-    Yair K                              Gregory Wright
-    Adam Byrtek                         Gordon Sadler
-    Roger Luethi                        Mariusz Marcinkiewicz
-    Lukasz Trabinski                    Piotr Meyer
-    Marcin Kaminski                     Artur Byszko
-    Lukasz Biegaj                       Przemyslaw Skowron
-    Gonçalo Gomes                       Timothy Bogdala
-    Allen Noe                           piggy
-    Stephen Kench                       Bartlomiej Lidke
-    Marek Gutkowski                     Tadeusz Wlodarczyk
-    Marcin Gozdalik                     William Stearns
-    Artur Skura                         klog
-    Fabio Vayr                          Han Holl
-    dataspy                             Jim Paris
-    Brian Finn                          Andrzej Szombierski
-    Greg                                Gandalf
-    undefine                            GoTaR
-    Paul van Maaren                     Piter
-    Krzysztof Gibas                     Matthias Hofherr
-    Peter Lopen                         Dave Aitel
-    Daniel Polombo                      lucipher
-    Przemyslaw Czerkas                  Gregory Wright
-    Eli Yukelzon                        Creep
+Rafal Wojtczuk (Nergal)             Mariusz Woloszyn (kil3r)
+Slawomir Krawczyk (Nises)           Wojtek Kaniewski (wojtekka)
+Bulba                               bighawk
+none                                dvorak
+charise                             entropyd
+Solar Designer                      Wojtek Walczak (gminick)
+Martin Kluge                        Lluis Mora Hidalgo
+Robert W. Jaroszuk                  Joe Van Andel
+Neil Jerram                         Hubert Lubaczewski
+Yair K                              Gregory Wright
+Adam Byrtek                         Gordon Sadler
+Roger Luethi                        Mariusz Marcinkiewicz
+Lukasz Trabinski                    Piotr Meyer
+Marcin Kaminski                     Artur Byszko
+Lukasz Biegaj                       Przemyslaw Skowron
+Gonçalo Gomes                       Timothy Bogdala
+Allen Noe                           piggy
+Stephen Kench                       Bartlomiej Lidke
+Marek Gutkowski                     Tadeusz Wlodarczyk
+Marcin Gozdalik                     William Stearns
+Artur Skura                         klog
+Fabio Vayr                          Han Holl
+dataspy                             Jim Paris
+Brian Finn                          Andrzej Szombierski
+Greg                                Gandalf
+undefine                            GoTaR
+Paul van Maaren                     Piter
+Krzysztof Gibas                     Matthias Hofherr
+Peter Lopen                         Dave Aitel
+Daniel Polombo                      lucipher
+Przemyslaw Czerkas                  Gregory Wright
+Eli Yukelzon                        Creep
 
-  Special thanks to developers of 'bastard' libdisasm library available
-  at http://bastard.sourceforge.net - portions of their code were used
-  in this project; to Christian Bauer, Marc Hellwig and Pace Willisson
-  who authored another disassembler I use; and other people from whom I
-  borrowed ideas or solutions :-)
+Special thanks to developers of 'bastard' libdisasm library available at
+http://bastard.sourceforge.net - portions of their code were used in this
+project; to Christian Bauer, Marc Hellwig and Pace Willisson who authored
+another disassembler I use; and other people from whom I borrowed ideas or
+solutions :-)
 
-  Optimized assembly language string operation routines come from Linux 2.2
-  kernel sources and are most likely authored by Petko Manolov.
+Optimized assembly language string operation routines come from Linux 2.2
+kernel sources and are most likely authored by Petko Manolov.
 
-  Thanks go to Maja for patience.
+Thanks go to Maja for patience.
 
 [0x09] Further reading
 ----------------------
 
-  Some of less or more related publications you might find interesting:
+Some of less or more related publications you might find interesting:
 
-  Intel 80386 Programmer's Reference
-  http://www.online.ee/~andre/i80386/
+Intel 80386 Programmer's Reference
+http://www.online.ee/~andre/i80386/
 
-  Assembly Language/x86 FAQs
-  http://www.faqs.org/faqs/assembly-language/x86/
+Assembly Language/x86 FAQs
+http://www.faqs.org/faqs/assembly-language/x86/
 
-  Using and Porting GNU CC
-  http://www.cslab.vt.edu/manuals/gcc/gcc_toc.html
+Using and Porting GNU CC
+http://www.cslab.vt.edu/manuals/gcc/gcc_toc.html
 
-  Google Directory - Computers > Programming > Disassemblers
-  http://directory.google.com/Top/Computers/Programming/Disassemblers/
+Google Directory - Computers > Programming > Disassemblers
+http://directory.google.com/Top/Computers/Programming/Disassemblers/
 
-  Tracey N., Clark  J., Mander K., McDermid J.
-  "Automated test-data generation for exception conditions"
-  http://www.cs.york.ac.uk/testsig/publications/njt-00.pdf
+Tracey N., Clark  J., Mander K., McDermid J.
+"Automated test-data generation for exception conditions"
+http://www.cs.york.ac.uk/testsig/publications/njt-00.pdf
 
-  Beizer B.
-  "Software Testing Techniques, 2nd edition"
-  Thomson Computer Press, 1990.
+Beizer B.
+"Software Testing Techniques, 2nd edition"
+Thomson Computer Press, 1990.
 
-  Jones B., Sthamer H., Eyres D.
-  "Automatic structural testing using genetic algorithms"
-  Software Engineering Journal 1996
+Jones B., Sthamer H., Eyres D.
+"Automatic structural testing using genetic algorithms"
+Software Engineering Journal 1996
 
-  "Abstract Interpretation"
-  http://www.cs.utah.edu/~ritwik/papers/COUSOT-ACM.pdf
+"Abstract Interpretation"
+http://www.cs.utah.edu/~ritwik/papers/COUSOT-ACM.pdf
 

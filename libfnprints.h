@@ -39,9 +39,9 @@
 extern struct fenris_fndb *fndb[];
 
 struct fenris_fndb {
-    char* name;
+    char *name;
     unsigned short a;
-    struct fenris_fndb* next;
+    struct fenris_fndb *next;
 };
 
 /* find all the names of functions that match _fnprint value
@@ -80,10 +80,11 @@ struct fenris_fndb {
     } while(0)
 
 /* load the fingerprints database given in the argument */
-int load_fnbase(const char* x);
+int load_fnbase(const char *x);
 
 /* return the number of loaded fingerprints */
 int fnprints_count();
 
 unsigned long fnprint_compute(unsigned char *sig, int codeseg);
+
 #endif /* not _HAVE_LIBFNPRINTS_H */
