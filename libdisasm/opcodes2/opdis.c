@@ -23,6 +23,7 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 #include "dis-asm.h"
 #include "opdis.h"
 
@@ -36,7 +37,7 @@ static int read_memory(bfd_vma from, bfd_byte *to, unsigned int length, struct d
 }
 
 /* callback */
-static void memory_error(int status, bfd_vma memaddr, struct disassemble_info *info)
+static void memory_error(int status, bfd_vma memaddr __attribute__((unused)), struct disassemble_info *info)
 {
     info->fprintf_func(info->stream, "Unknown error %d\n", status);
 }
@@ -112,9 +113,9 @@ static int disass_x86(unsigned int addr)
 
 void opdis_disass(FILE *stream, const char* buf, unsigned int addr, unsigned int len)
 {
-    int tmp_addr = addr;
+    unsigned int tmp_addr = addr;
 
-    opdis_info.buffer = (char *)buf;
+    opdis_info.buffer = (unsigned char *)buf;
     opdis_info.buffer_vma = addr;
     opdis_info.stream = stream;
     while (tmp_addr<=addr+len) {
@@ -124,14 +125,14 @@ void opdis_disass(FILE *stream, const char* buf, unsigned int addr, unsigned int
 
 int opdis_disass_one(FILE *stream, const char *buf, unsigned int addr)
 {
-    opdis_info.buffer = (char *)buf;
+    opdis_info.buffer = (unsigned char *)buf;
     opdis_info.buffer_vma = addr;
     opdis_info.stream = stream;
     return disass_x86(addr);
 }
 
 /* hack */
-static int blind_fprintf(FILE *stream, char *format, ...)
+static int blind_fprintf(FILE *stream __attribute__((unused)), char *format, ...)
 {
     va_list args;
 
@@ -140,7 +141,7 @@ static int blind_fprintf(FILE *stream, char *format, ...)
     return 0;
 }
 
-static void blind_print_address(bfd_vma addr, struct disassemble_info *info)
+static void blind_print_address(bfd_vma addr __attribute__((unused)), struct disassemble_info *info __attribute__((unused)))
 {
 }
 
@@ -150,7 +151,7 @@ int opdis_getopsize(const char *buf, unsigned int addr)
     fprintf_ftype save_fprintf_func;
     void *save_print_address_func;
 
-    opdis_info.buffer = (char *)buf;
+    opdis_info.buffer = (unsigned char *)buf;
     opdis_info.buffer_vma = addr;
 
     /* save current funcs */

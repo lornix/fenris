@@ -65,6 +65,8 @@
 #define MAXLEN 20
 
 #include <setjmp.h>
+#include <string.h>
+#include <stdlib.h>
 
 #ifndef UNIXWARE_COMPAT
 /* Set non-zero for broken, compatible instructions.  Set to zero for
@@ -2947,7 +2949,7 @@ print_operand_value (buf, hex, disp)
     else
     {
         if (hex)
-            sprintf (buf, "0x%02lx", (unsigned int) disp);
+            sprintf (buf, "0x%02x", (unsigned int) disp);
         else
             sprintf (buf, "%d", (int) disp);
     }
@@ -3579,13 +3581,14 @@ OP_I64 (bytemode, sizeflag)
     scratchbuf[0] = '\0';
 }
 
-    static void
+static void
 OP_sI (bytemode, sizeflag)
-    int bytemode;
-    int sizeflag;
+int bytemode;
+int sizeflag;
 {
     bfd_signed_vma op;
-    bfd_signed_vma mask = -1;
+    //FIXME: mask never used?
+    // bfd_signed_vma mask = -1;
 
     switch (bytemode)
     {
@@ -3594,7 +3597,7 @@ OP_sI (bytemode, sizeflag)
             op = *codep++;
             if ((op & 0x80) != 0)
                 op -= 0x100;
-            mask = 0xffffffff;
+            // mask = 0xffffffff;
             break;
         case v_mode:
             USED_REX (REX_MODE64);
@@ -3603,11 +3606,11 @@ OP_sI (bytemode, sizeflag)
             else if (sizeflag & DFLAG)
             {
                 op = get32s ();
-                mask = 0xffffffff;
+                // mask = 0xffffffff;
             }
             else
             {
-                mask = 0xffffffff;
+                // mask = 0xffffffff;
                 op = get16 ();
                 if ((op & 0x8000) != 0)
                     op -= 0x10000;
@@ -3616,7 +3619,7 @@ OP_sI (bytemode, sizeflag)
             break;
         case w_mode:
             op = get16 ();
-            mask = 0xffffffff;
+            // mask = 0xffffffff;
             if ((op & 0x8000) != 0)
                 op -= 0x10000;
             break;

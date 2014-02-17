@@ -90,9 +90,11 @@ CFLAGS+=-DLIBCSEG="0x2A"
 # readline-dev, libc-dev (un.h), openSSL-dev, binutils-dev (bfd.h),
 # ncurses-dev, screen
 
+.PHONY: all fingerprints install uninstall clean
+
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h build_syscallnames hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
+fenris: fenris.c fenris.h syscallnames.h hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 
 ragnarok: ragnarok.c
@@ -104,18 +106,16 @@ fprints: fprints.c
 dress: dress.c libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-aegir: aegir.c build_syscallnames libfnprints.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+aegir: aegir.c syscallnames.h libfnprints.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
-nc-aegir: nc-aegir.c build_syscallnames libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+nc-aegir: nc-aegir.c syscallnames.h libfnprints.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 # ===================== Libraries =========================
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
-
-.PHONY: fingerprints install uninstall clean gather_syscalls
 
 fingerprints:
 	@touch fnprints.dat
@@ -149,7 +149,7 @@ install: all
 	install --mode 644 $(MANFILES) $(PREFIX)/share/man/man1/
 	install --mode 755 $(PROGNAMES) $(TOOLNAMES) $(PREFIX)/bin/
 
-build_syscallnames:
+syscallnames.h:
 	@echo Creating syscallnames.h
 	@# dummy up the syscallnames.h file
 	@echo "#include <x86_64-linux-gnu/asm/unistd.h>" > syscallnames.h
@@ -177,4 +177,5 @@ clean:
 	@rm -f $(PROGNAMES)
 	@rm -f *.o *~
 	@rm -f rstree.o allocs.o libfnprints.o hooks.o
-	@rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes/i386-dis.o libdisasm/opcodes/opdis.o
+	@rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+	@rm -f syscallnames.h

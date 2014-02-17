@@ -40,12 +40,13 @@
 #include <signal.h>
 #include <dlfcn.h>
 #include <sys/socket.h>
-#include <sys/un.h>
+#include <linux/un.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -58,6 +59,47 @@
 #include "libdisasm/opcodes2/opdis.h"
 
 #include "common.h"
+
+void do_addr(char* param);
+void do_back(char* param);
+void do_break(char* param);
+void do_call(char* param);
+void do_cur(char* param);
+void do_del(char* param);
+void do_disass(char* param);
+void do_down(char* param);
+void do_dynamic(char* param);
+void do_fd(char* param);
+void do_fdmap(char* param);
+void do_fnmap(char* param);
+void do_fprint(char* param);
+void do_halt(char* param);
+void do_ibreak(char* param);
+void do_libc(char* param);
+void do_list(char* param);
+void do_memdump(char* param);
+void do_memmap(char* param);
+void do_next(char* param);
+void do_regs(char* param);
+void do_ret(char* param);
+void do_run(char* param);
+void do_rwatch(char* param);
+void do_sbreak(char* param);
+void do_setmem(char* param);
+void do_setreg(char* param);
+void do_signals(char* param);
+void do_step(char* param);
+void do_stop(char* param);
+void do_strdump(char* param);
+void do_sys(char* param);
+void do_wwatch(char* param);
+void load_module(char* param);
+void exec_cmd(char* param);
+void display_help(char* param);
+void display_help(char* param);
+void handle_quit(char* param);
+void handle_quit(char* param);
+void* send_message(int mtype,void* data,void* store);
 
 //FIXME: hardcoded?!?  more than 300+ for i386
 const char* scnames[256]= {
@@ -101,45 +143,45 @@ unsigned long long int l1, l2;
 
 // Predefined commands.
 struct aegir_cmd cmd[MAXCMD+1] = {
-    { "disass",  do_disass,      "disass [ x len ]: disassemble current eip [ or memory region ]" },
-    { "regs",    do_regs,        "display registers" },
-    { "back",    do_back,        "display call backtrace" },
-    { "cur",     do_cur,         "display last line from Fenris" },
-    { "info",    do_addr,        "info x: get info about name or address x" },
-    { "fdinfo",  do_fd,          "fdinfo x: display info about file descriptor x" },
-    { "break",   do_break,       "break x: set a breakpoint at address x" },
-    { "sbreak",  do_sbreak,      "break x: set a breakpoint on syscall x" },
-    { "ibreak",  do_ibreak,      "break x: set a breakpoint on signal x" },
-    { "rwatch",  do_rwatch,      "rwatch x y: watch memory region for reads" },
-    { "wwatch",  do_wwatch,      "wwatch x y: watch memory region for writes" },
-    { "step",    do_step,        "step [ x ]: do a single step [ or x steps ]" },
-    { "ret",     do_ret,         "ret [ x ]: continue until [ x-th ] ret" },
-    { "libc",    do_libc,        "continue to next libcall" },
-    { "sys",     do_sys,         "continue to next syscall" },
-    { "call",    do_call,        "continue to next local call" },
-    { "down",    do_down,        "continue to ret from current function" },
-    { "next",    do_next,        "continue to next line from Fenris" },
-    { "run",     do_run,         "continue to next breakpoint or watchpoint" },
-    { "dynamic", do_dynamic,     "continue to the main code (skip libc prolog)" },
-    { "stop",    do_stop,        "stop program as soon as possible" },
-    { "halt",    do_halt,        "stop program NOW" },
-    { "fprint",  do_fprint,      "fprint x: fingerprint code at address x" },
-    { "x",       do_memdump,     "x x y: display memory region as bytes" },
-    { "y",       do_strdump,     "y x: display a string under address x" },
-    { "setreg",  do_setreg,      "setreg x y: set register x to value y" },
-    { "setmem",  do_setmem,      "setmem x y: set byte at address x to value y" },
-    { "list",    do_list,        "list watchpoints and breakpoints" },
-    { "del",     do_del,         "del x: delete a watchpoint or breakpoint" },
-    { "memmap",  do_memmap,      "display process memory map" },
-    { "fdmap",   do_fdmap,       "display process file descriptor map" },
-    { "fnmap",   do_fnmap,       "list known local functions" },
-    { "signals", do_signals,     "display signal actions" },
-    { "load",    load_module,    "load x: load custom debugging module x" },
-    { "exec",    exec_cmd,       "exec x: execute shell command x" },
-    { "help",   display_help,   "display help" },
-    { "?",      display_help,   0 },
-    { "quit",   handle_quit,    "quit, exit: terminate the session" },
-    { "exit",   handle_quit,    0 }
+    { "disass",  do_disass,    "disass [ x len ]: disassemble current eip [ or memory region ]" },
+    { "regs",    do_regs,      "display registers"                                              },
+    { "back",    do_back,      "display call backtrace"                                         },
+    { "cur",     do_cur,       "display last line from Fenris"                                  },
+    { "info",    do_addr,      "info x: get info about name or address x"                       },
+    { "fdinfo",  do_fd,        "fdinfo x: display info about file descriptor x"                 },
+    { "break",   do_break,     "break x: set a breakpoint at address x"                         },
+    { "sbreak",  do_sbreak,    "break x: set a breakpoint on syscall x"                         },
+    { "ibreak",  do_ibreak,    "break x: set a breakpoint on signal x"                          },
+    { "rwatch",  do_rwatch,    "rwatch x y: watch memory region for reads"                      },
+    { "wwatch",  do_wwatch,    "wwatch x y: watch memory region for writes"                     },
+    { "step",    do_step,      "step [ x ]: do a single step [ or x steps ]"                    },
+    { "ret",     do_ret,       "ret [ x ]: continue until [ x-th ] ret"                         },
+    { "libc",    do_libc,      "continue to next libcall"                                       },
+    { "sys",     do_sys,       "continue to next syscall"                                       },
+    { "call",    do_call,      "continue to next local call"                                    },
+    { "down",    do_down,      "continue to ret from current function"                          },
+    { "next",    do_next,      "continue to next line from Fenris"                              },
+    { "run",     do_run,       "continue to next breakpoint or watchpoint"                      },
+    { "dynamic", do_dynamic,   "continue to the main code (skip libc prolog)"                   },
+    { "stop",    do_stop,      "stop program as soon as possible"                               },
+    { "halt",    do_halt,      "stop program NOW"                                               },
+    { "fprint",  do_fprint,    "fprint x: fingerprint code at address x"                        },
+    { "x",       do_memdump,   "x x y: display memory region as bytes"                          },
+    { "y",       do_strdump,   "y x: display a string under address x"                          },
+    { "setreg",  do_setreg,    "setreg x y: set register x to value y"                          },
+    { "setmem",  do_setmem,    "setmem x y: set byte at address x to value y"                   },
+    { "list",    do_list,      "list watchpoints and breakpoints"                               },
+    { "del",     do_del,       "del x: delete a watchpoint or breakpoint"                       },
+    { "memmap",  do_memmap,    "display process memory map"                                     },
+    { "fdmap",   do_fdmap,     "display process file descriptor map"                            },
+    { "fnmap",   do_fnmap,     "list known local functions"                                     },
+    { "signals", do_signals,   "display signal actions"                                         },
+    { "load",    load_module,  "load x: load custom debugging module x"                         },
+    { "exec",    exec_cmd,     "exec x: execute shell command x"                                },
+    { "help",    display_help, "display help"                                                   },
+    { "?",       display_help, 0                                                                },
+    { "quit",    handle_quit,  "quit, exit: terminate the session"                              },
+    { "exit",    handle_quit,  0                                                                }
 };
 
 #ifdef HAVE_READLINE
@@ -172,7 +214,7 @@ int read_the_line(void* arg) {
 
 int hardstopping;
 
-void ctrlc(int x) {
+void ctrlc(int x __attribute__((unused))) {
     if (stopped) {
         STDERRMSG("Use 'quit yes' (or 'q y') to quit.\n");
     } else hardstopping=1;
@@ -220,12 +262,12 @@ void register_command(char* commd,void* handler,char* help) {
 
 char last_buf[MAXFENT];
 
-void do_cur(char* param) {
+void do_cur(char* param __attribute__((unused))) {
     STDERRMSG("%s",last_buf);
 }
 
 // "help" handler
-void display_help(char* param) {
+void display_help(char* param __attribute__((unused))) {
     int q=0;
     while (cmd[q].cmd) {
         char command[512];
@@ -285,7 +327,7 @@ int aegir_fprintf(FILE *stream, char *format, ...)
 
 // "disass" handler
 void do_disass(char* param) {
-    unsigned long long int st, len;
+    long long int st, len;
     char* mem;
     unsigned int par[2];
     int retlen;
@@ -293,7 +335,7 @@ void do_disass(char* param) {
     if (!param) {
         struct user_regs_struct* x;
         x=(void*)send_message(DMSG_GETREGS,0,0);
-        st=x->eip;
+        st=x->rip;
         len=0;
     } else {
         if (strchr(param,' ')) {
@@ -333,13 +375,13 @@ void do_disass(char* param) {
     mem=send_message(DMSG_GETMEM,(char*)&par,0);
     retlen=*((unsigned int*)mem);
     if (retlen<=0) {
-        STDERRMSG("Unable to access memory at 0x%x.\n",st);
+        STDERRMSG("Unable to access memory at 0x%llx.\n",st);
         return;
     }
     opdis_disass(stderr, &mem[4], st, len>retlen ? retlen : len);
     fflush(0);
     if (retlen<len)
-        STDERRMSG("Truncated - unable to access memory past 0x%x.\n",st+retlen);
+        STDERRMSG("Truncated - unable to access memory past 0x%llx.\n",st+retlen);
 }
 
 // Describe addresses in disassembly. Called from opdis.c.
@@ -352,7 +394,7 @@ char* describe_address(unsigned int addr) {
 
 // "x" handler
 void do_memdump(char* param) {
-    unsigned int st,len;
+    int st,len;
     char* mem;
     unsigned int par[2];
     int retlen;
@@ -550,26 +592,26 @@ void do_strdump(char* param) {
 
 }
 
-void do_regs(char* param) {
+void do_regs(char* param __attribute__((unused))) {
     struct user_regs_struct* x;
     x=(void*)send_message(DMSG_GETREGS,0,0);
 
-    STDERRMSG("eax \t0x%08x\t %d\n",(int)x->eax,(int)x->eax);
-    STDERRMSG("ebx \t0x%08x\t %d\n",(int)x->ebx,(int)x->ebx);
-    STDERRMSG("ecx \t0x%08x\t %d\n",(int)x->ecx,(int)x->ecx);
-    STDERRMSG("edx \t0x%08x\t %d\n",(int)x->edx,(int)x->edx);
-    STDERRMSG("esi \t0x%08x\t %d\n",(int)x->esi,(int)x->esi);
-    STDERRMSG("edi \t0x%08x\t %d\n",(int)x->edi,(int)x->edi);
-    STDERRMSG("ebp \t0x%08x\t %d\n",(int)x->ebp,(int)x->ebp);
-    STDERRMSG("esp \t0x%08x\t %d\n",(int)x->esp,(int)x->esp);
-    STDERRMSG("eip \t0x%08x\t %d\n",(int)x->eip,(int)x->eip);
+    STDERRMSG("eax \t0x%08x\t %d\n",(int)x->rax,(int)x->rax);
+    STDERRMSG("ebx \t0x%08x\t %d\n",(int)x->rbx,(int)x->rbx);
+    STDERRMSG("ecx \t0x%08x\t %d\n",(int)x->rcx,(int)x->rcx);
+    STDERRMSG("edx \t0x%08x\t %d\n",(int)x->rdx,(int)x->rdx);
+    STDERRMSG("esi \t0x%08x\t %d\n",(int)x->rsi,(int)x->rsi);
+    STDERRMSG("edi \t0x%08x\t %d\n",(int)x->rdi,(int)x->rdi);
+    STDERRMSG("ebp \t0x%08x\t %d\n",(int)x->rbp,(int)x->rbp);
+    STDERRMSG("esp \t0x%08x\t %d\n",(int)x->rsp,(int)x->rsp);
+    STDERRMSG("eip \t0x%08x\t %d\n",(int)x->rip,(int)x->rip);
     STDERRMSG("eflags \t0x%08x\t 0%o\n",(int)x->eflags,(int)x->eflags);
-    STDERRMSG("ds \t0x%x\n",(int)x->xds);
-    STDERRMSG("es \t0x%x\n",(int)x->xes);
-    STDERRMSG("fs \t0x%x\n",(int)x->xfs);
-    STDERRMSG("gs \t0x%x\n",(int)x->xgs);
-    STDERRMSG("cs \t0x%x\n",(int)x->xes);
-    STDERRMSG("ss \t0x%x\n",(int)x->xss);
+    STDERRMSG("ds \t0x%x\n",(int)x->ds);
+    STDERRMSG("es \t0x%x\n",(int)x->es);
+    STDERRMSG("fs \t0x%x\n",(int)x->fs);
+    STDERRMSG("gs \t0x%x\n",(int)x->gs);
+    STDERRMSG("cs \t0x%x\n",(int)x->es);
+    STDERRMSG("ss \t0x%x\n",(int)x->ss);
 
 }
 
@@ -594,49 +636,49 @@ void do_setreg(char* param) {
     send_message(DMSG_GETREGS,0,&x);
 
     if (!strcasecmp("eax",regname)) {
-        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.eax,val);
-        x.eax=val;
+        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rax,val);
+        x.rax=val;
     } else
 
         if (!strcasecmp("ebx",regname)) {
-            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.ebx,val);
-            x.ebx=val;
+            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rbx,val);
+            x.rbx=val;
         } else
 
             if (!strcasecmp("ecx",regname)) {
-                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.ecx,val);
-                x.ecx=val;
+                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rcx,val);
+                x.rcx=val;
             } else
 
                 if (!strcasecmp("edx",regname)) {
-                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.edx,val);
-                    x.edx=val;
+                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rdx,val);
+                    x.rdx=val;
                 } else
 
                     if (!strcasecmp("esi",regname)) {
-                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.esi,val);
-                        x.esi=val;
+                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rsi,val);
+                        x.rsi=val;
                     } else
 
                         if (!strcasecmp("edi",regname)) {
-                            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.edi,val);
-                            x.edi=val;
+                            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rdi,val);
+                            x.rdi=val;
                         } else
 
                             if (!strcasecmp("esp",regname)) {
-                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.esp,val);
-                                x.esp=val;
+                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rsp,val);
+                                x.rsp=val;
                             } else
 
                                 if (!strcasecmp("eip",regname)) {
-                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.eip,val);
+                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rip,val);
                                     STDERRMSG("Note: modifying eip is the best way to trash Fenris. Act wisely.\n");
-                                    x.eip=val;
+                                    x.rip=val;
                                 } else
 
                                     if (!strcasecmp("ebp",regname)) {
-                                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.ebp,val);
-                                        x.ebp=val;
+                                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.rbp,val);
+                                        x.rbp=val;
                                     } else
 
                                         if (!strcasecmp("eflags",regname)) {
@@ -645,33 +687,33 @@ void do_setreg(char* param) {
                                         } else
 
                                             if (!strcasecmp("ds",regname)) {
-                                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xds,val);
-                                                x.xds=val;
+                                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.ds,val);
+                                                x.ds=val;
                                             } else
 
                                                 if (!strcasecmp("es",regname)) {
-                                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xes,val);
-                                                    x.xes=val;
+                                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.es,val);
+                                                    x.es=val;
                                                 } else
 
                                                     if (!strcasecmp("fs",regname)) {
-                                                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xfs,val);
-                                                        x.xfs=val;
+                                                        STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.fs,val);
+                                                        x.fs=val;
                                                     } else
 
                                                         if (!strcasecmp("gs",regname)) {
-                                                            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xgs,val);
-                                                            x.xgs=val;
+                                                            STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.gs,val);
+                                                            x.gs=val;
                                                         } else
 
                                                             if (!strcasecmp("cs",regname)) {
-                                                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xcs,val);
-                                                                x.xcs=val;
+                                                                STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.cs,val);
+                                                                x.cs=val;
                                                             } else
 
                                                                 if (!strcasecmp("ss",regname)) {
-                                                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.xss,val);
-                                                                    x.xss=val;
+                                                                    STDERRMSG("Changing %s from 0x%x to 0x%x...\n",regname,(int)x.ss,val);
+                                                                    x.ss=val;
                                                                 } else {
                                                                     STDERRMSG("Unknown register '%s'.\n",regname);
                                                                     return;
@@ -682,7 +724,7 @@ void do_setreg(char* param) {
 
 }
 
-void do_back(char* param) {
+void do_back(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_GETBACK,0,0);
     STDERRMSG("%s",x);
@@ -870,7 +912,7 @@ void do_step(char* param) {
     STDERRMSG("%s",x);
 }
 
-void do_dynamic(char* param) {
+void do_dynamic(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_DYNAMIC,0,0);
     STDERRMSG("%s",x);
@@ -896,85 +938,85 @@ void do_del(char* param) {
     STDERRMSG("%s",x);
 }
 
-void do_libc(char* param) {
+void do_libc(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLIBCALL,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_sys(char* param) {
+void do_sys(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOSYSCALL,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_signals(char* param) {
+void do_signals(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_SIGNALS,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_call(char* param) {
+void do_call(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLOCALCALL,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_down(char* param) {
+void do_down(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TOLOWERNEST,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_list(char* param) {
+void do_list(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_LISTBREAK,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_fdmap(char* param) {
+void do_fdmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_FDMAP,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_memmap(char* param) {
+void do_memmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_GETMAP,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_fnmap(char* param) {
+void do_fnmap(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_FNLIST,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_run(char* param) {
+void do_run(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_RUN,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_stop(char* param) {
+void do_stop(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_STOP,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_halt(char* param) {
+void do_halt(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_HALT,0,0);
     STDERRMSG("%s",x);
 }
 
-void do_next(char* param) {
+void do_next(char* param __attribute__((unused))) {
     char* x;
     x=(void*)send_message(DMSG_TONEXT,0,0);
     STDERRMSG("%s",x);
 }
 
-unsigned int sd;
+int sd;
 
 void connect_to_fenris(char* where) {
     struct sockaddr_un sun;
@@ -1254,7 +1296,7 @@ void wait_for_stopped(void) {
     } while (!stopped);
 }
 
-void donothing(int x) {
+void donothing(int x __attribute__((unused))) {
 }
 
 void usage(char *name) {
