@@ -934,7 +934,7 @@ void break_messenger(void)
                     return;
                 }
 
-                gotsig = fnprint_compute(sig, CODESEG);
+                gotsig = fnprint_compute(sig);
 
                 {
 

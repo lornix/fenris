@@ -59,7 +59,7 @@
 
 char *lookfor=".text";
 char *tofile;
-int found;
+int fnprint_found;
 int total;
 
 struct symt {
@@ -72,8 +72,6 @@ unsigned int symtop;
 
 void copier(char *src,char *dst,char *secname)
 {
-    // FIXME: another oddness with bfd
-    // // struct sec* s;
     struct bfd_section *s;
     bfd *ibfd,*obfd;
     void *acopy;
@@ -84,7 +82,7 @@ void copier(char *src,char *dst,char *secname)
     if (!strcmp(src,dst)) {
         FATALEXIT("source and destination file can't be the same");
     }
-    STDERRMSG("[*] Writing new ELF file:\n");
+    printf("[*] Writing new ELF file:\n");
     ibfd=bfd_openr(src,0);
     if (!ibfd) {
         FATALEXIT("bfd_openr() on source file");
@@ -96,20 +94,18 @@ void copier(char *src,char *dst,char *secname)
     if (!bfd_check_format_matches(ibfd,bfd_object,0)) {
         FATALEXIT("input ELF format problem");
     }
-    STDERRMSG("[+] Cloning general ELF data...\n");
+    printf("[+] Cloning general ELF data...\n");
     bfd_set_format(obfd,bfd_get_format(ibfd));
     bfd_set_start_address(obfd,bfd_get_start_address(ibfd));
     bfd_set_file_flags(obfd,(bfd_get_file_flags(ibfd) & bfd_applicable_file_flags(obfd)));
     bfd_set_arch_mach(obfd,bfd_get_arch(ibfd),bfd_get_mach(ibfd));
     s=ibfd->sections;
-    STDERRMSG("[+] Setting up sections: ");
+    printf("[+] Setting up sections: ");
     while (s) {
-        // FIXME: bfd name oddness?
-        // struct sec* os;
         struct bfd_section *os;
         os=bfd_make_section_anyway(obfd,bfd_section_name(ibfd,s));
         if (s->name[0]=='.')
-            STDERRMSG("%s ",bfd_section_name(ibfd,s));
+            printf("%s ",bfd_section_name(ibfd,s));
         if (!os)
             FATALEXIT("can't create new section");
         bfd_set_section_size(obfd,os,bfd_section_size(ibfd,s));
@@ -121,9 +117,9 @@ void copier(char *src,char *dst,char *secname)
         bfd_copy_private_section_data(ibfd,s,obfd,os);
         s=s->next;
     }
-    STDERRMSG("\n");
+    printf("\n");
     s=ibfd->sections;
-    STDERRMSG("[+] Preparing new symbol tables...\n");
+    printf("[+] Preparing new symbol tables...\n");
     for (i=0; i<symtop; ++i) {
         news=bfd_make_empty_symbol(obfd);
         news->name=sym[i].name;
@@ -149,13 +145,12 @@ void copier(char *src,char *dst,char *secname)
         if (!bfd_set_symtab(obfd,acopy,symtop))
             FATALEXIT("bfd_set_symtab failed");
     }
-    STDERRMSG("[+] Copying all sections: ");
+    printf("[+] Copying all sections: ");
     while (s) {
         int siz;
-        if (s->name[0]=='.')
-            STDERRMSG("%s ",s->name);
-        // FIXME: name change?
-        // siz=bfd_get_section_size_before_reloc(s);
+        if (s->name[0]=='.') {
+            printf("%s ",s->name);
+        }
         siz=bfd_get_section_size(s);
         if (siz>=0) {
             if (bfd_get_section_flags(ibfd,s)&SEC_HAS_CONTENTS) {
@@ -182,10 +177,9 @@ void copier(char *src,char *dst,char *secname)
 
 void add_signature(int addr,char *name)
 {
-    const int MAXBUF=10000;
-    char buf[MAXBUF+1];
+    char buf[10000+1];
     if (symtop>0 && sym[symtop-1].addr==(unsigned int)addr) {
-        snprintf(buf,MAXBUF,"%s / %s",sym[symtop-1].name,name);
+        snprintf(buf,sizeof(buf)-1,"%s / %s",sym[symtop-1].name,name);
         free(sym[symtop-1].name);
         sym[symtop-1].name=strdup(buf);
     } else {
@@ -201,7 +195,7 @@ void add_signature(int addr,char *name)
 
 unsigned char *code;
 unsigned int calls[MAXCALLS];
-unsigned int ctop;
+unsigned int ctop=0;
 
 void found_fnprint_file(int count __attribute__ ((unused)),
         struct fenris_fndb *cur,
@@ -227,7 +221,7 @@ void finish_fnprint(int count,
         int unused __attribute__ ((unused)))
 {
     if (count) {
-        found++;
+        fnprint_found++;
         printf("\n");
     }
 }
@@ -236,21 +230,23 @@ void finish_fnprint_file(int count,
         unsigned int fprint __attribute__ ((unused)),
         int unused __attribute__ ((unused)))
 {
-    if (count)
-        found++;
+    if (count) {
+        fnprint_found++;
+    }
 }
 
 int main(int argc,char *argv[])
 {
     bfd *b;
     char opt;
-    // FIXME: struct type mis-match?
-    // struct sec* ss;
     struct bfd_section *ss;
     int fi;
     unsigned int i;
+
     bfd_init();
+
     STDERRMSG("dress - stripped binary recovery tool by <lcamtuf@coredump.cx>\n");
+
     while ((opt=getopt(argc,(void *)argv,"s:f:"))!=EOF) {
         switch (opt) {
             case 'f':
@@ -272,30 +268,29 @@ int main(int argc,char *argv[])
     if ((argc-optind)==2) {
         tofile=argv[optind+1];
     }
-    /* will be non-zero if we've already loaded something with -f xxx */
-    if (!fnprints_count()) {
-        if (load_fnbase(FN_DBASE)==-1) {
-            STDERRMSG("* WARNING: cannot load '%s' fingerprints database.\n",FN_DBASE);
-        }
-        if (!fnprints_count()) {
-            FATALEXIT("couldn't load any fingerprints (try -f)");
-        }
+
+    if (load_fnbase(FN_DBASE)==-1) {
+        STDERRMSG("* WARNING: cannot load '%s' fingerprints database.\n",FN_DBASE);
     }
-    STDERRMSG("filename: %s\n",argv[optind]);
+    if (!fnprints_count()) {
+        FATALEXIT("couldn't load any fingerprints (try -f)");
+    }
+
     b=bfd_openr(argv[optind],0);
     if (!b) {
         perror(argv[optind]);
         exit(1);
     }
+
     bfd_check_format(b,bfd_archive);
     if (!bfd_check_format_matches(b,bfd_object,0)) {
         FATALEXIT("ELF format mismatch");
     }
-    if ((bfd_get_file_flags(b)&HAS_SYMS)!=0) {
-        FATALEXIT("not a stripped binary.");
-        exit(1);
-    }
-    // FIXME: strange, did this work before?
+
+    // if ((bfd_get_file_flags(b)&HAS_SYMS)!=0) {
+    //     FATALEXIT("not a stripped binary.");
+    // }
+
     ss=b->sections;
     while (ss) {
         if ((!ss->name)||(!strcmp(ss->name,lookfor))) {
@@ -306,50 +301,48 @@ int main(int argc,char *argv[])
             FATALEXIT("cannot find code section (try -S).");
         }
     }
-    STDERRMSG("[+] Loaded %d fingerprints...\n",fnprints_count());
-    STDERRMSG("[*] Code section at 0x%08x - 0x%08x, offset %d in the file.\n",(int)ss->vma,
-            // FIXME: did this name change in 10 years?
-            // (int)(bfd_get_start_address(b)+ss->_raw_size),
-            (int)(bfd_get_start_address(b)+ss->rawsize),(int)ss->filepos);
-    STDERRMSG("[*] For your initial breakpoint, use *0x%x\n",(int)ss->vma);
+
+    printf("[+] Loaded %d fingerprints...\n",fnprints_count());
+    printf("[*] Code section at 0x%08x-0x%08x, offset %d (0x%x) in file.\n",
+            (int)ss->vma,
+            (int)(bfd_get_start_address(b)+ss->size),
+            (int)ss->filepos,
+            (int)ss->filepos);
+    printf("[*] For your initial breakpoint, use *0x%x\n",(int)ss->vma);
+
     fi=open(argv[optind],O_RDONLY);
     if (!fi) {
         FATALEXIT("cannot open input file");
     }
-    // FIXME: did this name change in 10 years?
-    // if (!(code=malloc(ss->_raw_size+5))) FATALEXIT("malloc failed");
-    if (!(code=malloc(ss->rawsize+5))) {
+    code=malloc(ss->size+5);
+    if (!code) {
         FATALEXIT("malloc failed");
     }
     lseek(fi,ss->filepos,SEEK_SET);
-    // FIXME: did this name change in 10 years?
-    // if (read(fi,code,ss->_raw_size)!=ss->_raw_size) FATALEXIT("read failed");
-    if ((unsigned long int)read(fi,code,ss->rawsize)!=ss->rawsize) {
+    if ((unsigned long int)read(fi,code,ss->size)!=ss->size) {
         FATALEXIT("read failed");
     }
     close(fi);
-    STDERRMSG("[+] Locating CALLs... ");
+
+    printf("[+] Locating CALLs... ");
     // This will catch many false positives, but who cares? (I do!)
-    // FIXME: did this name change in 10 years?
-    // for (i=0;i<ss->_raw_size-5;i++) {
-    for (i=0; i<(ss->rawsize-5); ++i) {
+    for (i=0; i<(ss->size-5); ++i) {
         if (code[i]==0xe8) {
             unsigned int a;
             unsigned int daddr;
-            int got=0;
-            int *off=(int*)&code[i+1];
-            daddr=i+(*off)+5;
-            // FIXME: did this name change in 10 years?
-            // if (daddr > ss->_raw_size) continue; // Nah, stupid.
-            if (daddr>ss->rawsize) {
-                continue;              // Nah, stupid.
+            int found=0;
+            int* off=(int*)&code[i+1];
+            daddr=i+5+(*off);
+            if (ss->size<daddr) {
+                continue; /* way out of bounds */
             }
-            for (a=0; a<ctop; a++)
+            for (a=0; a<ctop; ++a) {
                 if (calls[a]==daddr) {
-                    got=1;
+                    found=1;
                     break;
-                }                      // Dupe.
-            if (!got) {
+                }
+            }
+            if (!found) {
                 calls[ctop]=daddr;
                 ctop++;
                 if (ctop>=MAXCALLS) {
@@ -358,26 +351,27 @@ int main(int argc,char *argv[])
             }
         }
     }
-    STDERRMSG("%d found.\n",ctop);
+    printf("%d found.\n",ctop);
     // For every call, calculate a signature, compare.
-    STDERRMSG("[+] Matching fingerprints...\n");
+    printf("[+] Matching fingerprints...\n");
     for (i=0; i<ctop; ++i) {
         unsigned int r;
-        unsigned char buf[SIGNATSIZE + 4];
+        unsigned char buf[SIGNATSIZE+4];
         memcpy(buf,&code[calls[i]],SIGNATSIZE);
-        r=fnprint_compute(buf,(((unsigned long int)calls) >> 24));
+        r=fnprint_compute(buf);
+        /* printf("%3d) %08X\n",i,r); */
         if (tofile) {
-            find_fnprints(r,found_fnprint_file,finish_fnprint_file,calls[i]);
-        }
-        else {
-            find_fnprints(r,found_fnprint,finish_fnprint,calls[i]+ss->vma);
+            find_fnprints(r,found_fnprint_file,finish_fnprint_file,calls[i]+ss->vma);
+        } else {
+            find_fnprints(r,found_fnprint,     finish_fnprint,     calls[i]+ss->vma);
         }
         total++;
     }
     bfd_close(b);
-    if (tofile && found) {
+    if (tofile && fnprint_found) {
         copier(argv[optind],tofile,lookfor);
     }
-    STDERRMSG("[+] All set. Detected fingerprints for %d of %d functions.\n",found,total);
+    printf("[+] %s: Detected fingerprints for %d of %d functions.\n",argv[optind],fnprint_found,total);
+    fflush(stdout);
     return 0;
 }

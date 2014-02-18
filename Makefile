@@ -87,26 +87,38 @@ CFLAGS+=-DLIBCSEG="0x2A"
 # readline-dev, libc-dev (un.h), openSSL-dev, binutils-dev (bfd.h),
 # ncurses-dev, screen
 
-.PHONY: all fingerprints install uninstall clean
+.PHONY: all fingerprints install uninstall clean realclean
 
 all: $(PROGNAMES)
 
-fenris: fenris.c fenris.h config.h ioctls.h libdisasm/libdis.h fdebug.h hooks.h allocs.h libfnprints.h syscallnames.h hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
+fenris.o: fenris.c fenris.h config.h ioctls.h libdisasm/libdis.h fdebug.h hooks.h allocs.h libfnprints.h syscallnames.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+fenris: fenris.o hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) hooks.o allocs.o rstree.o libfnprints.o libdisasm/libdis.o libdisasm/i386.o
 
-ragnarok: ragnarok.c config.h html.h
+ragnarok.o: ragnarok.c config.h html.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+ragnarok: ragnarok.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-fprints: fprints.c config.h libfnprints.h libfnprints.o
+fprints.o: fprints.c config.h libfnprints.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+fprints: fprints.o libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-dress: dress.c config.h libfnprints.h libfnprints.o
+dress.o: dress.c config.h libfnprints.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+dress: dress.o libfnprints.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libfnprints.o
 
-aegir: aegir.c config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+aegir.o: aegir.c config.h fdebug.h syscallnames.h libdisasm/opcodes2/opdis.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+aegir: aegir.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
-nc-aegir: nc-aegir.c config.h fdebug.h rstree.h syscallnames.h libdisasm/opcodes2/opdis.h rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
+nc-aegir.o: nc-aegir.c config.h fdebug.h rstree.h syscallnames.h libdisasm/opcodes2/opdis.h
+	$(CC) -c $(CFLAGS) -o $@ $<
+nc-aegir: nc-aegir.o rstree.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -lncurses -o $@ $< rstree.o libdisasm/opcodes2/opdis.o libdisasm/opcodes2/i386-dis.o
 
 # ===================== Libraries =========================
@@ -128,7 +140,7 @@ libdisasm/opcodes2/i386-dis.o: libdisasm/opcodes2/i386-dis.c libdisasm/opcodes2/
 libdisasm/opcodes2/opdis.o: libdisasm/opcodes2/opdis.c libdisasm/opcodes2/dis-asm.h libdisasm/opcodes2/bfd.h libdisasm/opcodes2/opdis.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-fingerprints:
+fingerprints: fprints
 	@if [ ! -f fnprints.dat ]; then touch fnprints.dat; fi
 	@echo "[*] Updating libc fingerprint database (this will take a while)..."
 	@./getfprints --quiet --force
@@ -188,8 +200,14 @@ uninstall:
 	@rm -f $(addsuffix .1, $(addprefix $(PREFIX)/share/man/man1/, $(PROGNAMES) $(TOOLNAMES)))
 
 clean:
+	@echo Removing object files, programs
 	@rm -f $(PROGNAMES)
 	@rm -f *.o *~
 	@rm -f rstree.o allocs.o libfnprints.o hooks.o
 	@rm -f libdisasm/i386.o libdisasm/libdis.o libdisasm/opcodes2/i386-dis.o libdisasm/opcodes2/opdis.o
 	@rm -f syscallnames.h
+
+realclean: clean
+	@echo Removing fingerprint data
+	@rm -f fnprints.dat fnprints.new
+

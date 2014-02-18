@@ -82,6 +82,6 @@ int load_fnbase(const char *x);
 /* return the number of loaded fingerprints */
 int fnprints_count();
 
-unsigned long fnprint_compute(unsigned char *sig, int codeseg);
+unsigned long fnprint_compute(unsigned char *sig);
 
 #endif /* not _HAVE_LIBFNPRINTS_H */

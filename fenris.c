@@ -6410,7 +6410,7 @@ void handle_fncall(const char how)
             AS_UINT(sig[i * 4]) = ptrace(PTRACE_PEEKDATA, pid, caddr + i * 4, 0);
 
         indent(-1);
-        find_fnprints(fnprint_compute(sig, CODESEG), found_fnprint, finish_fnprint, 0);
+        find_fnprints(fnprint_compute(sig), found_fnprint, finish_fnprint, 0);
 
     }
 
@@ -6533,10 +6533,6 @@ void handle_ret(void)
         if (INLIBC(retto))
             return;
     }
-    // else {
-    // if (((retto >> 24) == LIBCSEG)) debug("Return into libc at
-    // 0x%x!!!\n",retto);
-    // }
 
     if (current->atret) {
         if (!(--current->atret)) {
@@ -8005,7 +8001,8 @@ void addr_check(void)
               "* In first case, all you have to do is to recompile me.   *\n"
               "* In second case, I'm afraid I can't work with dynamic   *\n"
               "* applications. I'm terribly sorry.                       *\n"
-              "***********************************************************\n", LIBCSEG, y);
+              "***********************************************************\n",
+              LIBCSEG, y);
         fatal("libc mapping problems", -1);
     }
 #ifdef NOPROLOG

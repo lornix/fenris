@@ -116,11 +116,10 @@ int fnprints_count()
 }
 
 /* compute fingerprint for bytes given in sig
- * codeseg is the code segment used to detect relocations
- * sig has to be at last SIGNATSIZE+4 bytes long
+ * sig has to be at least SIGNATSIZE+4 bytes long
  */
 
-unsigned long fnprint_compute(unsigned char *sig,int codeseg)
+unsigned long fnprint_compute(unsigned char *sig)
 {
     unsigned int result[4];
     MD5_CTX kuku;
@@ -135,16 +134,9 @@ unsigned long fnprint_compute(unsigned char *sig,int codeseg)
         }
     }
 
-    // I suck. TODO: parse relocs in signatures. For now,
-    // just carefully exterminate anything interesting ;)
-    for (i=0; i<SIGNATSIZE; ++i) {
-        //FIXME: rather dangerous, could kill good info
-        if (sig[i]==codeseg) {
-            bzero(&sig[i-3],4);
-        }
-    }
+    // FIXME: TODO: parse relocs in signatures.
 
-    //FIXME: still somewhat dangerous, no instr boundries given
+    // FIXME: still somewhat dangerous, no instr boundries given
     for (i=0; i<SIGNATSIZE; ++i) {
         if (sig[i]==0xe8) {
             bzero(&sig[i+1],4);

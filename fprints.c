@@ -49,10 +49,6 @@ void usage(const char *program_name)
     exit(1);
 }
 
-/*
- * #define CODESEG (((unsigned int)buf) >> 24)
- */
-
 int main(int argc, char *argv[])
 {
     int i, f, size, symcnt, off;
@@ -62,8 +58,7 @@ int main(int argc, char *argv[])
     int strip_names = 0;
     bfd *b;
     asymbol **syms;
-    const int BUFSIZE = SIGNATSIZE + 4;
-    unsigned char buf[BUFSIZE];
+    unsigned char buf[SIGNATSIZE+4];
     char *nameptr;
 
     const char *short_options = "fsh";
@@ -130,14 +125,15 @@ int main(int argc, char *argv[])
                 f = open(argv[optind - 1], O_RDONLY);
                 lseek(f, off, SEEK_SET);
                 num_funcs++;
-                bzero(buf, BUFSIZE);
                 read(f, buf, SIGNATSIZE);
-                fingerprint = fnprint_compute(buf, ((long int)buf >> 24));
+                fingerprint = fnprint_compute(buf);
                 close(f);
 
                 // Ignore only NOPs
                 if (fingerprint != 0xA120AD5C) {
                     printf("[%s+%d] %s %08X\n", argv[optind - 1], off, nameptr, fingerprint);
+                } else {
+                    printf("\n");
                 }
             }
         }
