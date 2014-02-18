@@ -1,14 +1,22 @@
-fufkcja(char* b2) {
+#include <stdio.h>
+
+void fufkcja(char* b2)
+{
     char buf[10];
     buf[2]=12;
     b2[2]=34;
-    printf("l0 %x l-1 %x\n",buf,b2);
+    printf("l0 %lx l-1 %lx\n",(unsigned long int)buf,(unsigned long int)b2);
 }
 
-fuf() {
+void fuf()
+{
     char buf[10];
     buf[1]=1;
     fufkcja(buf);
 }
 
-main() { fuf(); }
+int main()
+{
+    fuf();
+    return 0;
+}

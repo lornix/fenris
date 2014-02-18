@@ -1,9 +1,13 @@
+#include <stdio.h>
+
 // Test pointer-follow function calls detection.
 
-innafunkcja() {printf("dupa\n"); }
+void innafunkcja() { printf("dupa\n"); }
 
-main() {
-    int (*fn)();
+int main()
+{
+    void (*fn)();
     fn=innafunkcja;
     fn();
+    return 0;
 }

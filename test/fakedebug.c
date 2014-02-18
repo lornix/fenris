@@ -2,22 +2,25 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/fcntl.h>
 #include <sys/time.h>
 #include <string.h>
 #include <signal.h>
 #include <dlfcn.h>
 #include <sys/socket.h>
-#include <sys/un.h>
+#include <linux/un.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <errno.h>
 
 #include "../fdebug.h"
+#include "../config.h"
 
-unsigned int sd;
+int sd;
 
-void flisten(char* where) {
+void flisten(char* where)
+{
     struct sockaddr_un sun;
 
     STDERRMSG("[+] Setting up a socket...\n");
@@ -42,10 +45,10 @@ void flisten(char* where) {
     sd=accept(sd,0,0);
 
     STDERRMSG("[+] Connection accepted!\n");
-
 }
 
-char* send_message(int mtype,char* data,int dlen) {
+void send_message(int mtype,char* data,int dlen)
+{
     struct dmsg_header x;
 
     x.magic1=DMSG_MAGIC1;
@@ -53,13 +56,14 @@ char* send_message(int mtype,char* data,int dlen) {
     x.type=mtype;
     x.code_running=1;
     write(sd,&x,sizeof(x));
-    if (dlen) write(sd,data,dlen);
-
+    if (dlen) {
+        write(sd,data,dlen);
+    }
     STDERRMSG("[+] Sent message %d with %d bytes of payload.\n",mtype,dlen);
-
 }
 
-void check_messages(void) {
+void check_messages(void)
+{
     char buf[100000];
     struct dmsg_header x;
     int dlen;
@@ -76,43 +80,55 @@ void check_messages(void) {
     fcntl(sd,F_SETFL,O_SYNC);
 
     switch (x.type) {
-        case DMSG_GETREGS: case DMSG_GETMAP:    case DMSG_FDMAP:
-        case DMSG_SIGNALS: case DMSG_TOLIBCALL: case DMSG_TOSYSCALL:
-        case DMSG_TOLOCALCALL: case DMSG_TOLOWERNEST: case DMSG_GETBACK:
-        case DMSG_RUN: case DMSG_TONEXT: case DMSG_STOP:
-        case DMSG_LISTBREAK: case DMSG_KILL:
-        case DMSG_FOO: dlen=0; break;
+        case DMSG_GETREGS:
+        case DMSG_GETMAP:
+        case DMSG_FDMAP:
+        case DMSG_SIGNALS:
+        case DMSG_TOLIBCALL:
+        case DMSG_TOSYSCALL:
+        case DMSG_TOLOCALCALL:
+        case DMSG_TOLOWERNEST:
+        case DMSG_GETBACK:
+        case DMSG_RUN:
+        case DMSG_TONEXT:
+        case DMSG_STOP:
+        case DMSG_LISTBREAK:
+        case DMSG_KILL:
+        case DMSG_FOO:
+            dlen=0;
+            break;
         default:
-                       dlen=read(sd,buf,sizeof(buf));
+            dlen=read(sd,buf,sizeof(buf));
     }
     STDERRMSG("[+] Received message %d with %d bytes of payload.\n",x.type,dlen);
 
     if (x.type == 5) {
-        struct signed_ user_regs_struct x;
-        x.eip=0x12345678;
+        struct signed_user_regs_struct x;
+        x.rip=0x12345678;
         send_message(DMSG_REPLY,(char*)&x,sizeof(x));
-    } else if (x.type == 2) {
-        char buf[1000];
-        int* q;
+    } else {
+        if (x.type == 2) {
+            char buf[1000];
+            int* q;
 
-        memcpy(buf+4,check_messages,sizeof(buf)-4);
-        q=(int*)buf;
-        *q=900;
-        send_message(DMSG_REPLY,buf,904);
+            memcpy(buf+4,check_messages,sizeof(buf)-4);
+            q=(int*)buf;
+            *q=900;
+            send_message(DMSG_REPLY,buf,904);
 #define XXX "So, trying memory reads?\n"
-        send_message(DMSG_ASYNC,XXX,strlen(XXX)+1);
-
-
-    } else if (x.type == 3) {
-        char bufx[1000];
-        sprintf(bufx,"foobar+%d",*(int*)buf);
-        send_message(DMSG_REPLY,bufx,strlen(bufx)+1);
+            send_message(DMSG_ASYNC,XXX,strlen(XXX)+1);
+        } else {
+            if (x.type == 3) {
+                char bufx[1000];
+                sprintf(bufx,"foobar+%d",*(int*)buf);
+                send_message(DMSG_REPLY,bufx,strlen(bufx)+1);
+            }
+        }
     }
-
-
 }
 
-main() {
+int main()
+{
     char* f;
     unlink("/tmp/ftest");
     flisten("/tmp/ftest");
@@ -127,6 +143,6 @@ main() {
         //    usleep(1000000);
         //  f="\nHow do you do?\n";
         //  send_message(DMSG_ASYNC,f,strlen(f)+1);
-
     }
+    return 0;
 }

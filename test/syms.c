@@ -1,14 +1,18 @@
+#include <stdio.h>
+
 // Local symbols test
 
-dwa(char* x) { printf("%s\n",x); }
-trzy(void* x) { printf("%x\n",x); }
+void dwa(char*  x) { printf("%s\\n",x); }
+void trzy(void* x) { printf("%lx\\n",(unsigned long int)x); }
 
 int fiutk;
 
-main() {
+int main()
+{
     printf("Jestem.\n");
     trzy(dwa);
     dwa("malym");
     trzy(dwa);
     trzy(&fiutk);
+    return 0;
 }

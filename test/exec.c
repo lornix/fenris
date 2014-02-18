@@ -1,6 +1,10 @@
+#include <unistd.h>
+
 // Test execve() reporting.
 
-main() {
-    execl("/bin/nonexisting","nope",0);
-    execl("/bin/ls","ls",0);
+int main()
+{
+    execl("/bin/nonexisting","nope",NULL);
+    execl("/bin/ls","ls",NULL);
+    return 0;
 }

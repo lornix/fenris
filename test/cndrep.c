@@ -1,9 +1,12 @@
+#include <stdio.h>
+
 // Test conditional expression detection.
 
-main() {
+int main()
+{
     int qq=3;
     do {
         printf("test %d\n",qq);
-    } while (qq--);
-
+    } while (--qq);
+    return 0;
 }

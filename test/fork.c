@@ -1,6 +1,9 @@
+#include <unistd.h>
+
 // trivial fork tracing.
 
-main() {
+int main()
+{
     int i;
     i=fork();
     sleep(10);
@@ -8,7 +11,10 @@ main() {
     sleep(10);
     sleep(10);
     sleep(10);
-
-    //  if (!i) execl("/bin/ls","ls",0);
+    // if (!i) {
+    //     execl("/bin/ls","ls",NULL);
+    // }
+    i=i;
+    return 0;
 }
 

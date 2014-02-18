@@ -2,9 +2,26 @@
 *~
 # temporary file
 syscallnames.h
+# program files
 aegir
 dress
 fenris
 fprints
 nc-aegir
 ragnarok
+# test files
+test/Makefile
+test/anysys
+test/bufmod
+test/cndrep
+test/exec
+test/fakedebug
+test/fork
+test/memmod
+test/ptrfn
+test/sample
+test/sigs
+test/syms
+test/trivial1
+test/trivial2
+test/unprint
