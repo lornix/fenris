@@ -56,9 +56,6 @@ CFLAGS+=-g3
 # big time debugging?
 # CFLAGS+=-DHEAVY_DEBUG=1
 #
-# profiling?
-# CFLAGS+=-fno-inline -pg -DPROFILE=1 -DDEBUG=1
-#
 # basic libraries needed
 LDFLAGS+=-ldl
 LDFLAGS+=-lbfd
