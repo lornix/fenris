@@ -53,9 +53,6 @@ CFLAGS+=-g3
 # program code type debugging
 # CFLAGS+=-DDEBUG=1
 #
-# big time debugging?
-# CFLAGS+=-DHEAVY_DEBUG=1
-#
 # basic libraries needed
 LDFLAGS+=-ldl
 LDFLAGS+=-lbfd
@@ -152,12 +149,6 @@ fingerprints: fprints
 
 # debug: fenris.c fenris.h config.h ioctls.h fprints.c
 #         @./build-project debug
-
-# heavy: fenris.c fenris.h config.h ioctls.h fprints.c
-#         @./build-project heavy
-
-# prof: fenris.c fenris.h config.h ioctls.h fprints.c
-#         @./build-project prof
 
 # test: debug test/trivial1
 #         ./fenris test/trivial1

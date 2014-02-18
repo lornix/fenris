@@ -555,10 +555,6 @@ Some of more useful options:
                     debugging symbols, disables all optimizations
                     and such; not recommended for everyday use.
 
-    make heavy    - heavy debugging of calling conventions; produces
-                    tons of useless info; suitable for debugging, but
-                    works fine with dynamic binaries w/symbols only.
-
 Invoking main Fenris is pretty simple, and does not really require any
 documentation for anyone who ever used 'strace' or similar application. Called
 without any parameters, it will display short help. The main program is

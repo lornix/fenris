@@ -138,12 +138,12 @@ char T_forks, T_execs, T_nocnd, T_nosym,    // Execution options
 
 unsigned char be_silent;
 
-#ifdef HEAVY_DEBUG
+#ifdef DEBUG
 
 unsigned int oldip;
 unsigned char oldop[8];
 
-#endif /* HEAVY_DEBUG */
+#endif /* DEBUG */
 
 char nonstd;
 char is_static;
@@ -6537,9 +6537,9 @@ void handle_ret(void)
     if (current->atret) {
         if (!(--current->atret)) {
             current->nest = 0;
-#ifdef HEAVY_DEBUG
+#ifdef DEBUG
             debug("entered dynamic at 0x%x (%s)\n", (int)r.rip, lookup_fnct(r.rip, 0, 0));
-#endif /* HEAVY_DEBUG */
+#endif /* DEBUG */
         }
         return;
     }
@@ -7070,7 +7070,7 @@ void handle_process(void)
             if (CURPCNT(0) > 0)
                 CURPCNT(0) = 0;
 
-#ifdef HEAVY_DEBUG
+#ifdef DEBUG
 
     if (current->nest >= 0) {
         int diff;
@@ -7106,17 +7106,16 @@ void handle_process(void)
     oldip = r.rip;
     memcpy(oldop, op, sizeof(op));
 
-#endif /* HEAVY_DEBUG */
+#endif /* DEBUG */
 
     if (current->checka3) {
         current->checka3 = 0;
         if (!in_libc) {
-#ifdef HEAVY_DEBUG
+#ifdef DEBUG
             debug("*** FF A3 TO CODE.\n");
-#endif /* HEAVY_DEBUG */
+#endif /* DEBUG */
             // current->nest++;
-            // if (current->nest>=MAXNEST) fatal("MAXNEST exceeded in FF A3
-            // handler",0);
+            // if (current->nest>=MAXNEST) fatal("MAXNEST exceeded in FF A3 handler",0);
             // current->pst_top[current->nest]=0;
             caddr = r.rip;
             r.rsp += 4;
@@ -7129,9 +7128,9 @@ void handle_process(void)
     if (current->checkc2) {
         current->checkc2 = 0;
         if (!in_libc) {
-#ifdef HEAVY_DEBUG
+#ifdef DEBUG
             debug("** RET C2 SEGMENT CHANGE\n");
-#endif /* HEAVY_DEBUG */
+#endif /* DEBUG */
             caddr = r.rip;
             r.rsp += 4;         // Skip ret address, of course...
             handle_fncall(0);
