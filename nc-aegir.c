@@ -99,7 +99,7 @@ unsigned int Wcode_addr;
 
 /******************************************************************************/
 
-//FIXME: hardcoded?!?  more than 300+ for i386
+// FIXME:NIX hardcoded?!?  more than 300+ for i386
 const char *scnames[256] = {
     0,
 #include "syscallnames.h"
@@ -141,7 +141,7 @@ struct Wcode_info {
 
 unsigned long long int l1, l2;
 
-//FIXME: this is obsolete, no reason to limit to 32 bits
+// FIXME:NIX this is obsolete, no reason to limit to 32 bits
 /*
  * #define LC(x) { \
  *     if (x > 0xffffffff) { MSG("Value out of range.\n"); \
@@ -315,8 +315,7 @@ void *send_message(int mtype, void *data, void *store)
         prevstopped = stopped;
 
         if (x.type == DMSG_ASYNC) {
-            char *xx = get_string_sock(sd);
-            MSG("%s", xx);             //FIXME
+            MSG("%s", get_string_sock(sd));
             if (mtype == DMSG_NOMESSAGE)
                 break;
             continue;
@@ -1085,7 +1084,7 @@ void do_sbreak(char *param)
     } else {
         if (sscanf(param, "%lld", &l1) != 1) {
 
-            //FIXME: hardcoded?!?  more than 300+ for i386
+            // FIXME:NIX hardcoded?!?  more than 300+ for i386
             for (st = 0; st < 256; st++)
                 if (scnames[st])
                     if (!strcasecmp(scnames[st], param))
@@ -1472,7 +1471,8 @@ void waddstr_with_scrollback(WINDOW * w, char *str, struct w_scroll_data *wsd)
     int z;
     wattr_get(w, &attrs, &z, &z);
 
-    if (wsd->scroll) {                 // FIXME - sometimes we don't need to redraw all lines
+    // FIXME - sometimes we don't need to redraw all lines
+    if (wsd->scroll) {
         int i;
         werase(w);
         wsd->scroll = 0;
@@ -2048,7 +2048,7 @@ void Wcode_set_addr(unsigned int addr)
     par[0] = addr;
     par[1] = par[0] + WC_MAX_OPSIZE;
     mem = ((char *)(ff = send_message(DMSG_GETMEM, (char *)&par, 0))) + 4;
-    //FIXME: side effects.... sigh
+    // FIXME:NIX side effects.... sigh
     mem = mem;
 
     if (*ff > 0) {
@@ -2060,7 +2060,7 @@ void Wcode_set_addr(unsigned int addr)
     } else {
         if (!stopped && syscnum < 0) {
             werase(Wcode);
-            //FIXME: hardcoded?!?  more than 300+ for i386
+            // FIXME:NIX hardcoded?!?  more than 300+ for i386
             wprintw(Wcode, "%08x:\t<inside a blocking syscall %d [%s]>", addr, -syscnum, scnames[-syscnum & 0xff]);
             wnoutrefresh(Wcode);
         }

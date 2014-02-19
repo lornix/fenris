@@ -28,7 +28,7 @@ MANFILES=$(addprefix doc/man/, $(addsuffix .1, $(PROGNAMES) $(TOOLNAMES)))
 DOCFILES=$(addprefix doc/, ChangeLog LICENSE README TODO anti-fenris.txt be.txt debug-api.txt depends.txt fenris.asc other.txt reverse.txt roadmap.txt)
 
 VERSION=0.07-m2
-# FIXME: add git ID here, + push count?
+# FIXME:NIX add git ID here, + push count?
 BUILD=3
 
 PREFIX=/usr/local

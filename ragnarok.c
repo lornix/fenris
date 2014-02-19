@@ -48,7 +48,7 @@
 #include "html.h"
 
 #define outf(x...)      fprintf(outfile,x)
-//FIXME: this one is weird, references cline often when not set yet, replace
+// FIXME:NIX this one is weird, references cline often when not set yet, replace
 //with FATALEXIT?
 #define fatal(x)        { STDERRMSG("FATAL (line %d): %s\n",cline,x); exit(1); }
 
@@ -1358,9 +1358,7 @@ void parse_functions(void)
                         ttip[i] = '`';
                 }
             }
-            //FIXME: this was odd
-            // bzero(modtable,sizeof(modtable));
-            bzero(modtable, topfd + 1);
+            bzero(modtable,sizeof(modtable));
 
             migrated = 0;
             strcpy(tmp, x);
@@ -1586,9 +1584,7 @@ void parse_functions(void)
             char tmp[1024];
             int migrated = 0;
             char ttip[1000];
-            //FIXME: conceptual error? really?
-            // bzero(modtable,sizeof(modtable));
-            bzero(modtable, topfd + 1);
+            bzero(modtable,sizeof(modtable));
 
             strcpy(ttip, x);
             {
@@ -1606,7 +1602,6 @@ void parse_functions(void)
             }
 
             strcpy(tmp, x);
-            //FIXME: serious conceptual error.  does not work! Are there more?
             bzero(mem, sizeof(mem));
 
             while ((ox = x = my_gets())) {

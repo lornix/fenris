@@ -123,7 +123,7 @@ void copier(char *src,char *dst,char *secname)
     for (i=0; i<symtop; ++i) {
         news=bfd_make_empty_symbol(obfd);
         news->name=sym[i].name;
-        //FIXME: add flag to not ellipse?
+        // FIXME:NIX add flag to not ellipse?
         if (strlen(sym[i].name) > 60) {
             sym[i].name[57]='.';
             sym[i].name[58]='.';

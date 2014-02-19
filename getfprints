@@ -145,7 +145,7 @@ for LIB in ${LIBLIST}; do
 
     declare -i IN=0
 
-    #FIXME: this routine SHOULD operate in a child subdir so as not to
+    # FIXME:NIX this routine SHOULD operate in a child subdir so as not to
     # overwrite anything from the ar operations.
     for j in ${LIST}; do
         IN=${IN}+1

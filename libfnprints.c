@@ -136,7 +136,7 @@ unsigned long fnprint_compute(unsigned char *sig)
 
     // FIXME: TODO: parse relocs in signatures.
 
-    // FIXME: still somewhat dangerous, no instr boundries given
+    // FIXME:NIX still somewhat dangerous, no instr boundries given
     for (i=0; i<SIGNATSIZE; ++i) {
         if (sig[i]==0xe8) {
             bzero(&sig[i+1],4);

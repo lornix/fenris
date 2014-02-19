@@ -3586,7 +3586,7 @@ int bytemode;
 int sizeflag;
 {
     bfd_signed_vma op;
-    //FIXME: mask never used?
+    // FIXME:NIX mask never used?
     // bfd_signed_vma mask = -1;
 
     switch (bytemode)

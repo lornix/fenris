@@ -1,4 +1,4 @@
-/* 
+/*
    fenris - program execution path analysis tool
    ---------------------------------------------
 
@@ -16,7 +16,7 @@
    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
    more details.
 
-   You should have received a copy of the GNU General Public License along with 
+   You should have received a copy of the GNU General Public License along with
    this program; if not, write to the Free Software Foundation, Inc., 675 Mass
    Ave, Cambridge, MA 02139, USA.
 
@@ -160,7 +160,7 @@ FILE *ostream;                              // Output stream
 int innest = PRETTYSMALL;
 unsigned int STACKSEG, CODESEG;
 
-// FIXME: hardcoded?!? more than 300+ for i386
+// FIXME:NIX hardcoded?!? more than 300+ for i386
 const char *scnames[256] = {
     0,
 #include "syscallnames.h"
@@ -236,7 +236,7 @@ void fatal(const char *x, const int err)
     if (pid > 0) {
         if (current && current->syscall) {
             debug(">> This condition occurred during syscall %s (%d) in pid %d (rip %llx).\n",
-                  // FIXME: hardcoded?!? more than 300+ for i386
+                  // FIXME:NIX hardcoded?!? more than 300+ for i386
                   scnames[current->syscall & 0xff], current->syscall, pid, r.rip);
         } else {
             debug(">> This condition occurred while tracing pid %d (rip %llx).\n", pid, r.rip);
@@ -614,8 +614,8 @@ char *lookup_fnct(unsigned int c, unsigned int add, char prec)
             bfd_close(b);
             return fnm_buf;
         }
-        // FIXME: can't fail, unsigned values
-        /* 
+        // FIXME:NIX can't fail, unsigned values
+        /*
          * if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
          *     fatal("bfd_canonicalize_symtab failed",0);
          */
@@ -1259,8 +1259,8 @@ int lookup_fnname(char *name)
             bfd_close(b);
             return 0;
         }
-        // FIXME: unsigned < 0 always false
-        /* 
+        // FIXME:NIX unsigned < 0 always false
+        /*
          * if ((current->symcnt=bfd_canonicalize_symtab(b,current->syms))<0)
          *     fatal("bfd_canonicalize_symtab failed",0);
          */
@@ -2266,8 +2266,8 @@ void get_string_from_child(const unsigned int addr, char *buf, int max)
     while (b < buf + max) {
         AS_UINT(*b) = ptrace(PTRACE_PEEKDATA, pid, addr + i, 0);
 
-        // FIXME: no, really.. how does an UINT == -1?
-        /* 
+        // FIXME:NIX no, really.. how does an UINT == -1?
+        /*
          * if (AS_UINT(*b)==-1) {
          *     *b=0;
          *     return; // Lame, but what can I do? For strings, acceptable.
@@ -3108,11 +3108,11 @@ void ret_syscall(void)
     b3[0] = 0;
     buf[0] = 0;
 
-    // FIXME: hardcoded?!? more than 300+ for i386
+    // FIXME:NIX hardcoded?!? more than 300+ for i386
     if (current->idtop)
         sprintf(b2, "S %s:%s", lookup_fnct((*current->fnaddr)[current->idtop - 1], 0, 1),
                 scnames[current->syscall & 0xff]);
-    // FIXME: hardcoded?!? more than 300+ for i386
+    // FIXME:NIX hardcoded?!? more than 300+ for i386
     else
         sprintf(b2, "S main:%s", scnames[current->syscall & 0xff]);
 
@@ -3484,11 +3484,9 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT)
-            // add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
-            if (r.rax != EFAULT)
-                add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
+            if (r.rax != -EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            }
 
             break;
 
@@ -3521,11 +3519,9 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != EFAULT)
-            // add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
-            if (r.rax != EFAULT)
-                add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
+            if (r.rax != EFAULT) {
+                add_mem(current->pr.rbx,strlen(buf)+1,0,b2,0);
+            }
 
             break;
         case __NR_oldstat:
@@ -3552,9 +3548,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
                 add_mem(current->pr.rcx, sizeof(os), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, 0, 0, b3);
@@ -3577,9 +3571,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
                 add_mem(current->pr.rcx, sizeof(sf), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, 0, 0, b3);
@@ -3610,9 +3602,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
                 add_mem(current->pr.rcx, sizeof(os), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, 0, 0, b3);
@@ -3641,9 +3631,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
                 add_mem(current->pr.rcx, sizeof(st), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, 0, 0, b3);
@@ -3672,9 +3660,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rbx, strlen(buf) + 1, 0, b2, 0);
                 add_mem(current->pr.rcx, sizeof(st), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, 0, 0, b3);
@@ -3703,9 +3689,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rcx, sizeof(st), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, current->pr.rbx, 0, 0);
             }
@@ -3725,9 +3709,7 @@ void ret_syscall(void)
                 dump_pdescr(0);
 
             }
-            // FIXME: rax = unsigned long int, never <0
-            // if (r.rax != -EFAULT) {
-            if (r.rax != EFAULT) {
+            if (r.rax != -EFAULT) {
                 add_mem(current->pr.rcx, sizeof(sf), 0, b2, 0);
                 modify_lasti(current->pr.rcx, b2, current->pr.rbx, 0, 0);
             }
@@ -3826,9 +3808,7 @@ void ret_syscall(void)
                             debug("%sSYS socket (%s, %s, %d [%s]) = %s\n", in_libc ? "[L] " : "",
                                   buf, b3, (int)a[2], pro, toerror(r.rax));
 
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax>=0) {
-                        if (r.rax > 0) {
+                        if (r.rax>=0) {
                             char b4[128];
                             sprintf(b4, "<new %s:%s:%s>", buf, b3, pro);
                             add_filedes(r.rax, b4, b2, a[0] == PF_UNIX ? -1 : 0);
@@ -3845,9 +3825,7 @@ void ret_syscall(void)
                     if (AS_USHORT(b3[0]) == PF_UNIX) {
                         sprintf(buf, " [local \"%s\"]", &b3[2]);
                     } else {
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
-                        if (r.rax == EINVAL) {
+                        if (r.rax == -EINVAL)
                             strcpy(buf, " [?]");
                         } else {
                             sprintf(buf, " [%d.%d.%d.%d:%d]", b3[4], b3[5], b3[6], b3[7], b3[2] * 256 + b3[3]);
@@ -3862,14 +3840,11 @@ void ret_syscall(void)
 
                     dump_pdescr(0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax != -EINVAL) add_mem(a[1],a[2],0,b2,0);
-                    if (r.rax != EINVAL)
+                    if (r.rax != -EINVAL) {
                         add_mem(a[1], a[2], 0, b2, 0);
+                    }
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax>=0) {
-                    if (r.rax > 0) {
+                    if (r.rax>=0) {
                         if (AS_USHORT(b3[0]) == PF_UNIX) {
                             sprintf(buf, "<on local %s>", &b3[2]);
                             modify_filedes(a[0], buf, -1);
@@ -3889,12 +3864,11 @@ void ret_syscall(void)
                     if (AS_USHORT(b3[0]) == PF_UNIX) {
                         sprintf(buf, " [local \"%s\"]", &b3[2]);
                     } else {
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
-                        if (r.rax == EINVAL)
+                        if (r.rax == -EINVAL) {
                             strcpy(buf, " [?]");
-                        else
+                        } else {
                             sprintf(buf, " [%d.%d.%d.%d:%d]", b3[4], b3[5], b3[6], b3[7], b3[2] * 256 + b3[3]);
+                        }
                     }
 
                     pdescr[0] = 0;
@@ -3905,15 +3879,10 @@ void ret_syscall(void)
 
                     dump_pdescr(0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if ((r.rax != -EINVAL) && (a[2]>0))
-                    // add_mem(a[1],a[2],0,b2,0);
-                    if ((r.rax != EINVAL) && (a[2] > 0))
+                    if ((r.rax != -EINVAL) && (a[2]>0))
                         add_mem(a[1], a[2], 0, b2, 0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax>=0) {
-                    if (r.rax > 0) {
+                    if (r.rax>=0) {
                         if (AS_USHORT(b3[0]) == PF_UNIX) {
                             sprintf(buf, "<to local %s>", &b3[2]);
                             modify_filedes(a[0], buf, -1);
@@ -3946,12 +3915,11 @@ void ret_syscall(void)
                         if (AS_USHORT(b3[0]) == PF_UNIX) {
                             sprintf(buf, " [local \"%s\"]", &b3[2]);
                         } else {
-                            // FIXME: rax = unsigned long int, never <0
-                            // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
-                            if (r.rax == EINVAL)
+                            if (r.rax == -EINVAL) {
                                 strcpy(buf, " [?]");
-                            else
+                            } else {
                                 sprintf(buf, " [%d.%d.%d.%d:%d]", b3[4], b3[5], b3[6], b3[7], b3[2] * 256 + b3[3]);
+                            }
                         }
                     }
 
@@ -3960,24 +3928,19 @@ void ret_syscall(void)
                     if (current->nest >= 0) {
                         if (!a[1]) {
                             debug("%sSYS accept (%d, %x, %x) = %s\n", in_libc ? "[L] " : "",
-                                  Xf(a[0]), Xv(a[1]), Xv(a[2]), toerror(r.rax));
-                            // FIXME: rax = unsigned long int, never <0
-                            // } else if (r.rax>=0) {
-                        } else if (r.rax > 0) {
+                                    Xf(a[0]), Xv(a[1]), Xv(a[2]), toerror(r.rax));
+                        } else if (r.rax>=0) {
                             debug("%sSYS accept (%d, %x%s, %x [%d]) = %s\n", in_libc ? "[L] " : "",
-                                  Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), ah, toerror(r.rax));
+                                    Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), ah, toerror(r.rax));
                         } else {
                             debug("%sSYS accept (%d, %x%s, %x) = %s\n", in_libc ? "[L] " : "",
-                                  Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), toerror(r.rax));
+                                    Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), toerror(r.rax));
                         }
                     }
 
                     dump_pdescr(0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax >= 0) {
-                    if (r.rax > 0) {
-
+                    if (r.rax >= 0) {
                         if (a[1]) {
                             add_mem(a[1], ah, 0, b2, 0);
                             add_mem(a[2], 4, 0, b2, 0);
@@ -4015,12 +3978,11 @@ void ret_syscall(void)
                     if (AS_USHORT(b3[0]) == PF_UNIX) {
                         sprintf(buf, " [local \"%s\"]", &b3[2]);
                     } else {
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
-                        if (r.rax == EINVAL)
+                        if (r.rax == -EINVAL) {
                             strcpy(buf, " [?]");
-                        else
+                        } else {
                             sprintf(buf, " [%d.%d.%d.%d:%d]", b3[4], b3[5], b3[6], b3[7], b3[2] * 256 + b3[3]);
+                        }
                     }
 
                     pdescr[0] = 0;
@@ -4028,12 +3990,10 @@ void ret_syscall(void)
                     if (current->nest >= 0) {
                         if (!a[1]) {
                             debug("%sSYS getsockname (%d, %x, %x) = %s\n", in_libc ? "[L] " : "",
-                                  Xf(a[0]), Xv(a[1]), Xv(a[2]), toerror(r.rax));
-                            // FIXME: rax = unsigned long int, never <0
-                            // } else if (r.rax>=0) {
-                        } else if (r.rax > 0) {
+                                    Xf(a[0]), Xv(a[1]), Xv(a[2]), toerror(r.rax));
+                        } else if (r.rax>=0) {
                             debug("%sSYS getsockname (%d, %x%s, %x [%d]) = %s\n", in_libc ? "[L] " : "",
-                                  Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), ah, toerror(r.rax));
+                                    Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), ah, toerror(r.rax));
                         } else {
                             debug("%sSYS getsockname (%d, %x%s, %x) = %s\n", in_libc ? "[L] " : "",
                                   Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), toerror(r.rax));
@@ -4042,10 +4002,7 @@ void ret_syscall(void)
 
                     dump_pdescr(0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax >= 0) {
-                    if (r.rax > 0) {
-
+                    if (r.rax >= 0) {
                         add_mem(a[1], ah, 0, b2, 0);
                         add_mem(a[2], 4, 0, b2, 0);
                         modify_lasti(a[1], b2, a[0], 0, 0);
@@ -4063,12 +4020,11 @@ void ret_syscall(void)
                     if (AS_USHORT(b3[0]) == PF_UNIX) {
                         sprintf(buf, " [local \"%s\"]", &b3[2]);
                     } else {
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax == -EINVAL) strcpy(buf," [?]"); else
-                        if (r.rax == EINVAL)
+                        if (r.rax == -EINVAL) {
                             strcpy(buf, " [?]");
-                        else
+                        } else {
                             sprintf(buf, " [%d.%d.%d.%d:%d]", b3[4], b3[5], b3[6], b3[7], b3[2] * 256 + b3[3]);
+                        }
                     }
 
                     pdescr[0] = 0;
@@ -4077,9 +4033,7 @@ void ret_syscall(void)
                         if (!a[1]) {
                             debug("%sSYS getpeername (%d, %x, %x) = %s\n", in_libc ? "[L] " : "",
                                   Xf(a[0]), Xv(a[1]), Xv(a[2]), toerror(r.rax));
-                            // FIXME: rax = unsigned long int, never <0
-                            // } else if (r.rax>=0) {
-                        } else if (r.rax > 0) {
+                        } else if (r.rax>=0) {
                             debug("%sSYS getpeername (%d, %x%s, %x [%d]) = %s\n", in_libc ? "[L] " : "",
                                   Xf(a[0]), Xv(a[1]), buf, Xv(a[2]), ah, toerror(r.rax));
                         } else {
@@ -4090,10 +4044,7 @@ void ret_syscall(void)
 
                     dump_pdescr(0);
 
-                    // FIXME: rax = unsigned long int, never <0
-                    // if (r.rax >= 0) {
-                    if (r.rax > 0) {
-
+                    if (r.rax >= 0) {
                         add_mem(a[1], ah, 0, b2, 0);
                         add_mem(a[2], 4, 0, b2, 0);
                         modify_lasti(a[1], b2, a[0], 0, 0);
@@ -4112,12 +4063,11 @@ void ret_syscall(void)
                         debug("%sSYS send (%d, %x", in_libc ? "[L] " : "", Xf(a[0]), Xv(a[1]));
 
                         get_string_from_child(a[1], buf, MAXUNKNOWN);
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax<0) {
-                        // buf[0]=0;
-                        // } else {
-                        buf[r.rax > MAXUNKNOWN ? MAXUNKNOWN : r.rax] = 0;
-                        // }
+                        if (r.rax<0) {
+                            buf[0]=0;
+                        } else {
+                            buf[r.rax > MAXUNKNOWN ? MAXUNKNOWN : r.rax] = 0;
+                        }
 
                         debug(" \"%s\"", buf);
                         if (strlen(buf) == MAXUNKNOWN - 1)
@@ -4125,9 +4075,7 @@ void ret_syscall(void)
 
                         debug(", %d, 0x%x) = %s\n", (int)a[2], (int)a[3], toerror(r.rax));
                         dump_pdescr(0);
-                        // FIXME: rax = unsigned long int, never <0
-                        // if (r.rax != -EFAULT) {
-                        if (r.rax != EFAULT) {
+                        if (r.rax != -EFAULT) {
                             add_mem(a[1], a[2], 0, b2, 0);
                         }
                     }
@@ -6249,7 +6197,7 @@ void ret_syscall(void)
             if (SDCOND) {
                 indent(0);
                 debug("%sSYS%d %s ??? (", in_libc ? "[L] " : "", current->syscall,
-                      // FIXME: hardcoded?!? more than 300+ for i386
+                      // FIXME:NIX hardcoded?!? more than 300+ for i386
                       scnames[current->syscall & 0xff]);
                 pdescr[0] = 0;
                 display_value(current->pr.rbx, b2);
@@ -7241,7 +7189,7 @@ void handle_process(void)
 
     // Check for RET (C2)...
     else if ((current->nest >= 0) && (AS_USHORT(op[0]) == 0x08c2)       /* &&
-                                                                           in_libc 
+                                                                           in_libc
                                                                          */ )
         current->checkc2 = 1;
 
@@ -7840,7 +7788,7 @@ void singlestep(void)
                 debug("disappeared??? ");
 
             if (current->syscall) {
-                // FIXME: hardcoded?!? more than 300+ for i386
+                // FIXME:NIX hardcoded?!? more than 300+ for i386
                 debug("in syscall %s (%d) ", scnames[current->syscall & 0xff], current->syscall);
             }
 

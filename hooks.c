@@ -47,11 +47,11 @@
 #include "hooks.h"
 #include "libfnprints.h"
 
-//FIXME: odd, ostream NEVER created, only extern'd
+// FIXME:NIX odd, ostream NEVER created, only extern'd
 #undef debug
 #define debug(x...) fprintf(ostream,x)
 
-//FIXME: only extern'd here, also, fatal never created that I can find. We'll see
+// FIXME:NIX only extern'd here, also, fatal never created that I can find. We'll see
 extern FILE *ostream;
 extern void fatal(const char *x, const int err);
 
@@ -63,7 +63,7 @@ extern char T_goaway;
 
 int was_blocking;
 
-//FIXME: hardcoded?!?  more than 300+ for i386
+// FIXME:NIX hardcoded?!?  more than 300+ for i386
 extern char *scnames[256];
 
 int break_stopped;              // Is the code stopped?
@@ -168,7 +168,7 @@ void del_break(int i)
             send_synctext("There is no such breakpoint active.\n");
             break;
 
-            // FIXME: hardcoded?!? more than 300+ for i386
+            // FIXME:NIX hardcoded?!? more than 300+ for i386
         case BP_SYS:
             sprintf(buf,
                     "Deleted on-syscall breakpoint previously set to '%s'.\n",
@@ -246,7 +246,7 @@ void list_break(void)
             continue;
         tot++;
         switch (bp[i].type) {
-                // FIXME: hardcoded?!? more than 300+ for i386
+                // FIXME:NIX hardcoded?!? more than 300+ for i386
             case BP_SYS:
                 sprintf(buf, "%02d: stop on syscall %s (%d)\n", i,
                         scnames[bp[i].param & 0xff], bp[i].param);
@@ -413,25 +413,22 @@ void set_regs(void)
     ptrace(PTRACE_SETREGS, pid, 0, &x);
     ptrace(PTRACE_GETREGS, pid, 0, &r);
 
-    // FIXME: 64bit
-    /* 
-     * if (x.eax != r.eax) send_synctext("Failed to modify eax (blame ptrace).\n"); else
-     *     if (x.ebx != r.ebx) send_synctext("Failed to modify ebx (blame ptrace).\n"); else
-     *         if (x.ecx != r.ecx) send_synctext("Failed to modify ecx (blame ptrace).\n"); else
-     *             if (x.edx != r.edx) send_synctext("Failed to modify edx (blame ptrace).\n"); else
-     *                 if (x.esp != r.esp) send_synctext("Failed to modify esp (blame ptrace).\n"); else
-     *                     if (x.eip != r.eip) send_synctext("Failed to modify eip (blame ptrace).\n"); else
-     *                         if (x.ebp != r.ebp) send_synctext("Failed to modify ebp (blame ptrace).\n"); else
-     *                             if (x.esi != r.esi) send_synctext("Failed to modify esi (blame ptrace).\n"); else
-     *                                 if (x.edi != r.edi) send_synctext("Failed to modify edi (blame ptrace).\n"); else
-     *                                     if (x.eflags != r.eflags) send_synctext("Failed to modify eflags (blame ptrace).\n"); else
-     *                                         if (x.xds != r.xds) send_synctext("Failed to modify ds (blame ptrace).\n"); else
-     *                                             if (x.xss != r.xss) send_synctext("Failed to modify ss (blame ptrace).\n"); else
-     *                                                 if (x.xgs != r.xgs) send_synctext("Failed to modify ss (blame ptrace).\n"); else
-     *                                                     if (x.xfs != r.xfs) send_synctext("Failed to modify fs (blame ptrace).\n"); else
-     *                                                         if (x.xes != r.xes) send_synctext("Failed to modify es (blame ptrace).\n"); else
-     *                                                             if (x.xcs != r.xcs) send_synctext("Failed to modify cs (blame ptrace).\n"); else
-     */
+    if (x.rax != r.rax) { send_synctext("Failed to modify eax (blame ptrace).\n"); }
+    if (x.rbx != r.rbx) { send_synctext("Failed to modify ebx (blame ptrace).\n"); }
+    if (x.rcx != r.rcx) { send_synctext("Failed to modify ecx (blame ptrace).\n"); }
+    if (x.rdx != r.rdx) { send_synctext("Failed to modify edx (blame ptrace).\n"); }
+    if (x.rsp != r.rsp) { send_synctext("Failed to modify esp (blame ptrace).\n"); }
+    if (x.rip != r.rip) { send_synctext("Failed to modify eip (blame ptrace).\n"); }
+    if (x.rbp != r.rbp) { send_synctext("Failed to modify ebp (blame ptrace).\n"); }
+    if (x.rsi != r.rsi) { send_synctext("Failed to modify esi (blame ptrace).\n"); }
+    if (x.rdi != r.rdi) { send_synctext("Failed to modify edi (blame ptrace).\n"); }
+    if (x.eflags != r.eflags) { send_synctext("Failed to modify eflags (blame ptrace).\n"); }
+    if (x.ds != r.ds) { send_synctext("Failed to modify ds (blame ptrace).\n"); }
+    if (x.ss != r.ss) { send_synctext("Failed to modify ss (blame ptrace).\n"); }
+    if (x.gs != r.gs) { send_synctext("Failed to modify ss (blame ptrace).\n"); }
+    if (x.fs != r.fs) { send_synctext("Failed to modify fs (blame ptrace).\n"); }
+    if (x.es != r.es) { send_synctext("Failed to modify es (blame ptrace).\n"); }
+    if (x.cs != r.cs) { send_synctext("Failed to modify cs (blame ptrace).\n"); }
     send_synctext("Register modified successfully.\n");
 }
 
@@ -601,14 +598,9 @@ void break_messenger(void)
                 fatal("short read from client", 0);
             break_stopped = 0;
             curmode = MODE_SINGLE;
-            // FIXME: 64bit
-            sprintf(buf,
-                    "At 0x%llx, advancing by %d local code instruction(s)...\n",
-                    r.rip, modepar);
-            // FIXME: 64bit
+            sprintf(buf, "At 0x%llx, advancing by %d local code instruction(s)...\n", r.rip, modepar);
             if (INLIBC(r.rip))
-                strcat(buf,
-                       "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
+                strcat(buf, "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
             send_synctext(buf);
             break;
 
@@ -622,17 +614,14 @@ void break_messenger(void)
             break_stopped = 1;
             curmode = MODE_NONE;
             if (blocking_syscall) {
-                // FIXME: 64bit
                 sprintf(buf,
                         "Trying to stop at 0x%llx, but in blocking call %d [%s]...\n"
                         "Send SIGTRAP to pid %d or try 'halt' command to stop immediately.\n",
                         r.rip, blocking_syscall,
-                        // FIXME: hardcoded?!? more than 300+ for i386
+                        // FIXME:NIX hardcoded?!? more than 300+ for i386
                         scnames[blocking_syscall & 0xff], pid);
             } else {
-                // FIXME: 64bit
-                sprintf(buf, ">> Successfully stopped at 0x%llx...\n",
-                        r.rip);
+                sprintf(buf, ">> Successfully stopped at 0x%llx...\n", r.rip);
             }
             send_synctext(buf);
             break;
@@ -645,15 +634,12 @@ void break_messenger(void)
                 current->syscalldone = 1;
                 sprintf(buf,
                         ">> Forced stop at 0x%llx in blocking call %d [%s].\n",
-                        // FIXME: 64bit
                         r.rip, blocking_syscall,
-                        // FIXME: hardcoded?!? more than 300+ for i386
+                        // FIXME:NIX hardcoded?!? more than 300+ for i386
                         scnames[blocking_syscall & 0xff]);
                 blocking_syscall = 0;
             } else {
-                // FIXME: 64bit
-                sprintf(buf, ">> Successfully stopped at 0x%llx...\n",
-                        r.rip);
+                sprintf(buf, ">> Successfully stopped at 0x%llx...\n", r.rip);
             }
             send_synctext(buf);
             break;
@@ -661,7 +647,6 @@ void break_messenger(void)
         case DMSG_RUN:
             break_stopped = 0;
             curmode = MODE_RUN;
-            // FIXME: 64bit
             sprintf(buf, "Resuming at 0x%llx...\n", r.rip);
             send_synctext(buf);
             break;
@@ -740,13 +725,10 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_RET;
-            // FIXME: 64bit
             sprintf(buf, "At 0x%llx, continuing to local RET no. %d...\n",
                     r.rip, modepar);
-            // FIXME: 64bit
             if (INLIBC(r.rip))
-                strcat(buf,
-                       "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
+                strcat(buf, "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
             send_synctext(buf);
             break;
 
@@ -766,9 +748,7 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_DYN;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to the main code...\n",
-                    r.rip);
+            sprintf(buf, "At 0x%llx, continuing to the main code...\n", r.rip);
             send_synctext(buf);
             break;
 
@@ -779,13 +759,9 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_LIBCALL;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to next libcall...\n",
-                    r.rip);
-            // FIXME: 64bit
+            sprintf(buf, "At 0x%llx, continuing to next libcall...\n", r.rip);
             if (INLIBC(r.rip)) {
-                strcat(buf,
-                       "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
+                strcat(buf, "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
             }
             send_synctext(buf);
             break;
@@ -797,9 +773,7 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_SYSCALL;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to next syscall...\n",
-                    r.rip);
+            sprintf(buf, "At 0x%llx, continuing to next syscall...\n", r.rip);
             send_synctext(buf);
             break;
 
@@ -810,13 +784,9 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_CALL;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to next local call...\n",
-                    r.rip);
-            // FIXME: 64bit
+            sprintf(buf, "At 0x%llx, continuing to next local call...\n", r.rip);
             if (INLIBC(r.rip)) {
-                strcat(buf,
-                       "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
+                strcat(buf, "NOTE: you were in libc. Continuing to to local code. Hold on.\n");
             }
             send_synctext(buf);
             break;
@@ -829,9 +799,7 @@ void break_messenger(void)
             break_stopped = 0;
             curmode = MODE_NEST;
             modepar = current->nest;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to lower nest...\n",
-                    r.rip);
+            sprintf(buf, "At 0x%llx, continuing to lower nest...\n", r.rip);
             send_synctext(buf);
             break;
 
@@ -842,9 +810,7 @@ void break_messenger(void)
             }
             break_stopped = 0;
             curmode = MODE_LINE;
-            // FIXME: 64bit
-            sprintf(buf, "At 0x%llx, continuing to next output line...\n",
-                    r.rip);
+            sprintf(buf, "At 0x%llx, continuing to next output line...\n", r.rip);
             send_synctext(buf);
             break;
 
@@ -1021,9 +987,7 @@ void break_newline(void)
             curmode = MODE_NONE;
             break_stopped = 1;
             break_sendentity();
-            // FIXME: 64bit
-            sprintf(buf, ">> New line stop at 0x%llx [%s].\n", r.rip,
-                    break_getname(r.rip));
+            sprintf(buf, ">> New line stop at 0x%llx [%s].\n", r.rip, break_getname(r.rip));
             send_asynctext(buf);
         }
 }
@@ -1051,13 +1015,11 @@ int break_single(void)
 
     for (i = 0; i < MAXBREAK; i++)
         if (bp[i].type == BP_ADDR)
-            // FIXME: 64bit
             if (bp[i].param == r.rip) {
                 curmode = MODE_NONE;
                 break_stopped = 1;
                 break_continuing = 1;
                 break_sendentity();
-                // FIXME: 64bit
                 sprintf(buf, ">> Breakpoint #%d stop at 0x%llx [%s].\n", i,
                         r.rip, break_getname(r.rip));
                 send_asynctext(buf);
@@ -1071,7 +1033,6 @@ int break_single(void)
             break_continuing = 1;
             break_stopped = 1;
             break_sendentity();
-            // FIXME: 64bit
             sprintf(buf, ">> Singlestep stop at 0x%llx [%s].\n", r.rip,
                     break_getname(r.rip));
             send_asynctext(buf);
@@ -1107,9 +1068,7 @@ void break_libcall(unsigned int addr)
                 break_continuing = 1;
                 break_stopped = 1;
                 break_sendentity();
-                // FIXME: 64bit
-                sprintf(buf,
-                        ">> LIBCALL breakpoint #%d (0x%x) stop at 0x%llx [%s].\n",
+                sprintf(buf, ">> LIBCALL breakpoint #%d (0x%x) stop at 0x%llx [%s].\n",
                         i, addr, r.rip, break_getname(r.rip));
                 send_asynctext(buf);
             }
@@ -1119,7 +1078,6 @@ void break_libcall(unsigned int addr)
         break_continuing = 1;
         break_stopped = 1;
         break_sendentity();
-        // FIXME: 64bit
         sprintf(buf, ">> Libcall 0x%x reached at 0x%llx [%s].\n", addr,
                 r.rip, break_getname(r.rip));
         send_asynctext(buf);
@@ -1139,8 +1097,7 @@ void break_syscall(unsigned int num)
                 break_continuing = 1;
                 break_stopped = 1;
                 break_sendentity();
-                // FIXME: 64bit
-                // FIXME: hardcoded?!? more than 300+ for i386
+                // FIXME:NIX hardcoded?!? more than 300+ for i386
                 sprintf(buf,
                         ">> SYSCALL breakpoint #%d [%d, %s] stop at 0x%llx [%s].\n",
                         i, num, scnames[num & 0xff], r.rip,
@@ -1153,8 +1110,7 @@ void break_syscall(unsigned int num)
         break_continuing = 1;
         break_stopped = 1;
         break_sendentity();
-        // FIXME: 64bit
-        // FIXME: hardcoded?!? more than 300+ for i386
+        // FIXME:NIX hardcoded?!? more than 300+ for i386
         sprintf(buf, ">> Syscall %d (%s) reached at 0x%llx [%s].\n", num,
                 scnames[num & 0xff], r.rip, break_getname(r.rip));
         send_asynctext(buf);
@@ -1170,7 +1126,6 @@ void break_call(unsigned int addr)
         break_continuing = 1;
         break_stopped = 1;
         break_sendentity();
-        // FIXME: 64bit
         sprintf(buf, ">> Local call to 0x%x reached at 0x%llx [%s].\n",
                 addr, r.rip, break_getname(r.rip));
         send_asynctext(buf);
@@ -1187,7 +1142,6 @@ void break_ret(void)
             break_continuing = 1;
             break_stopped = 1;
             break_sendentity();
-            // FIXME: 64bit
             sprintf(buf, ">> RET stop point reached at 0x%llx [%s].\n",
                     r.rip, break_getname(r.rip));
             send_asynctext(buf);
@@ -1204,7 +1158,6 @@ void break_nestdown(void)
             break_continuing = 1;
             break_stopped = 1;
             break_sendentity();
-            // FIXME: 64bit
             sprintf(buf,
                     ">> Logical nesting stop point reached at 0x%llx [%s].\n",
                     r.rip, break_getname(r.rip));
@@ -1222,7 +1175,6 @@ void break_enterdyn(void)
         break_stopped = 1;
         break_sendentity();
     }
-    // FIXME: 64bit
     sprintf(buf, ">> Entered main code at 0x%llx [%s].\n", r.rip,
             break_getname(r.rip));
     send_asynctext(buf);
@@ -1241,11 +1193,9 @@ void break_signal(unsigned int signo)
                 curmode = MODE_NONE;
                 break_stopped = 1;
                 break_sendentity();
-                // FIXME: 64bit
                 sprintf(buf,
                         ">> Signal %d breakpoint #%d stop at 0x%llx [%s] (handler 0x%x).\n",
-                        signo, i, r.rip, break_getname(r.rip),
-                        get_handler(signo));
+                        signo, i, r.rip, break_getname(r.rip), get_handler(signo));
                 send_asynctext(buf);
             }
 
@@ -1266,7 +1216,6 @@ void break_memread(unsigned int addr)
                 break_continuing = 1;
                 break_stopped = 1;
                 break_sendentity();
-                // FIXME: 64bit
                 sprintf(buf,
                         ">> Read watchpoint #%d stop at 0x%llx [%s] (read of 0x%x).\n",
                         i, r.rip, break_getname(r.rip), addr);
@@ -1289,9 +1238,7 @@ void break_memwrite(unsigned int addr)
                 break_continuing = 1;
                 break_stopped = 1;
                 break_sendentity();
-                // FIXME: 64bit
-                sprintf(buf,
-                        ">> Write watchpoint #%d stop at 0x%llx [%s] (read of 0x%x).\n",
+                sprintf(buf, ">> Write watchpoint #%d stop at 0x%llx [%s] (read of 0x%x).\n",
                         i, r.rip, break_getname(r.rip), addr);
                 send_asynctext(buf);
             }
@@ -1313,11 +1260,8 @@ void break_tellwillresume(int i)
 
     if (i) {
         char buf[1024];
-        // FIXME: 64bitmode
-        sprintf(buf,
-                "WARNING: This syscall will resume upon continuation. If that is not what you\n"
-                "want, type 'setreg rip 0x%llx' and set %%rax to a desired return value.\n",
-                r.rip);
+        sprintf(buf, "WARNING: This syscall will resume upon continuation. If that is not what you\n"
+                "want, type 'setreg rip 0x%llx' and set %%rax to a desired return value.\n", r.rip);
         send_asynctext(buf);
     } else
         send_asynctext

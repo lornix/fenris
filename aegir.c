@@ -99,7 +99,7 @@ void handle_quit(char *param);
 void handle_quit(char *param);
 void *send_message(int mtype, void *data, void *store);
 
-// FIXME: hardcoded?!? more than 300+ for i386
+// FIXME:NIX hardcoded?!? more than 300+ for i386
 const char *scnames[256] = {
     0,
 #include "syscallnames.h"
@@ -133,7 +133,7 @@ char restart_last;
 
 unsigned long long int l1, l2;
 
-// FIXME: This should be obsolete, no reason to limit to 32 bits
+// FIXME:NIX This should be obsolete, no reason to limit to 32 bits
 /* 
  * #define LC(x) { \
  *     if (x > 0xffffffff) { STDERRMSG("Value out of range.\n"); \
@@ -864,7 +864,7 @@ void do_sbreak(char *param)
     } else {
         if (sscanf(param, "%lld", &l1) != 1) {
 
-            // FIXME: hardcoded?!? there are 300+ for i386!
+            // FIXME:NIX hardcoded?!? there are 300+ for i386!
             for (st = 0; st < 256; st++)
                 if (scnames[st])
                     if (!strcasecmp(scnames[st], param))
@@ -1117,7 +1117,7 @@ char *get_string_sock(int sock)
             fcntl(sock, F_SETFL, O_NONBLOCK);
             return str_buf;
         }
-        // FIXME: this is weird, add, THEN check? nooooo
+        // FIXME:NIX this is weird, add, THEN check? nooooo
         strcat(str_buf, t);
         if (strlen(str_buf) >= sizeof(str_buf) - 2)
             FATALEXIT("string from Fenris is of excessive length");

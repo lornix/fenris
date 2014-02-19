@@ -60,7 +60,7 @@
 char * strcpy(char * dest,const char *src)
 {
     return strcpy(dest,src);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1, d2;
     // __asm__ __volatile__(
     //         "1:\tlodsb\n\t"
@@ -76,7 +76,7 @@ char * strcpy(char * dest,const char *src)
 char * strncpy(char * dest,const char *src,size_t count)
 {
     return strncpy(dest,src,count);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1, d2, d3;
     // __asm__ __volatile__(
     //         "1:\tdecl %2\n\t"
@@ -97,7 +97,7 @@ char * strncpy(char * dest,const char *src,size_t count)
 char * strcat(char * dest,const char * src)
 {
     return strcat(dest,src);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1, d2, d3;
     // __asm__ __volatile__(
     //         "repne\n\t"
@@ -116,7 +116,7 @@ char * strcat(char * dest,const char * src)
 char * strncat(char * dest,const char * src,size_t count)
 {
     return strncat(dest,src,count);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1, d2, d3;
     // __asm__ __volatile__(
     //         "repne\n\t"
@@ -141,7 +141,7 @@ char * strncat(char * dest,const char * src,size_t count)
 int strcmp(const char * cs,const char * ct)
 {
     return strcmp(cs,ct);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1;
     // register int __res;
     // __asm__ __volatile__(
@@ -164,7 +164,7 @@ int strcmp(const char * cs,const char * ct)
 int strncmp(const char * cs,const char * ct,size_t count)
 {
     return strncmp(cs,ct,count);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // register int __res;
     // int d0, d1, d2;
     // __asm__ __volatile__(
@@ -189,7 +189,7 @@ int strncmp(const char * cs,const char * ct,size_t count)
 char * strchr(const char * s, int c)
 {
     return strchr(s,c);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0;
     // register char * __res;
     // __asm__ __volatile__(
@@ -210,7 +210,7 @@ char * strchr(const char * s, int c)
 char * strrchr(const char * s, int c)
 {
     return strrchr(s,c);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1;
     // register char * __res;
     // __asm__ __volatile__(
@@ -229,7 +229,7 @@ char * strrchr(const char * s, int c)
 size_t strlen(const char * s)
 {
     return strlen(s);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0;
     // register int __res;
     // __asm__ __volatile__(
@@ -244,7 +244,7 @@ size_t strlen(const char * s)
 void * __memcpy(void * to, const void * from, size_t n)
 {
     return memcpy(to,from,n);
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // int d0, d1, d2;
     // __asm__ __volatile__(
     //         "rep ; movsl\n\t"
@@ -376,7 +376,7 @@ void * memmove(void * dest,const void * src, size_t n)
 #define __HAVE_ARCH_MEMCHR
 void * memchr(const void * cs,int c,size_t count)
 {
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     int d0;
     register void * __res;
     if (!count)
@@ -393,7 +393,7 @@ void * memchr(const void * cs,int c,size_t count)
 
 void * __memset_generic(void * s, char c,size_t count)
 {
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     int d0, d1;
     __asm__ __volatile__(
             "rep\n\t"
@@ -409,7 +409,7 @@ void * __memset_generic(void * s, char c,size_t count)
 
 void * __constant_c_memset(void * s, unsigned long c, size_t count)
 {
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     int d0, d1;
     __asm__ __volatile__(
             "rep ; stosl\n\t"
@@ -429,7 +429,7 @@ void * __constant_c_memset(void * s, unsigned long c, size_t count)
 #define __HAVE_ARCH_STRNLEN
 size_t strnlen(const char * s, size_t count)
 {
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     int d0;
     register int __res;
     __asm__ __volatile__(
@@ -451,7 +451,7 @@ size_t strnlen(const char * s, size_t count)
 #define __HAVE_ARCH_STRSTR
 char * strstr(const char * cs,const char * ct)
 {
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     int d0, d1;
     register char * __res;
     __asm__ __volatile__(
@@ -549,7 +549,7 @@ void * memscan(void * addr, int c, size_t size)
         ptr=addr+size;
     }
     return ptr;
-    //FIXME: rewrite? or remove?
+    // FIXME:NIX rewrite? or remove?
     // if (!size)
     //     return addr;
     // __asm__("repnz; scasb"
